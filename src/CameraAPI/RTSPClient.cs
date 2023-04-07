@@ -993,8 +993,6 @@ namespace CameraAPI
                             continue;
                         }
 
-                        SetupCompleted?.Invoke(_videoCodec, _videoPayload, _audioCodec, _audioPayload);
-
                         RtspTransport transport = null;
 
                         if (_rtpTransport == RTP_TRANSPORT.TCP)
@@ -1091,6 +1089,8 @@ namespace CameraAPI
                 // Send the FIRST SETUP message and remove it from the list of Setup Messages
                 _rtspClient.SendMessage(_setupMessages[0]);
                 _setupMessages.RemoveAt(0);
+
+                SetupCompleted?.Invoke(_videoCodec, _videoPayload, _audioCodec, _audioPayload);
             }
 
             // If we get a reply to SETUP (which was our third command), then we

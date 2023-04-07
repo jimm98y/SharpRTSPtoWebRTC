@@ -5,7 +5,6 @@ using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,9 +13,8 @@ namespace CameraAPI
     public class RTSPtoWebRTCProxyService : IHostedService
     {
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
-
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
-        private readonly ConcurrentDictionary<string, RTSPClient> _rtspClients = new ConcurrentDictionary<string, RTSPClient>();
+        private readonly ConcurrentDictionary<string, Task<RTSPClientWrapper>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPClientWrapper>>();
 
         public RTSPtoWebRTCProxyService(ILogger<RTSPtoWebRTCProxyService> logger)
         {
@@ -44,77 +42,68 @@ namespace CameraAPI
                 throw new ArgumentNullException("id", "The specified peer connection ID is already in use.");
             }
 
-            TaskCompletionSource<(string video, int videoType, string audio, int audioType)> result = new TaskCompletionSource<(string video, int videoType, string audio, int audioType)>();
-
             // session must be created in advance in order to know which codec to use
-            var client = new RTSPClient(_logger);
-            client.SetupCompleted += (video, videoType, audio, audioType) =>
-            {
-                result.SetResult((video, videoType, audio, audioType));
-            };
-            client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
-
-            var codecs = await result.Task;
-
-            VideoCodecsEnum videoCodecEnum = VideoCodecsEnum.Unknown;
-
-            switch (codecs.video)
-            {
-                case "H264":
-                    videoCodecEnum = VideoCodecsEnum.H264;
-                    break;
-
-                case "H265":
-                    videoCodecEnum = VideoCodecsEnum.H265;
-                    break;
-
-                default:
-                    throw new NotSupportedException(codecs.video);
-            }
-
-            AudioCodecsEnum audioCodecEnum = AudioCodecsEnum.Unknown;
-
-            switch (codecs.audio)
-            {
-                case "PCMA":
-                    audioCodecEnum = AudioCodecsEnum.PCMA;
-                    break;
-
-                case "PCMU":
-                    audioCodecEnum = AudioCodecsEnum.PCMU;
-                    break;
-
-                case "MPEG4-GENERIC": // AAC not supported currently by SipSorcery
-                    //throw new NotSupportedException(codecs.audio);
-
-                default:
-                    audioCodecEnum = AudioCodecsEnum.Unknown;
-                    break;
-            }
+            RTSPClientWrapper client = await GetOrCreateClientAsync(_logger, url, userName, password);
 
             RTCPeerConnection peerConnection = new RTCPeerConnection(null);
 
-            if (videoCodecEnum != VideoCodecsEnum.Unknown)
+            if (client.VideoType > 0)
             {
-                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(new VideoFormat(videoCodecEnum, codecs.videoType));
+                VideoCodecsEnum videoCodecEnum = VideoCodecsEnum.Unknown;
+
+                switch (client.VideoCodec)
+                {
+                    case "H264":
+                        videoCodecEnum = VideoCodecsEnum.H264;
+                        break;
+
+                    case "H265":
+                        videoCodecEnum = VideoCodecsEnum.H265;
+                        break;
+
+                    default:
+                        throw new NotSupportedException(client.VideoCodec);
+                }
+
+                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(new VideoFormat(videoCodecEnum, client.VideoType));
                 MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(videoTrack);
             }
 
-            if(audioCodecEnum != AudioCodecsEnum.Unknown)
+            if (client.AudioType > 0)
             {
-                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(audioCodecEnum, codecs.audioType));
+                AudioCodecsEnum audioCodecEnum = AudioCodecsEnum.Unknown;
+
+                switch (client.AudioCodec)
+                {
+                    case "PCMA":
+                        audioCodecEnum = AudioCodecsEnum.PCMA;
+                        break;
+
+                    case "PCMU":
+                        audioCodecEnum = AudioCodecsEnum.PCMU;
+                        break;
+
+                    case "MPEG4-GENERIC": // AAC not supported currently by SipSorcery
+                                          //throw new NotSupportedException(codecs.audio);
+
+                    default:
+                        audioCodecEnum = AudioCodecsEnum.Unknown;
+                        break;
+                }
+
+                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(audioCodecEnum, client.AudioType));
                 MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(audioTrack);
             }
 
-            peerConnection.onicecandidateerror += 
+            peerConnection.onicecandidateerror +=
                 (candidate, error) => _logger.LogWarning($"Error adding remote ICE candidate. {error} {candidate}");
-            peerConnection.oniceconnectionstatechange += 
+            peerConnection.oniceconnectionstatechange +=
                 (state) => _logger.LogDebug($"ICE connection state change to {state}.");
-            peerConnection.OnRtcpBye += 
+            peerConnection.OnRtcpBye +=
                 (reason) => _logger.LogDebug($"RTCP BYE receive, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
-            peerConnection.OnRtpClosed += 
+            peerConnection.OnRtpClosed +=
                 (reason) => _logger.LogDebug($"Peer connection closed, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
 
             peerConnection.onconnectionstatechange += (state) =>
@@ -123,11 +112,19 @@ namespace CameraAPI
 
                 if (state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.failed)
                 {
-                    _peerConnections.TryRemove(id, out _);
-                    
-                    if(_rtspClients.TryRemove(id, out var rtspClient))
+                    if (_peerConnections.TryRemove(id, out _))
                     {
-                        rtspClient.Stop();
+                        if (_rtspClients.TryGetValue(url, out var rtspClient))
+                        {
+                            if (rtspClient.Result.RemovePeerConnection(id) == 0)
+                            {
+                                if (_rtspClients.TryRemove(url, out _))
+                                {
+                                    rtspClient.Result.Client.Stop();
+                                    _logger.LogDebug($"RTSPClient for {url} stopped.");
+                                }
+                            }
+                        }
                     }
                 }
                 else if (state == RTCPeerConnectionState.connected)
@@ -136,39 +133,50 @@ namespace CameraAPI
                 }
             };
 
-            client.RtpMessageReceived += (message, rtpTimestamp, markerBit, payloadType, skip) =>
-            {
-                // forward RTP to WebRTC "as is", just without the RTP header
-                byte[] msg = message.Skip(skip).ToArray();
-
-                if (payloadType == codecs.videoType)
-                {
-                    peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, msg, rtpTimestamp, markerBit, payloadType);
-                }
-                else if(payloadType == codecs.audioType)
-                {
-                    peerConnection.SendRtpRaw(SDPMediaTypesEnum.audio, msg, rtpTimestamp, markerBit, payloadType);
-                }
-                else
-                {
-                    _logger.LogDebug($"Unknown type {payloadType}.");
-                }
-            };
+            client.AddPeerConnection(id, peerConnection);
 
             var offerInit = peerConnection.createOffer();
-            
-            if (!offerInit.sdp.Contains($"a=fmtp:{codecs.videoType}") && offerInit.sdp.Contains($"a=rtpmap:{codecs.videoType} H264/90000\r\n"))
-            {
-                // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
-                offerInit.sdp = offerInit.sdp.Replace($"a=rtpmap:{codecs.videoType} H264/90000\r\n", $"a=rtpmap:{codecs.videoType} H264/90000\r\na=fmtp:{codecs.videoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
-            }
-
+            offerInit.sdp = MungleSDP(offerInit.sdp, client);
             await peerConnection.setLocalDescription(offerInit);
 
             _peerConnections.TryAdd(id, peerConnection);
-            _rtspClients.TryAdd(id, client);
 
             return offerInit;
+        }
+
+        private static string MungleSDP(string sdp, RTSPClientWrapper client)
+        {
+            if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H264/90000\r\n"))
+            {
+                // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
+                sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H264/90000\r\n", $"a=rtpmap:{client.VideoType} H264/90000\r\na=fmtp:{client.VideoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
+            }
+
+            return sdp;
+        }
+
+        private Task<RTSPClientWrapper> GetOrCreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        {
+            return _rtspClients.GetOrAdd(url, (u) =>
+            {
+                return CreateClientAsync(logger, url, userName, password); 
+            });
+        }
+
+        private async Task<RTSPClientWrapper> CreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        {
+            TaskCompletionSource<(string video, int videoType, string audio, int audioType)> result = new TaskCompletionSource<(string video, int videoType, string audio, int audioType)>();
+            
+            var client = new RTSPClient(logger);
+            client.SetupCompleted += (video, videoType, audio, audioType) =>
+            {
+                result.SetResult((video, videoType, audio, audioType));
+            };
+
+            client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
+
+            var codecs = await result.Task;
+            return new RTSPClientWrapper(client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video);
         }
 
         public void SetAnswer(string id, RTCSessionDescriptionInit description)
