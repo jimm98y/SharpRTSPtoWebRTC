@@ -828,7 +828,9 @@ namespace CameraAPI
                 _logger.LogDebug("RTSP SDP:");
 
                 string sdp = Encoding.UTF8.GetString(message.Data);
-                _logger.LogDebug(sdp); 
+                _logger.LogDebug(sdp);
+
+                sdp = MungleSDP(sdp);
 
                 Rtsp.Sdp.SdpFile sdp_data = null;
                 using (StringReader sdp_stream = new StringReader(sdp))
@@ -1199,6 +1201,23 @@ namespace CameraAPI
 
                 _logger.LogDebug("Got reply from Play  " + message.Command);
             }
+        }
+
+        private string MungleSDP(string sdp)
+        {
+            // SharpRTSP SDP Parser cannot handle invalid URL (e.g. http:///) in the SDP - fix it
+            int startIndex = sdp.IndexOf("\r\nu=");
+            if (startIndex != -1)
+            {
+                int endIndex = sdp.IndexOf("\r\n", startIndex + 2);
+                string uri = sdp.Substring(startIndex + 4, endIndex - startIndex - 4);
+                if(!Uri.IsWellFormedUriString(uri, UriKind.Absolute))
+                {
+                    sdp = sdp.Replace($"\r\nu={uri}\r\n", "\r\n");
+                }
+            }
+
+            return sdp;
         }
 
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
