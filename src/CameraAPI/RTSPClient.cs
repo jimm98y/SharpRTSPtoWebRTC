@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 
 namespace CameraAPI
 {
@@ -20,6 +21,7 @@ namespace CameraAPI
 
         // Events that applications can receive
         public event Received_SPS_PPS_Delegate Received_SPS_PPS;
+        public event Received_SPS_PPS_Delegate Received_SPS_PPS_From_SDP;
         public event Received_VPS_SPS_PPS_Delegate Received_VPS_SPS_PPS;
         public event Received_NALs_Delegate Received_NALs;
         public event Received_G711_Delegate Received_G711;
@@ -459,7 +461,6 @@ namespace CameraAPI
                                     + " SSRC=" + rtp_ssrc
                                     + " Size=" + e.Message.Data.Length);
 
-                RtpMessageReceived?.Invoke(e.Message.Data, rtp_timestamp, rtp_marker, rtp_payload_type, rtp_payload_start);
 
                 // Check the payload type in the RTP packet matches the Payload Type value from the SDP
                 if (data_received.Channel == _videoDataChannel && rtp_payload_type != _videoPayload)
@@ -474,7 +475,10 @@ namespace CameraAPI
                     _logger.LogDebug("Ignoring this Audio RTP payload");
                     return; // ignore this data
                 }
-                else if (data_received.Channel == _videoDataChannel && rtp_payload_type == _videoPayload && _videoCodec.Equals("H264"))
+
+                RtpMessageReceived?.Invoke(e.Message.Data, rtp_timestamp, rtp_marker, rtp_payload_type, rtp_payload_start);
+
+                if (data_received.Channel == _videoDataChannel && rtp_payload_type == _videoPayload && _videoCodec.Equals("H264"))
                 {
                     // H264 RTP Packet
 
@@ -821,10 +825,13 @@ namespace CameraAPI
                 }
 
                 // Examine the SDP
-                _logger.LogDebug(Encoding.UTF8.GetString(message.Data));
+                _logger.LogDebug("RTSP SDP:");
 
-                Rtsp.Sdp.SdpFile sdp_data;
-                using (StreamReader sdp_stream = new StreamReader(new MemoryStream(message.Data)))
+                string sdp = Encoding.UTF8.GetString(message.Data);
+                _logger.LogDebug(sdp); 
+
+                Rtsp.Sdp.SdpFile sdp_data = null;
+                using (StringReader sdp_stream = new StringReader(sdp))
                 {
                     sdp_data = Rtsp.Sdp.SdpFile.Read(sdp_stream);
                 }
@@ -938,6 +945,8 @@ namespace CameraAPI
                                 {
                                     Received_SPS_PPS(sps, pps);
                                 }
+
+                                Received_SPS_PPS_From_SDP?.Invoke(sps, pps);
 
                                 _h264SpsPpsFired = true;
                             }

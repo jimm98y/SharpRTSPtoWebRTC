@@ -1,12 +1,15 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SIPSorcery.Media;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Org.BouncyCastle.Crypto.Digests.SkeinEngine;
 
 namespace CameraAPI
 {
@@ -31,15 +34,19 @@ namespace CameraAPI
             return Task.CompletedTask;
         }
 
-        public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName, string password)
+        public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                throw new ArgumentNullException("id", "A unique ID parameter must be supplied when creating a new peer connection.");
+                throw new ArgumentNullException(nameof(id), "A unique ID parameter must be supplied when creating a new peer connection.");
             }
             else if (_peerConnections.ContainsKey(id))
             {
-                throw new ArgumentNullException("id", "The specified peer connection ID is already in use.");
+                throw new ArgumentNullException(nameof(id), "The specified peer connection ID is already in use.");
+            }
+            else if(string.IsNullOrWhiteSpace(url) || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                throw new ArgumentException(nameof(url), "Invalid camera URL.");
             }
 
             // session must be created in advance in order to know which codec to use
@@ -47,52 +54,16 @@ namespace CameraAPI
 
             RTCPeerConnection peerConnection = new RTCPeerConnection(null);
 
-            if (client.VideoType > 0)
+            if (client.VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
-                VideoCodecsEnum videoCodecEnum = VideoCodecsEnum.Unknown;
-
-                switch (client.VideoCodec)
-                {
-                    case "H264":
-                        videoCodecEnum = VideoCodecsEnum.H264;
-                        break;
-
-                    case "H265":
-                        videoCodecEnum = VideoCodecsEnum.H265;
-                        break;
-
-                    default:
-                        throw new NotSupportedException(client.VideoCodec);
-                }
-
-                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(new VideoFormat(videoCodecEnum, client.VideoType));
+                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(new VideoFormat(client.VideoCodecEnum, client.VideoType));
                 MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(videoTrack);
             }
 
-            if (client.AudioType > 0)
+            if (client.AudioCodecEnum != AudioCodecsEnum.Unknown)
             {
-                AudioCodecsEnum audioCodecEnum = AudioCodecsEnum.Unknown;
-
-                switch (client.AudioCodec)
-                {
-                    case "PCMA":
-                        audioCodecEnum = AudioCodecsEnum.PCMA;
-                        break;
-
-                    case "PCMU":
-                        audioCodecEnum = AudioCodecsEnum.PCMU;
-                        break;
-
-                    case "MPEG4-GENERIC": // AAC not supported currently by SipSorcery
-                                          //throw new NotSupportedException(codecs.audio);
-
-                    default:
-                        audioCodecEnum = AudioCodecsEnum.Unknown;
-                        break;
-                }
-
-                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(audioCodecEnum, client.AudioType));
+                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(client.AudioCodecEnum, client.AudioType));
                 MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(audioTrack);
             }
@@ -148,10 +119,13 @@ namespace CameraAPI
         {
             if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H264/90000\r\n"))
             {
+                // packetization-mode - All endpoints are required to support mode 1 (non-interleaved mode). Support for other packetization modes is optional, and the parameter itself is not required to be specified.
+                // profile-level-id - All WebRTC implementations are required to specify and interpret this parameter in their SDP, identifying the sub-profile used by the codec. The specific value that is set is not defined; what matters is that the parameter be used at all.This is useful to note, since in RFC 6184("RTP Payload Format for H.264 Video"), profile-level-id is entirely optional.
+                // sprop-parameter-sets - Sequence and picture information for AVC can be sent either in-band or out-of - band. When AVC is used with WebRTC, this information must be signaled in-band; the sprop-parameter-sets parameter must therefore not be included in the SDP.
+
                 // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
                 sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H264/90000\r\n", $"a=rtpmap:{client.VideoType} H264/90000\r\na=fmtp:{client.VideoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
             }
-
             return sdp;
         }
 
@@ -173,10 +147,18 @@ namespace CameraAPI
                 result.SetResult((video, videoType, audio, audioType));
             };
 
+            byte[] sdpSps = null;
+            byte[] sdpPps = null;
+            client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps) =>
+            {
+                sdpSps = sps;
+                sdpPps = pps;
+            };
+
             client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
 
             var codecs = await result.Task;
-            return new RTSPClientWrapper(client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video);
+            return new RTSPClientWrapper(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps);
         }
 
         public void SetAnswer(string id, RTCSessionDescriptionInit description)
