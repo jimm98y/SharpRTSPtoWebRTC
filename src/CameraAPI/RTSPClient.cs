@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using System.Globalization;
 
 namespace CameraAPI
 {
@@ -1203,7 +1202,7 @@ namespace CameraAPI
             }
         }
 
-        private string MungleSDP(string sdp)
+        private static string MungleSDP(string sdp)
         {
             // SharpRTSP SDP Parser cannot handle invalid URL (e.g. http:///) in the SDP - fix it
             int startIndex = sdp.IndexOf("\r\nu=");
