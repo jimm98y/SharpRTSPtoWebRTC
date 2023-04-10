@@ -14,6 +14,15 @@
         public byte[] Data { get; private set; }
         public bool BigEndian { get; private set; }
 
+        public SampleBuffer()
+        {
+            Data = new byte[0];
+            SampleRate = 0;
+            Channels = 0;
+            BitsPerSample = 0;
+            BigEndian = true;
+        }
+
         /// <summary>
         /// Sets the endianness for the data.
         /// </summary>

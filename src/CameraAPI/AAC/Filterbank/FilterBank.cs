@@ -37,7 +37,7 @@ namespace CameraAPI.AAC.Filterbank
 			overlaps = new float[channels][];
 			for (int i = 0; i < channels; i++)
 			{
-				overlaps[i] = new float[2];
+				overlaps[i] = new float[length];
 			}
 
 			buf = new float[2*length];

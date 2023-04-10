@@ -16,7 +16,7 @@ namespace CameraAPI.AAC
 		//extension: error resilience
 		private bool sectionDataResilience, scalefactorResilience, spectralDataResilience;
 
-		private DecoderConfig() {
+		public DecoderConfig() {
 			profile = Profile.AAC_MAIN;
 			extProfile = Profile.UNKNOWN;
 			sampleFrequency = SampleFrequency.SAMPLE_FREQUENCY_NONE;
