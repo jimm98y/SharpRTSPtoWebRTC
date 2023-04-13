@@ -30,8 +30,18 @@ namespace CameraAPI.AAC
 			spectralDataResilience = false;
 		}
 
-		/* ========== gets/sets ========== */
-		public ChannelConfiguration getChannelConfiguration() {
+		public void setSBRPresent(bool sbr)
+		{
+			sbrPresent = sbr;
+		}
+
+        public void setSBRDownsampled(bool sbr)
+        {
+            downSampledSBR = sbr;
+        }
+
+        /* ========== gets/sets ========== */
+        public ChannelConfiguration getChannelConfiguration() {
 			return channelConfiguration;
 		}
 

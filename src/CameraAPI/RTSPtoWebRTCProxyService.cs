@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using CameraAPI.Opus;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SIPSorcery.Media;
 using SIPSorcery.Net;
@@ -63,7 +64,17 @@ namespace CameraAPI
 
             if (client.AudioCodecEnum != AudioCodecsEnum.Unknown)
             {
-                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(client.AudioCodecEnum, client.AudioType));
+                SDPAudioVideoMediaFormat audioFormat;
+
+                if (client.AudioCodecEnum == AudioCodecsEnum.OPUS)
+                {
+                    audioFormat = new SDPAudioVideoMediaFormat(OpusAudioEncoder.MEDIA_FORMAT_OPUS);
+                }
+                else
+                {
+                    audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(client.AudioCodecEnum, client.AudioType));
+                }
+
                 MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(audioTrack);
             }
@@ -76,6 +87,9 @@ namespace CameraAPI
                 (reason) => _logger.LogDebug($"RTCP BYE receive, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
             peerConnection.OnRtpClosed +=
                 (reason) => _logger.LogDebug($"Peer connection closed, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
+
+            peerConnection.OnReceiveReport += (re, media, rr) => Console.WriteLine($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
+            peerConnection.OnSendReport += (media, sr) => Console.WriteLine($"RTCP Send for {media}\n{sr.GetDebugSummary()}");
 
             peerConnection.onconnectionstatechange += (state) =>
             {

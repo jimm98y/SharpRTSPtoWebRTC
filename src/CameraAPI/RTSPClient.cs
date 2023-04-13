@@ -35,7 +35,7 @@ namespace CameraAPI
         public delegate void Received_NALs_Delegate(List<byte[]> nal_units); // H264 or H265
         public delegate void Received_G711_Delegate(string format, List<byte[]> g711);
         public delegate void Received_AMR_Delegate(string format, List<byte[]> amr);
-        public delegate void Received_AAC_Delegate(string format, List<byte[]> aac, uint ObjectType, uint FrequencyIndex, uint ChannelConfiguration);
+        public delegate void Received_AAC_Delegate(string format, List<byte[]> aac, uint ObjectType, uint FrequencyIndex, uint ChannelConfiguration, uint timestamp, int payloadType);
         public delegate void Received_RTP_Delegate(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip); // RTP
         public delegate void Setup_Completed_Delegate(string video, int videoType, string audio, int audioType); // current audio and video
 
@@ -679,7 +679,7 @@ namespace CameraAPI
                         // Write the audio frames to the file
                         if (Received_AAC != null)
                         {
-                            Received_AAC(_audioCodec, audio_frames, (uint)_aacPayload.ObjectType, (uint)_aacPayload.FrequencyIndex, (uint)_aacPayload.ChannelConfiguration);
+                            Received_AAC(_audioCodec, audio_frames, (uint)_aacPayload.ObjectType, (uint)_aacPayload.FrequencyIndex, (uint)_aacPayload.ChannelConfiguration, rtp_timestamp, rtp_payload_type);
                         }
                     }
                 }
@@ -924,7 +924,7 @@ namespace CameraAPI
                                     _audioCodec = rtpmap.EncodingName.ToUpper();
                                     _audioPayload = sdp_data.Medias[x].PayloadType;
                                 }
-                            }
+                            }   
                         }
 
                         // Create H264 RTP Parser
