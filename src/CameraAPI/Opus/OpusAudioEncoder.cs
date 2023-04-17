@@ -55,7 +55,7 @@ namespace CameraAPI.Opus
             {
                 if (_opusDecoder == null)
                 {
-                    _opusDecoder = OpusDecoder.Create(SAMPLE_RATE, _channels);
+                    _opusDecoder = new OpusDecoder(SAMPLE_RATE, _channels);
                     _shortBuffer = new short[MAX_FRAME_SIZE * _channels];
                 }
 
@@ -65,8 +65,8 @@ namespace CameraAPI.Opus
 
                     if (numSamplesDecoded >= 1)
                     {
-                        var buffer = new short[numSamplesDecoded];
-                        Array.Copy(_shortBuffer, 0, buffer, 0, numSamplesDecoded);
+                        var buffer = new short[numSamplesDecoded * _channels];
+                        Buffer.BlockCopy(_shortBuffer, 0, buffer, 0, numSamplesDecoded * _channels * sizeof(short));
 
                         //log.LogDebug($"[DecodeAudio1] DecodedShort:[{numSamplesDecoded}] - EncodedByte.Length:[{encodedSample.Length}]");
                         return buffer;
@@ -88,8 +88,8 @@ namespace CameraAPI.Opus
             {
                 if (_opusEncoder == null)
                 {
-                    _opusEncoder = OpusEncoder.Create(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
-                    _opusEncoder.ForceMode = OpusMode.MODE_AUTO;
+                    _opusEncoder = new OpusEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
+                    _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
                     _byteBuffer = new byte[MAX_PACKET_SIZE];
                 }
 
@@ -101,7 +101,7 @@ namespace CameraAPI.Opus
                     if (size > 1)
                     {
                         byte[] result = new byte[size];
-                        Array.Copy(_byteBuffer, 0, result, 0, size);
+                        Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
 
                         log.LogDebug($"[EncodeAudioTest] frameSize:[{frameSize}] - DecodedShort:[{pcm.Length}] - EncodedByte.Length:[{result.Length}]");
                         return result;

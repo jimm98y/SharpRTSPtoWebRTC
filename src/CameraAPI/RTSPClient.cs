@@ -30,9 +30,9 @@ namespace CameraAPI
         public event Setup_Completed_Delegate SetupCompleted;
 
         // Delegated functions (essentially the function prototype)
-        public delegate void Received_SPS_PPS_Delegate(byte[] sps, byte[] pps); // H264
-        public delegate void Received_VPS_SPS_PPS_Delegate(byte[] vps, byte[] sps, byte[] pps); // H265
-        public delegate void Received_NALs_Delegate(List<byte[]> nal_units); // H264 or H265
+        public delegate void Received_SPS_PPS_Delegate(byte[] sps, byte[] pps, uint timestamp); // H264
+        public delegate void Received_VPS_SPS_PPS_Delegate(byte[] vps, byte[] sps, byte[] pps, uint timestamp); // H265
+        public delegate void Received_NALs_Delegate(List<byte[]> nal_units, uint timestamp); // H264 or H265
         public delegate void Received_G711_Delegate(string format, List<byte[]> g711);
         public delegate void Received_AMR_Delegate(string format, List<byte[]> amr);
         public delegate void Received_AAC_Delegate(string format, List<byte[]> aac, uint ObjectType, uint FrequencyIndex, uint ChannelConfiguration, uint timestamp, int payloadType);
@@ -85,7 +85,7 @@ namespace CameraAPI
         Rtsp.H265Payload _h265Payload = null;
         Rtsp.G711Payload _g711Payload = new Rtsp.G711Payload();
         Rtsp.AMRPayload _amrPayload = new Rtsp.AMRPayload();
-        Rtsp.AACPayload _aacPayload = null;
+        SharpRtsp.Patch.AACPayload _aacPayload = null;
 
         private object _syncRoot = new object();
 
@@ -528,7 +528,7 @@ namespace CameraAPI
                             {
                                 if (Received_SPS_PPS != null)
                                 {
-                                    Received_SPS_PPS(sps, pps);
+                                    Received_SPS_PPS(sps, pps, rtp_timestamp);
                                 }
 
                                 _h264SpsPpsFired = true;
@@ -538,7 +538,7 @@ namespace CameraAPI
                         // we have a frame of NAL Units. Write them to the file
                         if (Received_NALs != null)
                         {
-                            Received_NALs(nal_units);
+                            Received_NALs(nal_units, rtp_timestamp);
                         }
                     }
                 }
@@ -601,7 +601,7 @@ namespace CameraAPI
                                 // Fire the Event
                                 if (Received_VPS_SPS_PPS != null)
                                 {
-                                    Received_VPS_SPS_PPS(vps, sps, pps);
+                                    Received_VPS_SPS_PPS(vps, sps, pps, rtp_timestamp);
                                 }
 
                                 _h265VpsSpsPpsFired = true;
@@ -611,7 +611,7 @@ namespace CameraAPI
                         // we have a frame of NAL Units. Write them to the file
                         if (Received_NALs != null)
                         {
-                            Received_NALs(nal_units);
+                            Received_NALs(nal_units, rtp_timestamp);
                         }
                     }
                 }
@@ -668,7 +668,7 @@ namespace CameraAPI
                     byte[] rtp_payload = new byte[e.Message.Data.Length - rtp_payload_start]; // payload with RTP header removed
                     Array.Copy(e.Message.Data, rtp_payload_start, rtp_payload, 0, rtp_payload.Length); // copy payload
 
-                    List<byte[]> audio_frames = _aacPayload.ProcessRTPPacket(rtp_payload, rtp_marker);
+                    List<byte[]> audio_frames = _aacPayload.Process_AAC_RTP_Packet(rtp_payload, rtp_marker);
 
                     if (audio_frames == null)
                     {
@@ -944,10 +944,10 @@ namespace CameraAPI
                                 byte[] pps = sps_pps[1];
                                 if (Received_SPS_PPS != null)
                                 {
-                                    Received_SPS_PPS(sps, pps);
+                                    Received_SPS_PPS(sps, pps, 0);
                                 }
 
-                                Received_SPS_PPS_From_SDP?.Invoke(sps, pps);
+                                Received_SPS_PPS_From_SDP?.Invoke(sps, pps, 0);
 
                                 _h264SpsPpsFired = true;
                             }
@@ -976,7 +976,7 @@ namespace CameraAPI
 
                                 if (Received_VPS_SPS_PPS != null)
                                 {
-                                    Received_VPS_SPS_PPS(vps, sps, pps);
+                                    Received_VPS_SPS_PPS(vps, sps, pps, 0);
                                 }
 
                                 _h265VpsSpsPpsFired = true;
@@ -989,7 +989,7 @@ namespace CameraAPI
                         if (audio && _audioCodec.Contains("MPEG4-GENERIC") && fmtp["mode"].ToLower().Equals("aac-hbr"))
                         {
                             // Extract config (eg 0x1490 or 0x1210)
-                            _aacPayload = new Rtsp.AACPayload(fmtp["config"]);
+                            _aacPayload = new SharpRtsp.Patch.AACPayload(fmtp["config"]);
                         }
 
                         // Send the SETUP RTSP command if we have a matching Payload Decoder

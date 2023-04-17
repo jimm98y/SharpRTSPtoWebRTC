@@ -163,7 +163,7 @@ namespace CameraAPI
 
             byte[] sdpSps = null;
             byte[] sdpPps = null;
-            client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps) =>
+            client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps, uint timestamp) =>
             {
                 sdpSps = sps;
                 sdpPps = pps;

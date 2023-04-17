@@ -3,16 +3,21 @@ using CameraAPI.Opus;
 using Concentus.Common;
 using Concentus.Structs;
 using Microsoft.Extensions.Logging;
+using SIPSorcery.net.RTP;
 using SIPSorcery.Net;
+using SIPSorcery.SIP;
 using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Timers;
+using WebSocketSharp;
 
 namespace CameraAPI
 {
@@ -34,11 +39,9 @@ namespace CameraAPI
 
         Decoder AacDecoder = null;
         OpusAudioEncoder enc = new OpusAudioEncoder(2);
-        SpeexResampler resampler = new SpeexResampler(2, 44100 / 2, 48000, 10); // Why is the frequency half?
+        SpeexResampler resampler = new SpeexResampler(2, 44100, 48000, 10);
         List<short> _samples = new List<short>();
-        short[] resampled = new short[16000];
-        ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
-        private System.Timers.Timer _audioSenderTask;
+        short[] resampled = new short[22050];
 
         public RTSPClientWrapper(ILogger logger, RTSPClient client, int audioType, string audioCodec, int videoType, string videoCodec, byte[] sps, byte[] pps)
         {
@@ -50,18 +53,6 @@ namespace CameraAPI
             this.VideoCodec = videoCodec;
             this.Sps = sps;
             this.Pps = pps;
-            _audioSenderTask = new System.Timers.Timer(20);
-            _audioSenderTask.AutoReset = true;
-            _audioSenderTask.Elapsed += (o, e) =>
-            {
-                if (_sendQueue.TryDequeue(out byte[] buffer))
-                {
-                    foreach (var peerConnection in _peerConnections)
-                    {
-                        peerConnection.Value.SendAudio((uint)enc.GetFrameSize(), buffer);
-                    }
-                }
-            };
 
             if (VideoType > 0)
             {
@@ -96,11 +87,11 @@ namespace CameraAPI
                     case "MPEG4-GENERIC": // AAC not supported currently by WebRTC, it requires transcoding to PCMA/PCMU
                                           //throw new NotSupportedException(codecs.audio);
                         AudioCodecEnum = AudioCodecsEnum.OPUS;
-                        var config = new DecoderConfig();
-                        config.setSampleFrequency(SampleFrequency.SAMPLE_FREQUENCY_44100);
-                        config.setProfile(Profile.AAC_MAIN);
-                        config.setChannelConfiguration(ChannelConfiguration.CHANNEL_CONFIG_STEREO);
-                        AacDecoder = new Decoder(config);
+                        var decoderConfig = new DecoderConfig();
+                        decoderConfig.setProfile(Profile.AAC_LC);
+                        decoderConfig.setSampleFrequency(SampleFrequency.SAMPLE_FREQUENCY_44100);
+                        decoderConfig.setChannelConfiguration(ChannelConfiguration.CHANNEL_CONFIG_STEREO);
+                        AacDecoder = new Decoder(decoderConfig);
                         break;
 
                     default:
@@ -149,16 +140,21 @@ namespace CameraAPI
 
             client.Received_AAC += (format, aac, objectType, frequencyIndex, channelConfig, timestamp, payloadType) =>
             {
-                SampleBuffer buffer = new SampleBuffer();
-
                 try
                 {
+                    uint rtpBegin = (uint)(timestamp - (_samples.Count / 2 /* buffer.Channels */));
+
                     foreach (var aacFrame in aac)
                     {
+                        //AppendToFile("C:\\Temp\\test.aac", aacFrame);
+
+                        SampleBuffer buffer = new SampleBuffer();
                         buffer.SetBigEndian(false);
                         AacDecoder.decodeFrame(aacFrame, buffer);
 
-                        short[] sdata = new short[buffer.Data.Length / 2];
+                        //AppendToFile("C:\\Temp\\test.pcm", buffer.Data);
+
+                        short[] sdata = new short[buffer.Data.Length / sizeof(short)];
                         Buffer.BlockCopy(buffer.Data, 0, sdata, 0, buffer.Data.Length);
 
                         // resample from 44100 to 48000
@@ -177,20 +173,28 @@ namespace CameraAPI
                             sdata = _samples.Take(frameSize).ToArray();
                             _samples.RemoveRange(0, frameSize);
 
-                            //byte[] result = new byte[outLen * buffer.Channels * sizeof(short)];
-                            //Buffer.BlockCopy(resampled, 0, result, 0, result.Length);
-                            //AppendToFile("C:\\Temp\\test.pcm", result);
+                            //byte[] result = new byte[sdata.Length * sizeof(short)];
+                            //Buffer.BlockCopy(sdata, 0, result, 0, result.Length);
+                            //AppendToFile("C:\\Temp\\testres.pcm", result);
 
                             byte[] encoded = enc.EncodeAudio(sdata, OpusAudioEncoder.MEDIA_FORMAT_OPUS);
-                            _sendQueue.Enqueue(encoded);
+                            foreach (var peerConnection in _peerConnections)
+                            {
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpBegin, 0, 111);
+                            }
+
+                            //short[] decoded = enc.DecodeAudio(encoded, OpusAudioEncoder.MEDIA_FORMAT_OPUS);
+                            //byte[] decodedBytes = new byte[decoded.Length * sizeof(short)];
+                            //Buffer.BlockCopy(decoded, 0, decodedBytes, 0, decodedBytes.Length);
+                            //AppendToFile("C:\\Temp\\testdec.pcm", decodedBytes);
+
+                            rtpBegin += (uint)enc.GetFrameSize();
                         }
                     }
                 }
                 catch (Exception ex)
                 { }
             };
-
-            _audioSenderTask.Start();
         }
 
         public static void AppendToFile(string fileToWrite, byte[] DT)
