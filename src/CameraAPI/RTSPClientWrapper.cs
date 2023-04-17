@@ -1,23 +1,14 @@
 ﻿using CameraAPI.AAC;
 using CameraAPI.Opus;
 using Concentus.Common;
-using Concentus.Structs;
 using Microsoft.Extensions.Logging;
-using SIPSorcery.net.RTP;
 using SIPSorcery.Net;
-using SIPSorcery.SIP;
 using SIPSorceryMedia.Abstractions;
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
-using System.Threading;
-using System.Timers;
-using WebSocketSharp;
 
 namespace CameraAPI
 {
