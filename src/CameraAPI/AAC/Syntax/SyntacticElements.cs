@@ -11,6 +11,7 @@ namespace CameraAPI.AAC.Syntax
 		private DecoderConfig config;
 		private bool sbrPresent, psPresent;
 		private int bitsRead;
+		private int frame = 0;
 		//elements
 		private PCE pce;
 		private Element[] elements; //SCE, LFE and CPE
@@ -43,6 +44,7 @@ namespace CameraAPI.AAC.Syntax
 		}
 
 		public void decode(BitStream input) {
+			++frame;
 			int start = input.getPosition(); //should be 0
 
 			int type;
@@ -132,14 +134,14 @@ namespace CameraAPI.AAC.Syntax
 		}
 
 		private Element decodeSCE_LFE(BitStream input) {
-			if(elements[curElem]==null) elements[curElem] = new SCE_LFE(config.getFrameLength());
+			if(elements[curElem]==null) elements[curElem] = new SCE_LFE(config);
 			((SCE_LFE) elements[curElem]).decode(input, config);
 			curElem++;
 			return elements[curElem-1];
 		}
 
 		private Element decodeCPE(BitStream input) {
-			if(elements[curElem]==null) elements[curElem] = new CPE(config.getFrameLength());
+			if(elements[curElem]==null) elements[curElem] = new CPE(config);
 			((CPE) elements[curElem]).decode(input, config);
 			curElem++;
 			return elements[curElem-1];
@@ -147,7 +149,7 @@ namespace CameraAPI.AAC.Syntax
 
 		private void decodeCCE(BitStream input) {
 			if(curCCE==MAX_ELEMENTS) throw new AACException("too much CCE elements");
-			if(cces[curCCE]==null) cces[curCCE] = new CCE(config.getFrameLength());
+			if(cces[curCCE]==null) cces[curCCE] = new CCE(config);
 			cces[curCCE].decode(input, config);
 			curCCE++;
 		}
@@ -224,7 +226,7 @@ namespace CameraAPI.AAC.Syntax
 		private int processSingle(SCE_LFE scelfe, FilterBank filterBank, int channel, Profile profile, SampleFrequency sf) {
 			ICStream ics = scelfe.getICStream();
 			ICSInfo info = ics.getInfo();
-			LTPrediction ltp = info.getLTPrediction1();
+			LTPrediction ltp = info.getLTPrediction();
 			int elementID = scelfe.getElementInstanceTag();
 
 			//inverse quantization
@@ -232,10 +234,10 @@ namespace CameraAPI.AAC.Syntax
 
 			//prediction
 			if(profile.Equals(Profile.AAC_MAIN)&&info.isICPredictionPresent()) info.getICPrediction().process(ics, iqData, sf);
-			if(LTPrediction.isLTPProfile(profile)&&info.isLTPrediction1Present()) ltp.process(ics, iqData, filterBank, sf);
+            if (ltp != null) ltp.process(ics, iqData, filterBank, sf);
 
-			//dependent coupling
-			processDependentCoupling(false, elementID, CCE.BEFORE_TNS, iqData, null);
+            //dependent coupling
+            processDependentCoupling(false, elementID, CCE.BEFORE_TNS, iqData, null);
 
 			//TNS
 			if(ics.isTNSDataPresent()) ics.getTNS().process(ics, iqData, sf, false);
@@ -246,10 +248,10 @@ namespace CameraAPI.AAC.Syntax
 			//filterbank
 			filterBank.Process(info.getWindowSequence(), info.getWindowShape(ICSInfo.CURRENT), info.getWindowShape(ICSInfo.PREVIOUS), iqData, data[channel], channel);
 
-			if(LTPrediction.isLTPProfile(profile)) ltp.updateState(data[channel], filterBank.GetOverlap(channel), profile);
+            if (ltp != null) ltp.updateState(data[channel], filterBank.GetOverlap(channel), profile);
 
-			//dependent coupling
-			processIndependentCoupling(false, elementID, data[channel], null);
+            //dependent coupling
+            processIndependentCoupling(false, elementID, data[channel], null);
 
 			//gain control
 			if(ics.isGainControlPresent()) ics.getGainControl().Process(iqData, info.getWindowShape(ICSInfo.CURRENT), info.getWindowShape(ICSInfo.PREVIOUS), info.getWindowSequence());
@@ -261,8 +263,8 @@ namespace CameraAPI.AAC.Syntax
 				SBR sbr = scelfe.getSBR();
 				if(sbr.isPSUsed()) {
 					chs = 2;
-					scelfe.getSBR().process(data[channel], data[channel+1], false);
-				}
+                    scelfe.getSBR().processPS(data[channel], data[channel + 1], false);
+                }
 				else scelfe.getSBR().process(data[channel], false);
 			}
 			return chs;
@@ -273,9 +275,9 @@ namespace CameraAPI.AAC.Syntax
 			ICStream ics2 = cpe.getRightChannel();
 			ICSInfo info1 = ics1.getInfo();
 			ICSInfo info2 = ics2.getInfo();
-			LTPrediction ltp1 = info1.getLTPrediction1();
-			LTPrediction ltp2 = cpe.isCommonWindow() ? info1.getLTPrediction2() : info2.getLTPrediction1();
-			int elementID = cpe.getElementInstanceTag();
+            LTPrediction ltp1 = info1.getLTPrediction();
+            LTPrediction ltp2 = info2.getLTPrediction();
+            int elementID = cpe.getElementInstanceTag();
 
 			//inverse quantization
 			float[] iqData1 = ics1.getInvQuantData();
@@ -291,15 +293,12 @@ namespace CameraAPI.AAC.Syntax
 			//IS
 			IS.process(cpe, iqData1, iqData2);
 
-			//LTP
-			if(LTPrediction.isLTPProfile(profile)) {
-				if(info1.isLTPrediction1Present()) ltp1.process(ics1, iqData1, filterBank, sf);
-				if(cpe.isCommonWindow()&&info1.isLTPrediction2Present()) ltp2.process(ics2, iqData2, filterBank, sf);
-				else if(info2.isLTPrediction1Present()) ltp2.process(ics2, iqData2, filterBank, sf);
-			}
+            //LTP
+            if (ltp1 != null) ltp1.process(ics1, iqData1, filterBank, sf);
+            if (ltp2 != null) ltp2.process(ics2, iqData2, filterBank, sf);
 
-			//dependent coupling
-			processDependentCoupling(true, elementID, CCE.BEFORE_TNS, iqData1, iqData2);
+            //dependent coupling
+            processDependentCoupling(true, elementID, CCE.BEFORE_TNS, iqData1, iqData2);
 
 			//TNS
 			if(ics1.isTNSDataPresent()) ics1.getTNS().process(ics1, iqData1, sf, false);
@@ -312,13 +311,11 @@ namespace CameraAPI.AAC.Syntax
 			filterBank.Process(info1.getWindowSequence(), info1.getWindowShape(ICSInfo.CURRENT), info1.getWindowShape(ICSInfo.PREVIOUS), iqData1, data[channel], channel);
 			filterBank.Process(info2.getWindowSequence(), info2.getWindowShape(ICSInfo.CURRENT), info2.getWindowShape(ICSInfo.PREVIOUS), iqData2, data[channel+1], channel+1);
 
-			if(LTPrediction.isLTPProfile(profile)) {
-				ltp1.updateState(data[channel], filterBank.GetOverlap(channel), profile);
-				ltp2.updateState(data[channel+1], filterBank.GetOverlap(channel+1), profile);
-			}
+            if (ltp1 != null) ltp1.updateState(data[channel], filterBank.GetOverlap(channel), profile);
+            if (ltp2 != null) ltp2.updateState(data[channel + 1], filterBank.GetOverlap(channel + 1), profile);
 
-			//independent coupling
-			processIndependentCoupling(true, elementID, data[channel], data[channel+1]);
+            //independent coupling
+            processIndependentCoupling(true, elementID, data[channel], data[channel+1]);
 
 			//gain control
 			if(ics1.isGainControlPresent()) ics1.getGainControl().Process(iqData1, info1.getWindowShape(ICSInfo.CURRENT), info1.getWindowShape(ICSInfo.PREVIOUS), info1.getWindowSequence());
@@ -384,8 +381,11 @@ namespace CameraAPI.AAC.Syntax
 		public void sendToOutput(SampleBuffer buffer) {
 			bool be = buffer.BigEndian;
 
-			int chs = data.Length;
-			int mult = (sbrPresent&&config.isSBREnabled()) ? 2 : 1;
+            // always allocate at least two channels
+            // mono can't be upgraded after implicit PS occures
+            int chs = Math.Max(data.Length, 2);
+
+            int mult = (sbrPresent&&config.isSBREnabled()) ? 2 : 1;
 			int length = mult*config.getFrameLength();
 			int freq = mult*config.getSampleFrequency().GetFrequency();
 
@@ -396,8 +396,9 @@ namespace CameraAPI.AAC.Syntax
 			int i, j, off;
 			short s;
 			for(i = 0; i<chs; i++) {
-				cur = data[i];
-				for(j = 0; j<length; j++) {
+                // duplicate possible mono channel
+                cur = data[i < data.Length ? i : 0];
+                for (j = 0; j<length; j++) {
 					s = (short) Math.Max(Math.Min(Math.Round(cur[j]), short.MaxValue), short.MinValue);
 					off = (j*chs+i)*2;
 					if(be) {

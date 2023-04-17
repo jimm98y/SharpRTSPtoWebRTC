@@ -29,7 +29,7 @@
 
         public static bool IsDecodingSupported(this Profile profile)
         {
-            return profile == Profile.AAC_MAIN || profile == Profile.AAC_LC || profile == Profile.AAC_SBR || profile == Profile.ER_AAC_LC;
+            return profile == Profile.AAC_MAIN || profile == Profile.AAC_LC || profile == Profile.AAC_SBR || profile == Profile.ER_AAC_LC || profile == Profile.AAC_LTP || profile == Profile.ER_AAC_LTP;
         }
     }
 }

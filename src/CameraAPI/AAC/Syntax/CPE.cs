@@ -9,10 +9,10 @@ namespace CameraAPI.AAC.Syntax
 		private bool commonWindow;
 		ICStream icsL, icsR;
 
-		public CPE(int frameLength) {
+		public CPE(DecoderConfig config) {
 			msUsed = new bool[Constants.MAX_MS_MASK];
-			icsL = new ICStream(frameLength);
-			icsR = new ICStream(frameLength);
+			icsL = new ICStream(config);
+			icsR = new ICStream(config);
 		}
 
 		public void decode(BitStream input, DecoderConfig conf) {
@@ -26,9 +26,9 @@ namespace CameraAPI.AAC.Syntax
 			ICSInfo info = icsL.getInfo();
 			if(commonWindow) {
 				info.decode(input, conf, commonWindow);
-				icsR.getInfo().setData(info);
+                icsR.getInfo().setData(input, conf, info);
 
-				msMask = (MSMask)(input.readBits(2));
+                msMask = (MSMask)(input.readBits(2));
 				if(msMask.Equals(MSMask.TYPE_USED)) {
 					int maxSFB = info.getMaxSFB();
 					int windowGroupCount = info.getWindowGroupCount();
@@ -46,9 +46,10 @@ namespace CameraAPI.AAC.Syntax
 				Arrays.Fill(msUsed, false);
 			}
 
-			if(profile.IsErrorResilientProfile() && (info.isLTPrediction1Present())) {
-				if(info.ltpData2Present = input.readBool()) info.getLTPrediction2().decode(input, info, profile);
-			}
+            if (profile.IsErrorResilientProfile()) {
+                LTPrediction ltp = icsR.getInfo().getLTPrediction();
+                if (ltp != null) ltp.decode(input, info, profile);
+            }
 
 			icsL.decode(input, commonWindow, conf);
 			icsR.decode(input, commonWindow, conf);

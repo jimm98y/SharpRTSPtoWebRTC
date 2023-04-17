@@ -14,7 +14,7 @@ namespace CameraAPI.AAC.Syntax
 			1.4142135623730950488016887f,
 			2f};
 		private readonly ICStream ics;
-		private float[] iqData;
+		//private float[] iqData;
 		private int couplingPoint;
 		private int coupledCount;
 		private readonly bool[] channelPair;
@@ -25,8 +25,8 @@ namespace CameraAPI.AAC.Syntax
 		 */
 		private readonly float[,] gain;
 
-		public CCE(int frameLength) {
-			ics = new ICStream(frameLength);
+		public CCE(DecoderConfig config) {
+			ics = new ICStream(config);
 			channelPair = new bool[8];
 			idSelect = new int[8];
 			chSelect = new int[8];
@@ -54,6 +54,7 @@ namespace CameraAPI.AAC.Syntax
 		}
 
         public void decode(BitStream input, DecoderConfig conf) {
+			readElementInstanceTag(input);
 			couplingPoint = 2* input.readBit();
 			coupledCount = input.readBits(3);
 			int gainCount = 0;
@@ -78,10 +79,9 @@ namespace CameraAPI.AAC.Syntax
 			ICSInfo info = ics.getInfo();
 			int windowGroupCount = info.getWindowGroupCount();
 			int maxSFB = info.getMaxSFB();
-			//TODO:
-			int[][] sfbCB = null;//ics.getSectionData().getSfbCB();
 
-			for(i = 0; i<gainCount; i++) {
+            int[] sfbCB = ics.getSfbCB();
+            for (i = 0; i<gainCount; i++) {
 				int idx = 0;
 				int cge = 1;
 				int xg = 0;
@@ -96,8 +96,8 @@ namespace CameraAPI.AAC.Syntax
 					int sfb;
 					for(int g = 0; g<windowGroupCount; g++) {
 						for(sfb = 0; sfb<maxSFB; sfb++, idx++) {
-							if(sfbCB[g][sfb]!=HCB.ZERO_HCB) {
-								if(cge==0) {
+                            if (sfbCB[idx] != HCB.ZERO_HCB) {
+                                if (cge==0) {
 									int t = Huffman.Huffman.DecodeScaleFactor(input) - 60;
 									if(t!=0) {
 										int s = 1;
@@ -118,12 +118,13 @@ namespace CameraAPI.AAC.Syntax
 		}
 
         public void process() {
-			iqData = ics.getInvQuantData();
+			//iqData = ics.getInvQuantData();
 		}
 
         public void applyIndependentCoupling(int index, float[] data) {
 			double g = gain[index,0];
-			for(int i = 0; i<data.Length; i++) {
+            float[] iqData = ics.getInvQuantData();
+            for (int i = 0; i<data.Length; i++) {
 				data[i] += (float)(g * iqData[i]);
 			}
 		}
@@ -133,10 +134,10 @@ namespace CameraAPI.AAC.Syntax
 			int[] swbOffsets = info.getSWBOffsets();
 			int windowGroupCount = info.getWindowGroupCount();
 			int maxSFB = info.getMaxSFB();
-			//TODO:
-			int[][] sfbCB = null; //ics.getSectionData().getSfbCB();
+            int[] sfbCB = ics.getSfbCB();
+            float[] iqData = ics.getInvQuantData();
 
-			int srcOff = 0;
+            int srcOff = 0;
 			int dstOff = 0;
 
 			int len, sfb, group, k, idx = 0;
@@ -144,8 +145,8 @@ namespace CameraAPI.AAC.Syntax
 			for(int g = 0; g<windowGroupCount; g++) {
 				len = info.getWindowGroupLength(g);
 				for(sfb = 0; sfb<maxSFB; sfb++, idx++) {
-					if(sfbCB[g][sfb]!=HCB.ZERO_HCB) {
-						x = gain[index,idx];
+                    if (sfbCB[idx] != HCB.ZERO_HCB) {
+                        x = gain[index,idx];
 						for(group = 0; group<len; group++) {
 							for(k = swbOffsets[sfb]; k<swbOffsets[sfb+1]; k++) {
 								data[dstOff+group*128+k] += x*iqData[srcOff+group*128+k];

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Syntax
 {
-    public class DSE
+    public class DSE : Element
     {
         private byte[] dataStreamBytes;
 
@@ -9,7 +9,9 @@
 		}
 
 		public void decode(BitStream input) {
-			bool byteAlign = input.readBool();
+            readElementInstanceTag(input);
+
+            bool byteAlign = input.readBool();
 			int count = input.readBits(8);
 			if(count==255) count += input.readBits(8);
 

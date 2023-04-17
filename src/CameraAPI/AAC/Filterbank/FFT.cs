@@ -42,7 +42,7 @@
 		public void Process(float[,] input, bool forward)
 		{
 			int imOff = (forward ? 2 : 1);
-			int scale = (forward ? length : 1);
+			int scale = 1;
 			//bit-reversal
 			int ii = 0;
 			for (int i = 0; i < length; i++)

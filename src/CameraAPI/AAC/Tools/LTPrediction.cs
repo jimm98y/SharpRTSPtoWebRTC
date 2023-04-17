@@ -17,7 +17,10 @@ namespace CameraAPI.AAC.Tools
 			1.194601f,
 			1.369533f
 		};
-		private int frameLength;
+
+        private bool _isPresent = false;
+
+        private int frameLength;
 		private int[] states;
 		private int coef, lag, lastBand;
 		private bool lagUpdate;
@@ -29,9 +32,19 @@ namespace CameraAPI.AAC.Tools
 			states = new int[4*frameLength];
 		}
 
-		public void decode(BitStream input, ICSInfo info, Profile profile) {
+        public bool isPresent() {
+            return _isPresent;
+        }
+
+        public void decode(BitStream input, ICSInfo info, Profile profile) {
 			lag = 0;
-			if(profile.Equals(Profile.AAC_LD)) {
+
+            _isPresent = input.readBool();
+            if (!_isPresent) {
+                return;
+            }
+
+            if (profile.Equals(Profile.AAC_LD)) {
 				lagUpdate = input.readBool();
 				if(lagUpdate) lag = input.readBits(10);
 			}
@@ -66,7 +79,10 @@ namespace CameraAPI.AAC.Tools
 		}
 
 		public void process(ICStream ics, float[] data, FilterBank filterBank, SampleFrequency sf) {
-			ICSInfo info = ics.getInfo();
+            if (!_isPresent)
+                return;
+
+            ICSInfo info = ics.getInfo();
 
 			if(!info.isEightShortFrame()) {
 				int samples = frameLength<<1;
@@ -115,7 +131,8 @@ namespace CameraAPI.AAC.Tools
 					states[(frameLength*2)+i] = (int)Math.Round(overlap[i]);
 				}
 			}
-		}
+            _isPresent = false;
+        }
 
 		public static bool isLTPProfile(Profile profile) {
 			return profile.Equals(Profile.AAC_LTP)||profile.Equals(Profile.ER_AAC_LTP)||profile.Equals(Profile.AAC_LD);

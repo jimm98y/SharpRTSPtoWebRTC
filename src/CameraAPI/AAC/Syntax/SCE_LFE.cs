@@ -4,8 +4,8 @@
     {
 		private ICStream ics;
 
-		public SCE_LFE(int frameLength) {
-			ics = new ICStream(frameLength);
+		public SCE_LFE(DecoderConfig config) {
+			ics = new ICStream(config);
 		}
 
 		public void decode(BitStream input, DecoderConfig conf) {

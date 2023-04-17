@@ -25,9 +25,7 @@ namespace CameraAPI.AAC.Syntax
 		//prediction
 		private bool predictionDataPresent;
 		private ICPrediction icPredict;
-		public bool ltpData1Present;
-		public bool ltpData2Present;
-		private LTPrediction ltPredict1, ltPredict2;
+		private LTPrediction ltPredict;
 		//windows/sfbs
 		private int windowCount;
 		private int windowGroupCount;
@@ -35,14 +33,17 @@ namespace CameraAPI.AAC.Syntax
 		private int swbCount;
 		private int[] swbOffsets;
 
-		public ICSInfo(int frameLength) {
-			this.frameLength = frameLength;
+		public ICSInfo(DecoderConfig config) {
+			this.frameLength = config.getFrameLength();
 			windowShape = new int[2];
 			windowSequence = WindowSequence.ONLY_LONG_SEQUENCE;
 			windowGroupLength = new int[MAX_WINDOW_GROUP_COUNT];
-			ltpData1Present = false;
-			ltpData2Present = false;
-		}
+
+            if (LTPrediction.isLTPProfile(config.getProfile()))
+                ltPredict = new LTPrediction(frameLength);
+            else
+                ltPredict = null;
+        }
 
 		/* ========== decoding ========== */
 		public void decode(BitStream input, DecoderConfig conf, bool commonWindow) {
@@ -56,6 +57,7 @@ namespace CameraAPI.AAC.Syntax
 
 			windowGroupCount = 1;
 			windowGroupLength[0] = 1;
+
 			if(windowSequence.Equals(WindowSequence.EIGHT_SHORT_SEQUENCE)) {
 				maxSFB = input.readBits(4);
 				int i;
@@ -69,7 +71,6 @@ namespace CameraAPI.AAC.Syntax
 				windowCount = 8;
 				swbOffsets = ScaleFactorBands.SWB_OFFSET_SHORT_WINDOW[(int)sf];
 				swbCount = ScaleFactorBands.SWB_SHORT_WINDOW_COUNT[(int)sf];
-				predictionDataPresent = false;
 			}
 			else {
 				maxSFB = input.readBits(6);
@@ -88,24 +89,12 @@ namespace CameraAPI.AAC.Syntax
 					icPredict.decode(input, maxSFB, sf);
 					break;
 				case Profile.AAC_LTP:
-					if(ltpData1Present = input.readBool()) {
-						if(ltPredict1==null) ltPredict1 = new LTPrediction(frameLength);
-						ltPredict1.decode(input, this, profile);
-					}
-					if(commonWindow) {
-						if(ltpData2Present = input.readBool()) {
-							if(ltPredict2==null) ltPredict2 = new LTPrediction(frameLength);
-							ltPredict2.decode(input, this, profile);
-						}
-					}
-					break;
+                    ltPredict.decode(input, this, profile);
+                    break;
 				case Profile.ER_AAC_LTP:
 					if(!commonWindow) {
-						if(ltpData1Present = input.readBool()) {
-							if(ltPredict1==null) ltPredict1 = new LTPrediction(frameLength);
-							ltPredict1.decode(input, this, profile);
-						}
-					}
+                        ltPredict.decode(input, this, profile);
+                    }
 					break;
 				default:
 					throw new AACException("unexpected profile for LTP: "+profile);
@@ -161,45 +150,32 @@ namespace CameraAPI.AAC.Syntax
 			return icPredict;
 		}
 
-		public bool isLTPrediction1Present() {
-			return ltpData1Present;
-		}
-
-		public LTPrediction getLTPrediction1() {
-			return ltPredict1;
-		}
-
-		public bool isLTPrediction2Present() {
-			return ltpData2Present;
-		}
-
-		public LTPrediction getLTPrediction2() {
-			return ltPredict2;
-		}
+        public LTPrediction getLTPrediction() {
+            return ltPredict;
+        }
 
 		public void unsetPredictionSFB(int sfb) {
 			if(predictionDataPresent) icPredict.setPredictionUnused(sfb);
-			if(ltpData1Present) ltPredict1.setPredictionUnused(sfb);
-			if(ltpData2Present) ltPredict2.setPredictionUnused(sfb);
-		}
+            if (ltPredict != null) ltPredict.setPredictionUnused(sfb);
+        }
 
-		public void setData(ICSInfo info) {
+		public void setData(BitStream input, DecoderConfig conf, ICSInfo info) {
 			windowSequence = info.windowSequence;
 			windowShape[PREVIOUS] = windowShape[CURRENT];
 			windowShape[CURRENT] = info.windowShape[CURRENT];
 			maxSFB = info.maxSFB;
 			predictionDataPresent = info.predictionDataPresent;
 			if(predictionDataPresent) icPredict = info.icPredict;
-			ltpData1Present = info.ltpData1Present;
-			if(ltpData1Present) {
-				ltPredict1.copy(info.ltPredict1);
-				ltPredict2.copy(info.ltPredict2);
-			}
+			
 			windowCount = info.windowCount;
 			windowGroupCount = info.windowGroupCount;
 			windowGroupLength = info.windowGroupLength.ToArray();
 			swbCount = info.swbCount;
 			swbOffsets = info.swbOffsets.ToArray();
-		}
+
+            if (predictionDataPresent) {
+                ltPredict.decode(input, this, conf.getProfile());
+            }
+        }
     }
 }

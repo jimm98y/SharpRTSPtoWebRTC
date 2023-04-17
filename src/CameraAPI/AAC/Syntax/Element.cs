@@ -19,9 +19,15 @@ namespace CameraAPI.AAC.Syntax
 
         public void decodeSBR(BitStream input, SampleFrequency sf, int count, bool stereo, bool crc, bool downSampled, bool smallFrames)
         {
-		    if(sbr==null) sbr = new SBR(smallFrames, elementInstanceTag==ELEMENT_CPE, sf, downSampled);
-            sbr.Decode(input, count);
-	    }
+            if (sbr == null) {
+                /* implicit SBR signalling, see 4.6.18.2.6 */
+                int fq = sf.GetFrequency();
+                if (fq < 24000 && !downSampled)
+                    sf = SampleFrequencyExtensions.FromFrequency(2 * fq);
+                sbr = new SBR(smallFrames, stereo, sf, downSampled);
+            }
+            sbr.Decode(input, count, crc);
+        }
 
         public bool isSBRPresent()
         {

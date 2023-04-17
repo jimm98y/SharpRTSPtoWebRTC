@@ -31,9 +31,9 @@ namespace CameraAPI.AAC.Syntax
 		private int reorderedSpectralDataLen, longestCodewordLen;
 		private RVLC rvlc;
 
-		public ICStream(int frameLength) {
-			this.frameLength = frameLength;
-			info = new ICSInfo(frameLength);
+		public ICStream(DecoderConfig config) {
+			this.frameLength = config.getFrameLength();
+            info = new ICSInfo(config);
 			sfbCB = new int[MAX_SECTIONS];
 			sectEnd = new int[MAX_SECTIONS];
 			data = new float[frameLength];
@@ -215,8 +215,8 @@ namespace CameraAPI.AAC.Syntax
 							float energy = 0;
 
 							for(k = 0; k<width; k++) {
-								randomState *= 1664525+1013904223;
-								data[off+k] = randomState;
+                                randomState = 1664525 * randomState + 1013904223;
+                                data[off+k] = randomState;
 								energy += data[off+k]*data[off+k];
 							}
 

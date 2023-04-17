@@ -26,13 +26,31 @@ namespace CameraAPI.AAC.Syntax
 		}
 
 		public void setData(byte[] data) {
-			//make the buffer size an integer number of words
-			int size = WORD_BYTES*((data.Length+WORD_BYTES-1)/WORD_BYTES);
-			//only reallocate if needed
-			if(buffer==null||buffer.Length!=size) buffer = new byte[size];
-			Array.Copy(data, 0, buffer, 0, data.Length);
 			reset();
-		}
+
+            int size = data.Length;
+
+            // reduce the buffer size to an integer number of words
+            int shift = size % WORD_BYTES;
+
+            // push leading bytes to cache
+            bitsCached = 8 * shift;
+
+            for (int i = 0; i < shift; ++i)
+            {
+                byte c = data[i];
+                cache <<= 8;
+                cache |= 0xff & c;
+            }
+
+            size -= shift;
+
+            //only reallocate if needed
+            if (buffer == null || buffer.Length != size)
+                buffer = new byte[size];
+
+            Buffer.BlockCopy(data, shift, buffer, 0, buffer.Length);
+        }
 
 		public void byteAlign() {
 			int toFlush = bitsCached&7;
