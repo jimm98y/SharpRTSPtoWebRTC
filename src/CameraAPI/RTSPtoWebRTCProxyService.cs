@@ -1,16 +1,13 @@
 ﻿using CameraAPI.Opus;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SIPSorcery.Media;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using static Org.BouncyCastle.Crypto.Digests.SkeinEngine;
 
 namespace CameraAPI
 {
@@ -105,7 +102,7 @@ namespace CameraAPI
                             {
                                 if (_rtspClients.TryRemove(url, out _))
                                 {
-                                    rtspClient.Result.Client.Stop();
+                                    rtspClient.Result.Stop();
                                     _logger.LogDebug($"RTSPClient for {url} stopped.");
                                 }
                             }
@@ -165,6 +162,7 @@ namespace CameraAPI
             byte[] sdpPps = null;
             client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps, uint timestamp) =>
             {
+                // note: SPS/PPS can be in the SDP only for H264 - H265 does not support it
                 sdpSps = sps;
                 sdpPps = pps;
             };

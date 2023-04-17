@@ -32,10 +32,10 @@ namespace CameraAPI
         // Delegated functions (essentially the function prototype)
         public delegate void Received_SPS_PPS_Delegate(byte[] sps, byte[] pps, uint timestamp); // H264
         public delegate void Received_VPS_SPS_PPS_Delegate(byte[] vps, byte[] sps, byte[] pps, uint timestamp); // H265
-        public delegate void Received_NALs_Delegate(List<byte[]> nal_units, uint timestamp); // H264 or H265
+        public delegate void Received_NALs_Delegate(List<byte[]> nalUnits, uint timestamp); // H264 or H265
         public delegate void Received_G711_Delegate(string format, List<byte[]> g711);
         public delegate void Received_AMR_Delegate(string format, List<byte[]> amr);
-        public delegate void Received_AAC_Delegate(string format, List<byte[]> aac, uint ObjectType, uint FrequencyIndex, uint ChannelConfiguration, uint timestamp, int payloadType);
+        public delegate void Received_AAC_Delegate(string format, List<byte[]> aac, uint objectType, uint frequencyIndex, uint channelConfiguration, uint timestamp, int payloadType);
         public delegate void Received_RTP_Delegate(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip); // RTP
         public delegate void Setup_Completed_Delegate(string video, int videoType, string audio, int audioType); // current audio and video
 
