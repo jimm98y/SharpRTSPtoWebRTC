@@ -28,6 +28,8 @@ namespace CameraAPI
         private int _lastVideoMarkerBit = 1; // initial value 1 to make sure the first connection will send sps/pps
         private byte[] _sps = null;
         private byte[] _pps = null;
+        private byte[] _vps = null;
+        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
 
         public int AudioType { get; private set; } = -1;
         public int VideoType { get; private set; } = -1;
@@ -36,7 +38,7 @@ namespace CameraAPI
         public VideoCodecsEnum VideoCodecEnum { get; private set; } = VideoCodecsEnum.Unknown;
         public AudioCodecsEnum AudioCodecEnum { get; private set; } = AudioCodecsEnum.Unknown;
 
-        public RTSPClientWrapper(ILogger logger, RTSPClient client, int audioType, string audioCodec, int videoType, string videoCodec, byte[] sps, byte[] pps)
+        public RTSPClientWrapper(ILogger logger, RTSPClient client, int audioType, string audioCodec, int videoType, string videoCodec, byte[] sps, byte[] pps, byte[] vps = null)
         {
             this._logger = logger;
             this._client = client;
@@ -46,6 +48,7 @@ namespace CameraAPI
             this.VideoCodec = videoCodec;
             this._sps = sps;
             this._pps = pps;
+            this._vps = vps;
 
             if (VideoType > 0)
             {
@@ -59,6 +62,87 @@ namespace CameraAPI
 
             client.RtpMessageReceived += Client_RtpMessageReceived;
             client.Received_AAC += Client_Received_AAC;
+            client.Received_NALs += Client_Received_NALs;
+        }
+
+        private void Client_Received_NALs(List<byte[]> nalUnits, uint rtpTimestamp)
+        {
+            if (_vps == null)
+                return;
+
+            if (nalUnits.Count == 0)
+                return;
+
+            IEnumerable<byte> msg = new byte[0];
+
+            // join all NAL units in this AU into a single array and prefix each NAL with Annex B
+            for (int i = 0; i < nalUnits.Count; i++)
+            {
+                msg = msg.Concat(_annexB).Concat(nalUnits[i]);
+            }                        
+
+            foreach (var peerConnection in _peerConnections)
+            {
+                SendH265Nal(peerConnection.Value, VideoType, msg.ToArray(), true, rtpTimestamp);
+            }
+        }
+
+        private void SendH265Nal(RTCPeerConnection peerConnection, int payloadTypeID, byte[] nal, bool isLastNal, uint timestamp)
+        {
+            const int max_len = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header
+            byte nal2 = nal[4];
+            int start = -1;
+
+            if (nal.Length <= max_len)
+            {
+                int markerBit = (isLastNal ? 1 : 0);
+                Tuple<byte, int> h265RtpHeader = GetH265RtpHeader(nal2, start);
+                byte[] array = new byte[nal.Length + 1];
+                array[0] = h265RtpHeader.Item1;
+                Buffer.BlockCopy(nal, 0, array, 1, nal.Length);
+                peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array, timestamp, markerBit, payloadTypeID);
+            }
+            else
+            {
+                for (int i = 0; i * max_len < nal.Length; i++)
+                {
+                    int srcOffset = i * max_len;
+                    int num = (((i + 1) * max_len < nal.Length) ? max_len : (nal.Length - i * max_len));
+                    //bool isFirstPacket = i == 0;
+                    bool flag = (i + 1) * max_len >= nal.Length;
+                    int markerBit2 = ((isLastNal && flag) ? 1 : 0);
+                    Tuple<byte, int> h265RtpHeader = GetH265RtpHeader(nal2, start);
+                    start = h265RtpHeader.Item2;
+                    byte[] array2 = new byte[num + 1];
+                    array2[0] = h265RtpHeader.Item1;
+                    Buffer.BlockCopy(nal, srcOffset, array2, 1, num);
+                    peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array2, timestamp, markerBit2, payloadTypeID);
+                }
+            }
+        }
+
+        public Tuple<byte, int> GetH265RtpHeader(byte nal0, int start)
+        {
+            if (start == -1)
+            {
+                var nut = (nal0 >> 1) & 0b111111;
+
+                switch (nut)
+                {
+                    case 32:    // VPS
+                    case 33:    // SPS
+                    case 34:    // PPS
+                    case 19:    // NAL_UNIT_CODED_SLICE_IDR_W_RADL
+                        return new Tuple<byte, int>(3, 1);
+
+                    default:
+                        return new Tuple<byte, int>(2, 0);
+                }
+            }
+            else
+            {
+                return new Tuple<byte, int>((byte)start, start);
+            }
         }
 
         private void Client_Received_AAC(string format, List<byte[]> aac, uint objectType, uint frequencyIndex, uint channelConfiguration, uint timestamp, int payloadType)
@@ -148,18 +232,24 @@ namespace CameraAPI
             {
                 foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                 {
-                    if (_sps != null)
+                    // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
+                    //  we have to keep sending it in between the NALs
+                    if (_lastVideoMarkerBit == 1 && markerBit == 0)
                     {
-                        // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
-                        //  we have to keep sending it in between the NALs
-                        if (_lastVideoMarkerBit == 1 && markerBit == 0)
+                        if (_sps != null)
                         {
-                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, timestamp, 0, payloadType);
-                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, timestamp, 0, payloadType);
+                            if (_vps == null) // h264
+                            {
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, timestamp, 0, payloadType);
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, timestamp, 0, payloadType);
+                            }
                         }
                     }
 
-                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, timestamp, markerBit, payloadType);
+                    if (_vps == null) // h264
+                    {
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, timestamp, markerBit, payloadType);
+                    }
                 }
 
                 _lastVideoMarkerBit = markerBit;

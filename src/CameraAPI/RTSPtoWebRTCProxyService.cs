@@ -160,9 +160,15 @@ namespace CameraAPI
 
             byte[] sdpSps = null;
             byte[] sdpPps = null;
+            byte[] sdpVps = null;
+            client.Received_VPS_SPS_PPS += (byte[] vps, byte[] sps, byte[] pps, uint timestamp) =>
+            {
+                sdpSps = sps;
+                sdpPps = pps;
+                sdpVps = vps;
+            };
             client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps, uint timestamp) =>
             {
-                // note: SPS/PPS can be in the SDP only for H264 - H265 does not support it
                 sdpSps = sps;
                 sdpPps = pps;
             };
@@ -170,7 +176,7 @@ namespace CameraAPI
             client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
 
             var codecs = await result.Task;
-            return new RTSPClientWrapper(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps);
+            return new RTSPClientWrapper(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps, sdpVps);
         }
 
         public void SetAnswer(string id, RTCSessionDescriptionInit description)
