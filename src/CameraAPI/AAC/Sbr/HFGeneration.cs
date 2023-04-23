@@ -6,53 +6,52 @@ namespace CameraAPI.AAC.Sbr
     {
         private static int[] goalSbTab = { 21, 23, 32, 43, 46, 64, 85, 93, 128, 0, 0, 0 };
 
-        private class acorr_coef
+        private class ACorrCoef
         {
-            public float[] r01 = new float[2];
-            public float[] r02 = new float[2];
-            public float[] r11 = new float[2];
-            public float[] r12 = new float[2];
-            public float[] r22 = new float[2];
-            public float det;
+            public float[] _r01 = new float[2];
+            public float[] _r02 = new float[2];
+            public float[] _r11 = new float[2];
+            public float[] _r12 = new float[2];
+            public float[] _r22 = new float[2];
+            public float _det;
         }
 
-        public static void hf_generation(SBR sbr, float[,,,] Xlow,
-            float[,,,] Xhigh, int ch)
+        public static void HfGeneration(SBR sbr, float[,,,] Xlow, float[,,,] Xhigh, int ch)
         {
             int l, i, x;
             float[,] alpha_0 = new float[64,2], alpha_1 = new float[64,2];
 
-            int offset = sbr.tHFAdj;
-            int first = sbr.t_E[ch,0];
-            int last = sbr.t_E[ch,sbr.L_E[ch]];
+            int offset = sbr._tHFAdj;
+            int first = sbr._t_E[ch,0];
+            int last = sbr._t_E[ch,sbr._L_E[ch]];
 
-            calc_chirp_factors(sbr, ch);
+            CalcChirpFactors(sbr, ch);
 
-            if ((ch == 0) && (sbr.Reset))
-                patch_construction(sbr);
+            if ((ch == 0) && (sbr._Reset))
+                PatchConstruction(sbr);
 
             /* calculate the prediction coefficients */
 
             /* actual HF generation */
-            for (i = 0; i < sbr.noPatches; i++)
+            for (i = 0; i < sbr._noPatches; i++)
             {
-                for (x = 0; x < sbr.patchNoSubbands[i]; x++)
+                for (x = 0; x < sbr._patchNoSubbands[i]; x++)
                 {
                     float a0_r, a0_i, a1_r, a1_i;
                     float bw, bw2;
                     int q, p, k, g;
 
                     /* find the low and high band for patching */
-                    k = sbr.kx + x;
+                    k = sbr._kx + x;
                     for (q = 0; q < i; q++)
                     {
-                        k += sbr.patchNoSubbands[q];
+                        k += sbr._patchNoSubbands[q];
                     }
-                    p = sbr.patchStartSubband[i] + x;
+                    p = sbr._patchStartSubband[i] + x;
 
-                    g = sbr.table_map_k_to_g[k];
+                    g = sbr._table_map_k_to_g[k];
 
-                    bw = sbr.bwArray[ch,g];
+                    bw = sbr._bwArray[ch,g];
                     bw2 = bw * bw;
 
                     /* do the patching */
@@ -61,7 +60,7 @@ namespace CameraAPI.AAC.Sbr
                     {
                         float temp1_r, temp2_r, temp3_r;
                         float temp1_i, temp2_i, temp3_i;
-                        calc_prediction_coef(sbr, Xlow, ch, alpha_0, alpha_1, p);
+                        CalcPredictionCoef(sbr, Xlow, ch, alpha_0, alpha_1, p);
 
                         a0_r = (alpha_0[p,0] * bw);
                         a1_r = (alpha_1[p,0] * bw2);
@@ -106,20 +105,19 @@ namespace CameraAPI.AAC.Sbr
                 }
             }
 
-            if (sbr.Reset)
+            if (sbr._Reset)
             {
                 FBT.LimiterFrequencyTable(sbr);
             }
         }
 
-        private static void auto_correlation(SBR sbr, acorr_coef ac, float[,,,] buffer, int ch,
-            int bd, int len)
+        private static void AutoCorrelation(SBR sbr, ACorrCoef ac, float[,,,] buffer, int ch, int bd, int len)
         {
             float r01r = 0, r01i = 0, r02r = 0, r02i = 0, r11r = 0;
             float temp1_r, temp1_i, temp2_r, temp2_i, temp3_r, temp3_i, temp4_r, temp4_i, temp5_r, temp5_i;
             float rel = 1.0f / (1 + 1e-6f);
             int j;
-            int offset = sbr.tHFAdj;
+            int offset = sbr._tHFAdj;
 
             temp2_r = buffer[ch,offset - 2,bd,0];
             temp2_i = buffer[ch, offset - 2,bd,1];
@@ -157,56 +155,55 @@ namespace CameraAPI.AAC.Sbr
             // temp4_i = QMF_IM(buffer[offset-2][bd]);
             // temp5_r = QMF_RE(buffer[offset-1][bd]);
             // temp5_i = QMF_IM(buffer[offset-1][bd]);
-            ac.r12[0] = r01r
+            ac._r12[0] = r01r
                 - (temp3_r * temp2_r + temp3_i * temp2_i)
                 + (temp5_r * temp4_r + temp5_i * temp4_i);
-            ac.r12[1] = r01i
+            ac._r12[1] = r01i
                 - (temp3_i * temp2_r - temp3_r * temp2_i)
                 + (temp5_i * temp4_r - temp5_r * temp4_i);
-            ac.r22[0] = r11r
+            ac._r22[0] = r11r
                 - (temp2_r * temp2_r + temp2_i * temp2_i)
                 + (temp4_r * temp4_r + temp4_i * temp4_i);
 
-            ac.r01[0] = r01r;
-            ac.r01[1] = r01i;
-            ac.r02[0] = r02r;
-            ac.r02[1] = r02i;
-            ac.r11[0] = r11r;
+            ac._r01[0] = r01r;
+            ac._r01[1] = r01i;
+            ac._r02[0] = r02r;
+            ac._r02[1] = r02i;
+            ac._r11[0] = r11r;
 
-            ac.det = (ac.r11[0] * ac.r22[0]) - (rel * ((ac.r12[0] * ac.r12[0]) + (ac.r12[1] * ac.r12[1])));
+            ac._det = (ac._r11[0] * ac._r22[0]) - (rel * ((ac._r12[0] * ac._r12[0]) + (ac._r12[1] * ac._r12[1])));
         }
 
         /* calculate linear prediction coefficients using the covariance method */
-        private static void calc_prediction_coef(SBR sbr, float[,,,] Xlow, int ch,
-            float[,] alpha_0, float[,] alpha_1, int k)
+        private static void CalcPredictionCoef(SBR sbr, float[,,,] Xlow, int ch, float[,] alpha_0, float[,] alpha_1, int k)
         {
             float tmp;
-            acorr_coef ac = new acorr_coef();
+            ACorrCoef ac = new ACorrCoef();
 
-            auto_correlation(sbr, ac, Xlow, ch, k, sbr.numTimeSlotsRate + 6);
+            AutoCorrelation(sbr, ac, Xlow, ch, k, sbr._numTimeSlotsRate + 6);
 
-            if (ac.det == 0)
+            if (ac._det == 0)
             {
                 alpha_1[k,0] = 0;
                 alpha_1[k,1] = 0;
             }
             else
             {
-                tmp = 1.0f / ac.det;
-                alpha_1[k,0] = ((ac.r01[0] * ac.r12[0]) - (ac.r01[1] * ac.r12[1]) - (ac.r02[0] * ac.r11[0])) * tmp;
-                alpha_1[k,1] = ((ac.r01[1] * ac.r12[0]) + (ac.r01[0] * ac.r12[1]) - (ac.r02[1] * ac.r11[0])) * tmp;
+                tmp = 1.0f / ac._det;
+                alpha_1[k,0] = ((ac._r01[0] * ac._r12[0]) - (ac._r01[1] * ac._r12[1]) - (ac._r02[0] * ac._r11[0])) * tmp;
+                alpha_1[k,1] = ((ac._r01[1] * ac._r12[0]) + (ac._r01[0] * ac._r12[1]) - (ac._r02[1] * ac._r11[0])) * tmp;
             }
 
-            if (ac.r11[0] == 0)
+            if (ac._r11[0] == 0)
             {
                 alpha_0[k,0] = 0;
                 alpha_0[k,1] = 0;
             }
             else
             {
-                tmp = 1.0f / ac.r11[0];
-                alpha_0[k,0] = -(ac.r01[0] + (alpha_1[k,0] * ac.r12[0]) + (alpha_1[k,1] * ac.r12[1])) * tmp;
-                alpha_0[k,1] = -(ac.r01[1] + (alpha_1[k,1] * ac.r12[0]) - (alpha_1[k,0] * ac.r12[1])) * tmp;
+                tmp = 1.0f / ac._r11[0];
+                alpha_0[k,0] = -(ac._r01[0] + (alpha_1[k,0] * ac._r12[0]) + (alpha_1[k,1] * ac._r12[1])) * tmp;
+                alpha_0[k,1] = -(ac._r01[1] + (alpha_1[k,1] * ac._r12[0]) - (alpha_1[k,0] * ac._r12[1])) * tmp;
             }
 
             if (((alpha_0[k,0] * alpha_0[k,0]) + (alpha_0[k,1] * alpha_0[k,1]) >= 16.0f)
@@ -220,7 +217,7 @@ namespace CameraAPI.AAC.Sbr
         }
 
         /* FIXED POINT: bwArray = COEF */
-        private static float mapNewBw(int invf_mode, int invf_mode_prev)
+        private static float MapNewBw(int invf_mode, int invf_mode_prev)
         {
             switch (invf_mode)
             {
@@ -249,58 +246,58 @@ namespace CameraAPI.AAC.Sbr
         }
 
         /* FIXED POINT: bwArray = COEF */
-        private static void calc_chirp_factors(SBR sbr, int ch)
+        private static void CalcChirpFactors(SBR sbr, int ch)
         {
             int i;
 
-            for (i = 0; i < sbr.N_Q; i++)
+            for (i = 0; i < sbr._N_Q; i++)
             {
-                sbr.bwArray[ch,i] = mapNewBw(sbr.bs_invf_mode[ch,i], sbr.bs_invf_mode_prev[ch,i]);
+                sbr._bwArray[ch,i] = MapNewBw(sbr._bs_invf_mode[ch,i], sbr._bs_invf_mode_prev[ch,i]);
 
-                if (sbr.bwArray[ch,i] < sbr.bwArray_prev[ch,i])
-                    sbr.bwArray[ch,i] = (sbr.bwArray[ch,i] * 0.75f) + (sbr.bwArray_prev[ch,i] * 0.25f);
+                if (sbr._bwArray[ch,i] < sbr._bwArray_prev[ch,i])
+                    sbr._bwArray[ch,i] = (sbr._bwArray[ch,i] * 0.75f) + (sbr._bwArray_prev[ch,i] * 0.25f);
                 else
-                    sbr.bwArray[ch,i] = (sbr.bwArray[ch,i] * 0.90625f) + (sbr.bwArray_prev[ch,i] * 0.09375f);
+                    sbr._bwArray[ch,i] = (sbr._bwArray[ch,i] * 0.90625f) + (sbr._bwArray_prev[ch,i] * 0.09375f);
 
-                if (sbr.bwArray[ch,i] < 0.015625f)
-                    sbr.bwArray[ch,i] = 0.0f;
+                if (sbr._bwArray[ch,i] < 0.015625f)
+                    sbr._bwArray[ch,i] = 0.0f;
 
-                if (sbr.bwArray[ch,i] >= 0.99609375f)
-                    sbr.bwArray[ch,i] = 0.99609375f;
+                if (sbr._bwArray[ch,i] >= 0.99609375f)
+                    sbr._bwArray[ch,i] = 0.99609375f;
 
-                sbr.bwArray_prev[ch,i] = sbr.bwArray[ch,i];
-                sbr.bs_invf_mode_prev[ch,i] = sbr.bs_invf_mode[ch,i];
+                sbr._bwArray_prev[ch,i] = sbr._bwArray[ch,i];
+                sbr._bs_invf_mode_prev[ch,i] = sbr._bs_invf_mode[ch,i];
             }
         }
 
-        private static void patch_construction(SBR sbr)
+        private static void PatchConstruction(SBR sbr)
         {
             int i, k;
             int odd, sb;
-            int msb = sbr.k0;
-            int usb = sbr.kx;
+            int msb = sbr._k0;
+            int usb = sbr._kx;
             /* (uint8_t)(2.048e6/sbr.sample_rate + 0.5); */
-            int goalSb = goalSbTab[(int)sbr.sample_rate];
+            int goalSb = goalSbTab[(int)sbr._sampleRate];
 
-            sbr.noPatches = 0;
+            sbr._noPatches = 0;
 
-            if (goalSb < (sbr.kx + sbr.M))
+            if (goalSb < (sbr._kx + sbr._M))
             {
-                for (i = 0, k = 0; sbr.f_master[i] < goalSb; i++)
+                for (i = 0, k = 0; sbr._f_master[i] < goalSb; i++)
                 {
                     k = i + 1;
                 }
             }
             else
             {
-                k = sbr.N_master;
+                k = sbr._N_master;
             }
 
-            if (sbr.N_master == 0)
+            if (sbr._N_master == 0)
             {
-                sbr.noPatches = 0;
-                sbr.patchNoSubbands[0] = 0;
-                sbr.patchStartSubband[0] = 0;
+                sbr._noPatches = 0;
+                sbr._patchNoSubbands[0] = 0;
+                sbr._patchStartSubband[0] = 0;
 
                 return;
             }
@@ -313,37 +310,37 @@ namespace CameraAPI.AAC.Sbr
                 {
                     j--;
 
-                    sb = sbr.f_master[j];
-                    odd = (sb - 2 + sbr.k0) % 2;
+                    sb = sbr._f_master[j];
+                    odd = (sb - 2 + sbr._k0) % 2;
                 }
-                while (sb > (sbr.k0 - 1 + msb - odd));
+                while (sb > (sbr._k0 - 1 + msb - odd));
 
-                sbr.patchNoSubbands[sbr.noPatches] = Math.Max(sb - usb, 0);
-                sbr.patchStartSubband[sbr.noPatches] = sbr.k0 - odd
-                    - sbr.patchNoSubbands[sbr.noPatches];
+                sbr._patchNoSubbands[sbr._noPatches] = Math.Max(sb - usb, 0);
+                sbr._patchStartSubband[sbr._noPatches] = sbr._k0 - odd
+                    - sbr._patchNoSubbands[sbr._noPatches];
 
-                if (sbr.patchNoSubbands[sbr.noPatches] > 0)
+                if (sbr._patchNoSubbands[sbr._noPatches] > 0)
                 {
                     usb = sb;
                     msb = sb;
-                    sbr.noPatches++;
+                    sbr._noPatches++;
                 }
                 else
                 {
-                    msb = sbr.kx;
+                    msb = sbr._kx;
                 }
 
-                if (sbr.f_master[k] - sb < 3)
-                    k = sbr.N_master;
+                if (sbr._f_master[k] - sb < 3)
+                    k = sbr._N_master;
             }
-            while (sb != (sbr.kx + sbr.M));
+            while (sb != (sbr._kx + sbr._M));
 
-            if ((sbr.patchNoSubbands[sbr.noPatches - 1] < 3) && (sbr.noPatches > 1))
+            if ((sbr._patchNoSubbands[sbr._noPatches - 1] < 3) && (sbr._noPatches > 1))
             {
-                sbr.noPatches--;
+                sbr._noPatches--;
             }
 
-            sbr.noPatches = Math.Min(sbr.noPatches, 5);
+            sbr._noPatches = Math.Min(sbr._noPatches, 5);
         }
     }
 }

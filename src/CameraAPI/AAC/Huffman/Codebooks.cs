@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Huffman
 {
-    public class Codebooks
+    public static class Codebooks
     {
         public static int[][] HCB1 = {
 			new int[] {1, 0, 0, 0, 0, 0},

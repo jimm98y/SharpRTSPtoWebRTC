@@ -2,24 +2,22 @@
 {
     public class DSE : Element
     {
-        private byte[] dataStreamBytes;
+        private byte[] _dataStreamBytes;
 
-		public DSE() {
-			
-		}
+		public void Decode(BitStream input) 
+		{
+            ReadElementInstanceTag(input);
 
-		public void decode(BitStream input) {
-            readElementInstanceTag(input);
+            bool byteAlign = input.ReadBool();
+			int count = input.ReadBits(8);
+			if(count == 255) count += input.ReadBits(8);
 
-            bool byteAlign = input.readBool();
-			int count = input.readBits(8);
-			if(count==255) count += input.readBits(8);
+			if(byteAlign) input.ByteAlign();
 
-			if(byteAlign) input.byteAlign();
-
-			dataStreamBytes = new byte[count];
-			for(int i = 0; i<count; i++) {
-				dataStreamBytes[i] = (byte)input.readBits(8);
+			_dataStreamBytes = new byte[count];
+			for(int i = 0; i<count; i++) 
+			{
+				_dataStreamBytes[i] = (byte)input.ReadBits(8);
 			}
 		}
     }

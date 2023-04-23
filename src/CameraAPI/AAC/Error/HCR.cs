@@ -4,22 +4,21 @@ using System;
 
 namespace CameraAPI.AAC.Error
 {
-    public class HCR : Constants
+    public class HCR
     {
         private class Codeword
         {
-
-            public int cb;
-            public int decoded;
-            public int sp_offset;
-            public BitsBuffer bits;
+            public int _cb;
+            public int _decoded;
+            public int _sp_offset;
+            public BitsBuffer _bits;
 
             public void Fill(int sp, int cb)
             {
-                sp_offset = sp;
-                this.cb = cb;
-                decoded = 0;
-                bits = new BitsBuffer();
+                _sp_offset = sp;
+                this._cb = cb;
+                _decoded = 0;
+                _bits = new BitsBuffer();
             }
         }
 
@@ -94,11 +93,11 @@ namespace CameraAPI.AAC.Error
         //sectionDataResilience = hDecoder->aacSectionDataResilienceFlag
         public static void DecodeReorderedSpectralData(ICStream ics, BitStream input, short[] spectralData, bool sectionDataResilience)
         {
-            ICSInfo info = ics.getInfo();
-            int windowGroupCount = info.getWindowGroupCount();
-            int maxSFB = info.getMaxSFB();
-            int[] swbOffsets = info.getSWBOffsets();
-            int swbOffsetMax = info.getSWBOffsetMax();
+            ICSInfo info = ics.GetInfo();
+            int windowGroupCount = info.GetWindowGroupCount();
+            int maxSFB = info.GetMaxSFB();
+            int[] swbOffsets = info.GetSWBOffsets();
+            int swbOffsetMax = info.GetSWBOffsetMax();
             //TODO:
             //final SectionData sectData = ics.getSectionData();
             int[][] sectStart = null; //sectData.getSectStart();
@@ -108,10 +107,10 @@ namespace CameraAPI.AAC.Error
             int[][] sectSFBOffsets = null; //info.getSectSFBOffsets();
 
             //check parameter
-            int spDataLen = ics.getReorderedSpectralDataLength();
+            int spDataLen = ics.GetReorderedSpectralDataLength();
             if (spDataLen == 0) return;
 
-            int longestLen = ics.getLongestCodewordLength();
+            int longestLen = ics.GetLongestCodewordLength();
             if (longestLen == 0 || longestLen >= spDataLen) throw new AACException("length of longest HCR codeword out of range");
 
             //create spOffsets
@@ -121,7 +120,7 @@ namespace CameraAPI.AAC.Error
             int g;
             for (g = 1; g < windowGroupCount; g++)
             {
-                spOffsets[g] = spOffsets[g - 1] + shortFrameLen * info.getWindowGroupLength(g - 1);
+                spOffsets[g] = spOffsets[g - 1] + shortFrameLen * info.GetWindowGroupLength(g - 1);
             }
 
             Codeword[] codeword = new Codeword[512];
@@ -170,7 +169,7 @@ namespace CameraAPI.AAC.Error
                                         //precalculation
                                         int sect_sfb_size = sectSFBOffsets[g][sfb + 1] - sectSFBOffsets[g][sfb];
                                         int inc = (thisSectCB < HCB.FIRST_PAIR_HCB) ? 4 : 2;
-                                        int group_cws_count = (4 * info.getWindowGroupLength(g)) / inc;
+                                        int group_cws_count = (4 * info.GetWindowGroupLength(g)) / inc;
                                         int segwidth = Math.Min(MAX_CW_LEN[thisSectCB], longestLen);
 
                                         //read codewords until end of sfb or end of window group
@@ -190,7 +189,7 @@ namespace CameraAPI.AAC.Error
                                                     //Huffman.decodeSpectralDataER(segment[segmentsCount], thisSectCB, spectralData, sp);
 
                                                     //keep leftover bits
-                                                    segment[segmentsCount].rewindReverse();
+                                                    segment[segmentsCount].RewindReverse();
 
                                                     segmentsCount++;
                                                 }
@@ -202,23 +201,23 @@ namespace CameraAPI.AAC.Error
                                                         int additional_bits = spDataLen - bitsread;
 
                                                         segment[segmentsCount].ReadSegment(additional_bits, input);
-                                                        segment[segmentsCount].len += segment[segmentsCount - 1].len;
-                                                        segment[segmentsCount].rewindReverse();
+                                                        segment[segmentsCount]._len += segment[segmentsCount - 1]._len;
+                                                        segment[segmentsCount].RewindReverse();
 
-                                                        if (segment[segmentsCount - 1].len > 32)
+                                                        if (segment[segmentsCount - 1]._len > 32)
                                                         {
-                                                            segment[segmentsCount - 1].bufb = segment[segmentsCount].bufb
-                                                                    + segment[segmentsCount - 1].showBits(segment[segmentsCount - 1].len - 32);
-                                                            segment[segmentsCount - 1].bufa = segment[segmentsCount].bufa
-                                                                    + segment[segmentsCount - 1].showBits(32);
+                                                            segment[segmentsCount - 1]._bufb = segment[segmentsCount]._bufb
+                                                                    + segment[segmentsCount - 1].ShowBits(segment[segmentsCount - 1]._len - 32);
+                                                            segment[segmentsCount - 1]._bufa = segment[segmentsCount]._bufa
+                                                                    + segment[segmentsCount - 1].ShowBits(32);
                                                         }
                                                         else
                                                         {
-                                                            segment[segmentsCount - 1].bufa = segment[segmentsCount].bufa
-                                                                    + segment[segmentsCount - 1].showBits(segment[segmentsCount - 1].len);
-                                                            segment[segmentsCount - 1].bufb = segment[segmentsCount].bufb;
+                                                            segment[segmentsCount - 1]._bufa = segment[segmentsCount]._bufa
+                                                                    + segment[segmentsCount - 1].ShowBits(segment[segmentsCount - 1]._len);
+                                                            segment[segmentsCount - 1]._bufb = segment[segmentsCount]._bufb;
                                                         }
-                                                        segment[segmentsCount - 1].len += additional_bits;
+                                                        segment[segmentsCount - 1]._len += additional_bits;
                                                     }
                                                     bitsread = spDataLen;
                                                     PCWs_done = 1;
@@ -258,11 +257,11 @@ namespace CameraAPI.AAC.Error
                         //data up
                         if (codewordID >= numberOfCodewords - segmentsCount) break;
 
-                        if ((codeword[codewordID].decoded == 0) && (segment[segmentID].len > 0))
+                        if ((codeword[codewordID]._decoded == 0) && (segment[segmentID]._len > 0))
                         {
-                            if (codeword[codewordID].bits.len != 0) segment[segmentID].ConcatBits(codeword[codewordID].bits);
+                            if (codeword[codewordID]._bits._len != 0) segment[segmentID].ConcatBits(codeword[codewordID]._bits);
 
-                            int tmplen = segment[segmentID].len;
+                            int tmplen = segment[segmentID]._len;
                             /*int ret = Huffman.decodeSpectralDataER(segment[segmentID], codeword[codewordID].cb,
 									spectralData, codeword[codewordID].sp_offset);
 
@@ -277,7 +276,7 @@ namespace CameraAPI.AAC.Error
                 }
                 for (i = 0; i < segmentsCount; i++)
                 {
-                    segment[i].rewindReverse();
+                    segment[i].RewindReverse();
                 }
             }
         }

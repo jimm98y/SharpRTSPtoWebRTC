@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Filterbank
 {
-    public class KBDWindows
+    public static class KBDWindows
     {
         public static float[] KBD_1024 = {
             0.00029256153896361f,

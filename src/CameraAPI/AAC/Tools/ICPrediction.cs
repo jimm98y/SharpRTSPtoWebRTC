@@ -10,36 +10,39 @@ namespace CameraAPI.AAC.Tools
 		private const int MAX_PREDICTORS = 672;
 		private const float A = 0.953125f; //61.0 / 64
 		private const float ALPHA = 0.90625f;  //29.0 / 32
-		private bool predictorReset;
-		private int predictorResetGroup;
-		private bool[] predictionUsed;
-		private PredictorState[] states;
+		private bool _predictorReset;
+		private int _predictorResetGroup;
+		private bool[] _predictionUsed;
+		private PredictorState[] _states;
 
-		private sealed class PredictorState {
-
-			public float cor0 = 0.0f;
-            public float cor1 = 0.0f;
-            public float var0 = 0.0f;
-            public float var1 = 0.0f;
-            public float r0 = 1.0f;
-            public float r1 = 1.0f;
+		private sealed class PredictorState 
+		{
+			public float _cor0 = 0.0f;
+            public float _cor1 = 0.0f;
+            public float _var0 = 0.0f;
+            public float _var1 = 0.0f;
+            public float _r0 = 1.0f;
+            public float _r1 = 1.0f;
 		}
 
-		public ICPrediction() {
-			states = new PredictorState[MAX_PREDICTORS];
-			resetAllPredictors();
+		public ICPrediction() 
+		{
+			_states = new PredictorState[MAX_PREDICTORS];
+			ResetAllPredictors();
 		}
 
-		public void decode(BitStream input, int maxSFB, SampleFrequency sf) {
+		public void Decode(BitStream input, int maxSFB, SampleFrequency sf) 
+		{
 			int predictorCount = sf.GetPredictorCount();
 
-			if(predictorReset = input.readBool()) predictorResetGroup = input.readBits(5);
+			if(_predictorReset = input.ReadBool()) _predictorResetGroup = input.ReadBits(5);
 
 			int maxPredSFB = sf.GetMaximalPredictionSFB();
 			int length = Math.Min(maxSFB, maxPredSFB);
-			predictionUsed = new bool[length];
-			for(int sfb = 0; sfb<length; sfb++) {
-				predictionUsed[sfb] = input.readBool();
+			_predictionUsed = new bool[length];
+			for(int sfb = 0; sfb<length; sfb++) 
+			{
+				_predictionUsed[sfb] = input.ReadBool();
 			}
 			//Constants.LOGGER.log(Level.WARNING, "ICPrediction: maxSFB={0}, maxPredSFB={1}", new int[]{maxSFB, maxPredSFB});
 			/*//if maxSFB<maxPredSFB set remaining to false
@@ -48,97 +51,111 @@ namespace CameraAPI.AAC.Tools
 			}*/
 		}
 
-		public void setPredictionUnused(int sfb) {
-			predictionUsed[sfb] = false;
+		public void SetPredictionUnused(int sfb) 
+		{
+			_predictionUsed[sfb] = false;
 		}
 
-		public void process(ICStream ics, float[] data, SampleFrequency sf) {
-			ICSInfo info = ics.getInfo();
+		public void Process(ICStream ics, float[] data, SampleFrequency sf)
+		{
+			ICSInfo info = ics.GetInfo();
 
-			if(info.isEightShortFrame()) resetAllPredictors();
-			else {
-				int len = Math.Min(sf.GetMaximalPredictionSFB(), info.getMaxSFB());
-				int[] swbOffsets = info.getSWBOffsets();
+			if(info.IsEightShortFrame()) ResetAllPredictors();
+			else 
+			{
+				int len = Math.Min(sf.GetMaximalPredictionSFB(), info.GetMaxSFB());
+				int[] swbOffsets = info.GetSWBOffsets();
 				int k;
-				for(int sfb = 0; sfb<len; sfb++) {
-					for(k = swbOffsets[sfb]; k<swbOffsets[sfb+1]; k++) {
-						predict(data, k, predictionUsed[sfb]);
+				for(int sfb = 0; sfb<len; sfb++) 
+				{
+					for(k = swbOffsets[sfb]; k<swbOffsets[sfb+1]; k++) 
+					{
+						Predict(data, k, _predictionUsed[sfb]);
 					}
 				}
-				if(predictorReset) resetPredictorGroup(predictorResetGroup);
+				if(_predictorReset) ResetPredictorGroup(_predictorResetGroup);
 			}
 		}
 
-		private void resetPredictState(int index) {
-			if(states[index]==null) states[index] = new PredictorState();
-			states[index].r0 = 0;
-			states[index].r1 = 0;
-			states[index].cor0 = 0;
-			states[index].cor1 = 0;
-			states[index].var0 = 0x3F80;
-			states[index].var1 = 0x3F80;
+		private void ResetPredictState(int index) 
+		{
+			if(_states[index]==null) _states[index] = new PredictorState();
+			_states[index]._r0 = 0;
+			_states[index]._r1 = 0;
+			_states[index]._cor0 = 0;
+			_states[index]._cor1 = 0;
+			_states[index]._var0 = 0x3F80;
+			_states[index]._var1 = 0x3F80;
 		}
 
-		private void resetAllPredictors() {
+		private void ResetAllPredictors()
+		{
 			int i;
-			for(i = 0; i<states.Length; i++) {
-				resetPredictState(i);
+			for(i = 0; i<_states.Length; i++)
+			{
+				ResetPredictState(i);
 			}
 		}
 
-		private void resetPredictorGroup(int group) {
+		private void ResetPredictorGroup(int group) 
+		{
 			int i;
-			for(i = group-1; i<states.Length; i += 30) {
-				resetPredictState(i);
+			for(i = group-1; i<_states.Length; i += 30)
+			{
+				ResetPredictState(i);
 			}
 		}
 
-		private void predict(float[] data, int off, bool output) {
-			if(states[off]==null) states[off] = new PredictorState();
-			PredictorState state = states[off];
-			float r0 = state.r0, r1 = state.r1;
-			float cor0 = state.cor0, cor1 = state.cor1;
-			float var0 = state.var0, var1 = state.var1;
+		private void Predict(float[] data, int off, bool output) 
+		{
+			if(_states[off]==null) _states[off] = new PredictorState();
+			PredictorState state = _states[off];
+			float r0 = state._r0, r1 = state._r1;
+			float cor0 = state._cor0, cor1 = state._cor1;
+			float var0 = state._var0, var1 = state._var1;
 
-			float k1 = var0>1 ? cor0*even(A/var0) : 0;
-			float k2 = var1>1 ? cor1*even(A/var1) : 0;
+			float k1 = var0>1 ? cor0*Even(A/var0) : 0;
+			float k2 = var1>1 ? cor1*Even(A/var1) : 0;
 
-			float pv = round(k1*r0+k2*r1);
+			float pv = Round(k1*r0+k2*r1);
 			if(output) data[off] += pv*SF_SCALE;
 
 			float e0 = (data[off]*INV_SF_SCALE);
 			float e1 = e0-k1*r0;
 
-			state.cor1 = trunc(ALPHA*cor1+r1*e1);
-			state.var1 = trunc(ALPHA*var1+0.5f*(r1*r1+e1*e1));
-			state.cor0 = trunc(ALPHA*cor0+r0*e0);
-			state.var0 = trunc(ALPHA*var0+0.5f*(r0*r0+e0*e0));
+			state._cor1 = Trunc(ALPHA*cor1+r1*e1);
+			state._var1 = Trunc(ALPHA*var1+0.5f*(r1*r1+e1*e1));
+			state._cor0 = Trunc(ALPHA*cor0+r0*e0);
+			state._var0 = Trunc(ALPHA*var0+0.5f*(r0*r0+e0*e0));
 
-			state.r1 = trunc(A*(r0-k1*e0));
-			state.r0 = trunc(A*e0);
+			state._r1 = Trunc(A*(r0-k1*e0));
+			state._r0 = Trunc(A*e0);
 		}
 
 #warning Review this
-		private float round(float pf) {
-			return intBitsToFloat((int)((floatToIntBits(pf) + 0x00008000) & 0xFFFF0000));
+		private float Round(float pf) 
+		{
+			return IntBitsToFloat((int)((FloatToIntBits(pf) + 0x00008000) & 0xFFFF0000));
 		}
 
-		private float even(float pf) {
-			int i = floatToIntBits(pf);
+		private float Even(float pf)
+		{
+			int i = FloatToIntBits(pf);
 			i = (int)((i + 0x00007FFF + (i & 0x00010000 >> 16)) & 0xFFFF0000);
-			return intBitsToFloat(i);
+			return IntBitsToFloat(i);
 		}
 
-		private float trunc(float pf) {
-			return intBitsToFloat((int)(floatToIntBits(pf) & 0xFFFF0000));
+		private float Trunc(float pf) 
+		{
+			return IntBitsToFloat((int)(FloatToIntBits(pf) & 0xFFFF0000));
 		}
 
-		private static int floatToIntBits(float f)
+		private static int FloatToIntBits(float f)
 		{
 			return BitConverter.ToInt32(BitConverter.GetBytes(f), 0);
         }
 
-        private static float intBitsToFloat(int i)
+        private static float IntBitsToFloat(int i)
         {
             return BitConverter.ToSingle(BitConverter.GetBytes(i), 0);
         }

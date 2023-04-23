@@ -220,9 +220,9 @@ namespace CameraAPI
             if (_aacDecoder == null)
             {
                 var decoderConfig = new DecoderConfig();
-                decoderConfig.setProfile(Profile.AAC_LC); // AAC Low Complexity is most likely used, set it as default
-                decoderConfig.setSampleFrequency((SampleFrequency)frequencyIndex);
-                decoderConfig.setChannelConfiguration((ChannelConfiguration)channels);
+                decoderConfig.SetProfile(Profile.AAC_LC); // AAC Low Complexity is most likely used, set it as default
+                decoderConfig.SetSampleFrequency((SampleFrequency)frequencyIndex);
+                decoderConfig.SetChannelConfiguration((ChannelConfiguration)channels);
                 _aacDecoder = new Decoder(decoderConfig);
 
                 // we only need resampling if the AAC payload is not using the 48k sampling rate already
@@ -248,7 +248,7 @@ namespace CameraAPI
                 buffer.SetBigEndian(false);
 
                 // decode AAC to PCM using a port of the JAAD AAC Decoder
-                _aacDecoder.decodeFrame(aacFrame, buffer);
+                _aacDecoder.DecodeFrame(aacFrame, buffer);
 
                 // convert to signed short PCM
                 short[] sdata = new short[buffer.Data.Length / sizeof(short)];

@@ -5,9 +5,10 @@ using System.Linq;
 
 namespace CameraAPI.AAC.Tools
 {
-    public class LTPrediction : Constants
+    public class LTPrediction
     {
-		private static readonly float[] CODEBOOK = {
+		private static readonly float[] CODEBOOK =
+		{
 			0.570829f,
 			0.696616f,
 			0.813004f,
@@ -20,93 +21,111 @@ namespace CameraAPI.AAC.Tools
 
         private bool _isPresent = false;
 
-        private int frameLength;
-		private int[] states;
-		private int coef, lag, lastBand;
-		private bool lagUpdate;
-		private bool[] shortUsed, shortLagPresent, longUsed;
-		private int[] shortLag;
+        private int _frameLength;
+		private int[] _states;
+		private int _coef, _lag, _lastBand;
+		private bool _lagUpdate;
+		private bool[] _shortUsed, _shortLagPresent, _longUsed;
+		private int[] _shortLag;
 
-		public LTPrediction(int frameLength) {
-			this.frameLength = frameLength;
-			states = new int[4*frameLength];
+		public LTPrediction(int frameLength)
+		{
+			this._frameLength = frameLength;
+			_states = new int[4*frameLength];
 		}
 
-        public bool isPresent() {
+        public bool IsPresent()
+		{
             return _isPresent;
         }
 
-        public void decode(BitStream input, ICSInfo info, Profile profile) {
-			lag = 0;
+        public void Decode(BitStream input, ICSInfo info, Profile profile) 
+		{
+			_lag = 0;
 
-            _isPresent = input.readBool();
-            if (!_isPresent) {
+            _isPresent = input.ReadBool();
+            if (!_isPresent) 
+			{
                 return;
             }
 
-            if (profile.Equals(Profile.AAC_LD)) {
-				lagUpdate = input.readBool();
-				if(lagUpdate) lag = input.readBits(10);
+            if (profile.Equals(Profile.AAC_LD))
+			{
+				_lagUpdate = input.ReadBool();
+				if(_lagUpdate) _lag = input.ReadBits(10);
 			}
-			else lag = input.readBits(11);
-			if(lag>(frameLength<<1)) throw new AACException("LTP lag too large: "+lag);
-			coef = input.readBits(3);
+			else _lag = input.ReadBits(11);
+			if(_lag>(_frameLength<<1)) throw new AACException("LTP lag too large: "+_lag);
+			_coef = input.ReadBits(3);
 
-			int windowCount = info.getWindowCount();
+			int windowCount = info.GetWindowCount();
 
-			if(info.isEightShortFrame()) {
-				shortUsed = new bool[windowCount];
-				shortLagPresent = new bool[windowCount];
-				shortLag = new int[windowCount];
-				for(int w = 0; w<windowCount; w++) {
-					if((shortUsed[w] = input.readBool())) {
-						shortLagPresent[w] = input.readBool();
-						if(shortLagPresent[w]) shortLag[w] = input.readBits(4);
+			if(info.IsEightShortFrame())
+			{
+				_shortUsed = new bool[windowCount];
+				_shortLagPresent = new bool[windowCount];
+				_shortLag = new int[windowCount];
+				for(int w = 0; w<windowCount; w++) 
+				{
+					if(_shortUsed[w] = input.ReadBool()) 
+					{
+						_shortLagPresent[w] = input.ReadBool();
+						if(_shortLagPresent[w]) _shortLag[w] = input.ReadBits(4);
 					}
 				}
 			}
-			else {
-				lastBand = Math.Min(info.getMaxSFB(), MAX_LTP_SFB);
-				longUsed = new bool[lastBand];
-				for(int i = 0; i<lastBand; i++) {
-					longUsed[i] = input.readBool();
+			else
+			{
+				_lastBand = Math.Min(info.GetMaxSFB(), Constants.MAX_LTP_SFB);
+				_longUsed = new bool[_lastBand];
+
+				for(int i = 0; i<_lastBand; i++) 
+				{
+					_longUsed[i] = input.ReadBool();
 				}
 			}
 		}
 
-		public void setPredictionUnused(int sfb) {
-			if(longUsed!=null) longUsed[sfb] = false;
+		public void SetPredictionUnused(int sfb) 
+		{
+			if(_longUsed!=null) _longUsed[sfb] = false;
 		}
 
-		public void process(ICStream ics, float[] data, FilterBank filterBank, SampleFrequency sf) {
+		public void Process(ICStream ics, float[] data, FilterBank filterBank, SampleFrequency sf) 
+		{
             if (!_isPresent)
                 return;
 
-            ICSInfo info = ics.getInfo();
+            ICSInfo info = ics.GetInfo();
 
-			if(!info.isEightShortFrame()) {
-				int samples = frameLength<<1;
+			if(!info.IsEightShortFrame()) 
+			{
+				int samples = _frameLength<<1;
 				float[] input = new float[2048];
 				float[] output = new float[2048];
 
-				for(int i = 0; i<samples; i++) {
-                    input[i] = states[samples+i-lag]*CODEBOOK[coef];
+				for(int i = 0; i<samples; i++) 
+				{
+                    input[i] = _states[samples+i-_lag]*CODEBOOK[_coef];
 				}
 
-				filterBank.ProcessLTP(info.getWindowSequence(), info.getWindowShape(ICSInfo.CURRENT),
-						info.getWindowShape(ICSInfo.PREVIOUS), input, output);
+				filterBank.ProcessLTP(info.GetWindowSequence(), info.GetWindowShape(ICSInfo.CURRENT),
+						info.GetWindowShape(ICSInfo.PREVIOUS), input, output);
 
-				if(ics.isTNSDataPresent()) ics.getTNS().process(ics, output, sf, true);
+				if(ics.IsTNSDataPresent()) ics.GetTNS().Process(ics, output, sf, true);
 
-				int[] swbOffsets = info.getSWBOffsets();
-				int swbOffsetMax = info.getSWBOffsetMax();
+				int[] swbOffsets = info.GetSWBOffsets();
+				int swbOffsetMax = info.GetSWBOffsetMax();
 				int low, high, bin;
-				for(int sfb = 0; sfb<lastBand; sfb++) {
-					if(longUsed[sfb]) {
+				for(int sfb = 0; sfb<_lastBand; sfb++)
+				{
+					if(_longUsed[sfb]) 
+					{
 						low = swbOffsets[sfb];
 						high = Math.Min(swbOffsets[sfb+1], swbOffsetMax);
 
-						for(bin = low; bin<high; bin++) {
+						for(bin = low; bin<high; bin++) 
+						{
 							data[bin] += output[bin];
 						}
 					}
@@ -114,40 +133,47 @@ namespace CameraAPI.AAC.Tools
 			}
 		}
 
-		public void updateState(float[] time, float[] overlap, Profile profile) {
+		public void UpdateState(float[] time, float[] overlap, Profile profile) 
+		{
 			int i;
-			if(profile.Equals(Profile.AAC_LD)) {
-				for(i = 0; i<frameLength; i++) {
-					states[i] = states[i+frameLength];
-					states[frameLength+i] = states[i+(frameLength*2)];
-					states[(frameLength*2)+i] = (int)Math.Round(time[i]);
-					states[(frameLength*3)+i] = (int)Math.Round(overlap[i]);
+			if(profile.Equals(Profile.AAC_LD))
+			{
+				for(i = 0; i<_frameLength; i++)
+				{
+					_states[i] = _states[i+_frameLength];
+					_states[_frameLength+i] = _states[i+(_frameLength*2)];
+					_states[(_frameLength*2)+i] = (int)Math.Round(time[i]);
+					_states[(_frameLength*3)+i] = (int)Math.Round(overlap[i]);
 				}
 			}
-			else {
-				for(i = 0; i<frameLength; i++) {
-					states[i] = states[i+frameLength];
-					states[frameLength+i] = (int)Math.Round(time[i]);
-					states[(frameLength*2)+i] = (int)Math.Round(overlap[i]);
+			else 
+			{
+				for(i = 0; i<_frameLength; i++) 
+				{
+					_states[i] = _states[i+_frameLength];
+					_states[_frameLength+i] = (int)Math.Round(time[i]);
+					_states[(_frameLength*2)+i] = (int)Math.Round(overlap[i]);
 				}
 			}
             _isPresent = false;
         }
 
-		public static bool isLTPProfile(Profile profile) {
+		public static bool IsLTPProfile(Profile profile)
+		{
 			return profile.Equals(Profile.AAC_LTP)||profile.Equals(Profile.ER_AAC_LTP)||profile.Equals(Profile.AAC_LD);
 		}
 
-		public void copy(LTPrediction ltp) {
-			Array.Copy(ltp.states, 0, states, 0, states.Length);
-			coef = ltp.coef;
-			lag = ltp.lag;
-			lastBand = ltp.lastBand;
-			lagUpdate = ltp.lagUpdate;
-			shortUsed = ltp.shortUsed.ToArray();
-			shortLagPresent = ltp.shortLagPresent.ToArray();
-			shortLag = ltp.shortLag.ToArray();
-			longUsed = ltp.longUsed.ToArray();
+		public void Copy(LTPrediction ltp) 
+		{
+			Array.Copy(ltp._states, 0, _states, 0, _states.Length);
+			_coef = ltp._coef;
+			_lag = ltp._lag;
+			_lastBand = ltp._lastBand;
+			_lagUpdate = ltp._lagUpdate;
+			_shortUsed = ltp._shortUsed.ToArray();
+			_shortLagPresent = ltp._shortLagPresent.ToArray();
+			_shortLag = ltp._shortLag.ToArray();
+			_longUsed = ltp._longUsed.ToArray();
 		}
     }
 }

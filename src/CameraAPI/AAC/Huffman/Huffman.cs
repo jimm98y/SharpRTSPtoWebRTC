@@ -3,25 +3,22 @@ using System;
 
 namespace CameraAPI.AAC.Huffman
 {
-    public class Huffman : Codebooks
+    public static class Huffman 
     {
-        private static bool[] UNSIGNED = {false, false, true, true, false, false, true, true, true, true, true};
-		private static int QUAD_LEN = 4, PAIR_LEN = 2;
-
-		private Huffman() {
-		}
+        private static readonly bool[] _UNSIGNED = {false, false, true, true, false, false, true, true, true, true, true};
+		private static int _QUAD_LEN = 4, _PAIR_LEN = 2;
 
 		private static int FindOffset(BitStream input, int[][] table) {
 			int off = 0;
 			int len = table[off][0];
-			int cw = input.readBits(len);
+			int cw = input.ReadBits(len);
 			int j;
 			while(cw!=table[off][1]) {
 				off++;
 				j = table[off][0]-len;
 				len = table[off][0];
 				cw <<= j;
-				cw |= input.readBits(j);
+				cw |= input.ReadBits(j);
 			}
 			return off;
 		}
@@ -29,7 +26,7 @@ namespace CameraAPI.AAC.Huffman
 		private static void SignValues(BitStream input, int[] data, int off, int len) {
 			for(int i = off; i<off+len; i++) {
 				if(data[i]!=0) {
-					if(input.readBool()) data[i] = -data[i];
+					if(input.ReadBool()) data[i] = -data[i];
 				}
 			}
 		}
@@ -38,21 +35,21 @@ namespace CameraAPI.AAC.Huffman
 			bool neg = s<0;
 
 			int i = 4;
-			while(input.readBool()) {
+			while(input.ReadBool()) {
 				i++;
 			}
-			int j = input.readBits(i)|(1<<i);
+			int j = input.ReadBits(i)|(1<<i);
 
 			return (neg ? -j : j);
 		}
 
 		public static int DecodeScaleFactor(BitStream input) {
-			int offset = FindOffset(input, HCB_SF);
-			return HCB_SF[offset][2];
+			int offset = FindOffset(input, Codebooks.HCB_SF);
+			return Codebooks.HCB_SF[offset][2];
 		}
 
 		public static void DecodeSpectralData(BitStream input, int cb, int[] data, int off) {
-			int[][] HCB = CODEBOOKS[cb-1];
+			int[][] HCB = Codebooks.CODEBOOKS[cb-1];
 
 			//find index
 			int offset = FindOffset(input, HCB);
@@ -67,10 +64,10 @@ namespace CameraAPI.AAC.Huffman
 
 			//sign & escape
 			if(cb<11) {
-				if(UNSIGNED[cb-1]) SignValues(input, data, off, cb<5 ? QUAD_LEN : PAIR_LEN);
+				if(_UNSIGNED[cb-1]) SignValues(input, data, off, cb<5 ? _QUAD_LEN : _PAIR_LEN);
 			}
 			else if(cb==11||cb>15) {
-				SignValues(input, data, off, cb<5 ? QUAD_LEN : PAIR_LEN); //virtual codebooks are always unsigned
+				SignValues(input, data, off, cb<5 ? _QUAD_LEN : _PAIR_LEN); //virtual codebooks are always unsigned
 				if(Math.Abs(data[off])==16) data[off] = GetEscape(input, data[off]);
 				if(Math.Abs(data[off+1])==16) data[off+1] = GetEscape(input, data[off+1]);
 			}

@@ -2,7 +2,7 @@
 
 namespace CameraAPI.AAC.Gain
 {
-    public class FFT
+    public static class FFT
     {
         public static float[][] FFT_TABLE_128 = {
             new float[] {1.0f, -0.0f},

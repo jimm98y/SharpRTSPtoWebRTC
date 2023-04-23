@@ -9,149 +9,169 @@
 		private const int MAX_ASSOC_DATA_ELEMENTS = 8;
 		private const int MAX_VALID_CC_ELEMENTS = 16;
 
-		public sealed class TaggedElement {
+		public sealed class TaggedElement 
+		{
+			public bool _isCPE;
+			public int _tag;
 
-			public bool isCPE;
-			public int tag;
-
-			public TaggedElement(bool isCPE, int tag) {
-				this.isCPE = isCPE;
-				this.tag = tag;
+			public TaggedElement(bool isCPE, int tag)
+			{
+				this._isCPE = isCPE;
+				this._tag = tag;
 			}
 
-			public bool isIsCPE() {
-				return isCPE;
+			public bool IsIsCPE() 
+			{
+				return _isCPE;
 			}
 
-			public int getTag() {
-				return tag;
-			}
-		}
-
-		public sealed class CCE {
-
-			public bool isIndSW;
-			public int tag;
-
-			public CCE(bool isIndSW, int tag) {
-				this.isIndSW = isIndSW;
-				this.tag = tag;
-			}
-
-			public bool isIsIndSW() {
-				return isIndSW;
-			}
-
-			public int getTag() {
-				return tag;
+			public int GetTag() 
+			{
+				return _tag;
 			}
 		}
 
-		private Profile profile;
-		private SampleFrequency sampleFrequency;
-		private int frontChannelElementsCount, sideChannelElementsCount, backChannelElementsCount;
-		private int lfeChannelElementsCount, assocDataElementsCount;
-		private int validCCElementsCount;
-		private bool monoMixdown, stereoMixdown, matrixMixdownIDXPresent;
-		private int monoMixdownElementNumber, stereoMixdownElementNumber, matrixMixdownIDX;
-		private bool pseudoSurround;
-		private TaggedElement[] frontElements, sideElements, backElements;
-		private int[] lfeElementTags;
-		private int[] assocDataElementTags;
-		private CCE[] ccElements;
-		private byte[] commentFieldData;
+		public sealed class CCE 
+		{
+			public bool _isIndSW;
+			public int _tag;
 
-		public PCE() {
-			frontElements = new TaggedElement[MAX_FRONT_CHANNEL_ELEMENTS];
-			sideElements = new TaggedElement[MAX_SIDE_CHANNEL_ELEMENTS];
-			backElements = new TaggedElement[MAX_BACK_CHANNEL_ELEMENTS];
-			lfeElementTags = new int[MAX_LFE_CHANNEL_ELEMENTS];
-			assocDataElementTags = new int[MAX_ASSOC_DATA_ELEMENTS];
-			ccElements = new CCE[MAX_VALID_CC_ELEMENTS];
-			sampleFrequency = SampleFrequency.SAMPLE_FREQUENCY_NONE;
+			public CCE(bool isIndSW, int tag) 
+			{
+				this._isIndSW = isIndSW;
+				this._tag = tag;
+			}
+
+			public bool IsIsIndSW() 
+			{
+				return _isIndSW;
+			}
+
+			public int GetTag() 
+			{
+				return _tag;
+			}
 		}
 
-		public void decode(BitStream input) {
-			readElementInstanceTag(input);
+		private Profile _profile;
+		private SampleFrequency _sampleFrequency;
+		private int _frontChannelElementsCount, _sideChannelElementsCount, _backChannelElementsCount;
+		private int _lfeChannelElementsCount, _assocDataElementsCount;
+		private int _validCCElementsCount;
+		private bool _monoMixdown, _stereoMixdown, _matrixMixdownIDXPresent;
+		private int _monoMixdownElementNumber, _stereoMixdownElementNumber, _matrixMixdownIDX;
+		private bool _pseudoSurround;
+		private TaggedElement[] _frontElements, _sideElements, _backElements;
+		private int[] _lfeElementTags;
+		private int[] _assocDataElementTags;
+		private CCE[] _ccElements;
+		private byte[] _commentFieldData;
 
-			profile = (Profile)(input.readBits(2));
+		public PCE() 
+		{
+			_frontElements = new TaggedElement[MAX_FRONT_CHANNEL_ELEMENTS];
+			_sideElements = new TaggedElement[MAX_SIDE_CHANNEL_ELEMENTS];
+			_backElements = new TaggedElement[MAX_BACK_CHANNEL_ELEMENTS];
+			_lfeElementTags = new int[MAX_LFE_CHANNEL_ELEMENTS];
+			_assocDataElementTags = new int[MAX_ASSOC_DATA_ELEMENTS];
+			_ccElements = new CCE[MAX_VALID_CC_ELEMENTS];
+			_sampleFrequency = SampleFrequency.SAMPLE_FREQUENCY_NONE;
+		}
 
-			sampleFrequency = (SampleFrequency)(input.readBits(4));
+		public void Decode(BitStream input) 
+		{
+			ReadElementInstanceTag(input);
 
-			frontChannelElementsCount = input.readBits(4);
-			sideChannelElementsCount = input.readBits(4);
-			backChannelElementsCount = input.readBits(4);
-			lfeChannelElementsCount = input.readBits(2);
-			assocDataElementsCount = input.readBits(3);
-			validCCElementsCount = input.readBits(4);
+			_profile = (Profile)(input.ReadBits(2));
 
-			if(monoMixdown = input.readBool()) {
+			_sampleFrequency = (SampleFrequency)(input.ReadBits(4));
+
+			_frontChannelElementsCount = input.ReadBits(4);
+			_sideChannelElementsCount = input.ReadBits(4);
+			_backChannelElementsCount = input.ReadBits(4);
+			_lfeChannelElementsCount = input.ReadBits(2);
+			_assocDataElementsCount = input.ReadBits(3);
+			_validCCElementsCount = input.ReadBits(4);
+
+			if(_monoMixdown = input.ReadBool()) 
+			{
 				//Constants.LOGGER.warning("mono mixdown present, but not yet supported");
-				monoMixdownElementNumber = input.readBits(4);
+				_monoMixdownElementNumber = input.ReadBits(4);
 			}
-			if(stereoMixdown = input.readBool()) {
+			if(_stereoMixdown = input.ReadBool()) 
+			{
 				//Constants.LOGGER.warning("stereo mixdown present, but not yet supported");
-				stereoMixdownElementNumber = input.readBits(4);
+				_stereoMixdownElementNumber = input.ReadBits(4);
 			}
-			if(matrixMixdownIDXPresent = input.readBool()) {
+			if(_matrixMixdownIDXPresent = input.ReadBool())
+			{
 				//Constants.LOGGER.warning("matrix mixdown present, but not yet supported");
-				matrixMixdownIDX = input.readBits(2);
-				pseudoSurround = input.readBool();
+				_matrixMixdownIDX = input.ReadBits(2);
+				_pseudoSurround = input.ReadBool();
 			}
 
-			readTaggedElementArray(frontElements, input, frontChannelElementsCount);
+			ReadTaggedElementArray(_frontElements, input, _frontChannelElementsCount);
 
-			readTaggedElementArray(sideElements, input, sideChannelElementsCount);
+			ReadTaggedElementArray(_sideElements, input, _sideChannelElementsCount);
 
-			readTaggedElementArray(backElements, input, backChannelElementsCount);
+			ReadTaggedElementArray(_backElements, input, _backChannelElementsCount);
 
 			int i;
-			for(i = 0; i<lfeChannelElementsCount; ++i) {
-				lfeElementTags[i] = input.readBits(4);
+			for(i = 0; i<_lfeChannelElementsCount; ++i) 
+			{
+				_lfeElementTags[i] = input.ReadBits(4);
 			}
 
-			for(i = 0; i<assocDataElementsCount; ++i) {
-				assocDataElementTags[i] = input.readBits(4);
+			for(i = 0; i<_assocDataElementsCount; ++i) 
+			{
+				_assocDataElementTags[i] = input.ReadBits(4);
 			}
 
-			for(i = 0; i<validCCElementsCount; ++i) {
-				ccElements[i] = new CCE(input.readBool(), input.readBits(4));
+			for(i = 0; i<_validCCElementsCount; ++i) 
+			{
+				_ccElements[i] = new CCE(input.ReadBool(), input.ReadBits(4));
 			}
 
-            input.byteAlign();
+            input.ByteAlign();
 
-			int commentFieldBytes = input.readBits(8);
-			commentFieldData = new byte[commentFieldBytes];
-			for(i = 0; i<commentFieldBytes; i++) {
-				commentFieldData[i] = (byte)input.readBits(8);
-			}
-		}
-
-		private void readTaggedElementArray(TaggedElement[] te, BitStream input, int len) {
-			for(int i = 0; i<len; ++i) {
-				te[i] = new TaggedElement(input.readBool(), input.readBits(4));
+			int commentFieldBytes = input.ReadBits(8);
+			_commentFieldData = new byte[commentFieldBytes];
+			for(i = 0; i<commentFieldBytes; i++) 
+			{
+				_commentFieldData[i] = (byte)input.ReadBits(8);
 			}
 		}
 
-		public Profile getProfile() {
-			return profile;
+		private void ReadTaggedElementArray(TaggedElement[] te, BitStream input, int len) 
+		{
+			for(int i = 0; i<len; ++i)
+			{
+				te[i] = new TaggedElement(input.ReadBool(), input.ReadBits(4));
+			}
 		}
 
-		public SampleFrequency getSampleFrequency() {
-			return sampleFrequency;
+		public Profile GetProfile() 
+		{
+			return _profile;
 		}
 
-		public int getChannelCount() {
-            int count = lfeChannelElementsCount + assocDataElementsCount;
+		public SampleFrequency GetSampleFrequency() 
+		{
+			return _sampleFrequency;
+		}
 
-            for (int n = 0; n < frontChannelElementsCount; ++n)
-                count += frontElements[n].isCPE ? 2 : 1;
+		public int GetChannelCount()
+		{
+            int count = _lfeChannelElementsCount + _assocDataElementsCount;
 
-            for (int n = 0; n < sideChannelElementsCount; ++n)
-                count += sideElements[n].isCPE ? 2 : 1;
+            for (int n = 0; n < _frontChannelElementsCount; ++n)
+                count += _frontElements[n]._isCPE ? 2 : 1;
 
-            for (int n = 0; n < backChannelElementsCount; ++n)
-                count += backElements[n].isCPE ? 2 : 1;
+            for (int n = 0; n < _sideChannelElementsCount; ++n)
+                count += _sideElements[n]._isCPE ? 2 : 1;
+
+            for (int n = 0; n < _backChannelElementsCount; ++n)
+                count += _backElements[n]._isCPE ? 2 : 1;
 
             return count;
         }

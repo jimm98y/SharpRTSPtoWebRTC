@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Syntax
 {
-    public class IQTable
+    public static class IQTable
     {
         public static float[] IQ_TABLE = {
             0.0f,

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class NoiseTable
+    public static class NoiseTable
     {
         /* Table 1.A.13 Noise table V */
         public static float[,] NOISE_TABLE = {

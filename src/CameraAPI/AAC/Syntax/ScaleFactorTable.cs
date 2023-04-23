@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Syntax
 {
-    public class ScaleFactorTable
+    public static class ScaleFactorTable
     {
         public static float[] SCALEFACTOR_TABLE = {8.881784E-16f, 1.0562281E-15f, 1.2560739E-15f,
             1.4937321E-15f, 1.7763568E-15f, 2.1124561E-15f,

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Gain
 {
-    public class IMDCTTables
+    public static class IMDCTTables
     {
         //pre-twiddling tables
         public static float[][] IMDCT_TABLE_256 = {

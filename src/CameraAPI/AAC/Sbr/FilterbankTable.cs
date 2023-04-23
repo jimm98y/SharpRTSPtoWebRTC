@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class FilterbankTable
+    public static class FilterbankTable
     {
         public static float[] qmf_c = {
             0f, -0.00055252865047f,

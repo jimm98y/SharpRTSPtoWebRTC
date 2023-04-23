@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Huffman
 {
-    public class HCB
+    public static class HCB
     {
         public const int ZERO_HCB = 0;
         public const int ESCAPE_HCB = 11;

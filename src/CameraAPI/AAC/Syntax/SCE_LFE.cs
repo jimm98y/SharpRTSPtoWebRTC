@@ -2,19 +2,22 @@
 {
     public class SCE_LFE : Element
     {
-		private ICStream ics;
+		private ICStream _ics;
 
-		public SCE_LFE(DecoderConfig config) {
-			ics = new ICStream(config);
+		public SCE_LFE(DecoderConfig config)
+		{
+			_ics = new ICStream(config);
 		}
 
-		public void decode(BitStream input, DecoderConfig conf) {
-			readElementInstanceTag(input);
-			ics.decode(input, false, conf);
+		public void Decode(BitStream input, DecoderConfig conf)
+		{
+			ReadElementInstanceTag(input);
+			_ics.Decode(input, false, conf);
 		}
 
-		public ICStream getICStream() {
-			return ics;
+		public ICStream GetICStream() 
+		{
+			return _ics;
 		}
     }
 }

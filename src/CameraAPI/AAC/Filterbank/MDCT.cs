@@ -1,125 +1,134 @@
 ﻿namespace CameraAPI.AAC.Filterbank
 {
-    public class MDCT : MDCTTables
+    public class MDCT
     {
-        private int N, N2, N4, N8;
-		private float[][] sincos;
-		private FFT fft;
-		private float[,] buf;
-		private float[] tmp;
+        private int _N, _N2, _N4, _N8;
+		private float[][] _sincos;
+		private FFT _fft;
+		private float[,] _buf;
+		private float[] _tmp;
 
-		public MDCT(int length) {
-			N = length;
-			N2 = length>>1;
-			N4 = length>>2;
-			N8 = length>>3;
-			switch(length) {
+		public MDCT(int length) 
+		{
+			_N = length;
+			_N2 = length>>1;
+			_N4 = length>>2;
+			_N8 = length>>3;
+			switch(length)
+			{
 				case 2048:
-					sincos = MDCT_TABLE_2048;
+					_sincos = MDCTTables.MDCT_TABLE_2048;
 					break;
 				case 256:
-					sincos = MDCT_TABLE_128;
+					_sincos = MDCTTables.MDCT_TABLE_128;
 					break;
 				case 1920:
-					sincos = MDCT_TABLE_1920;
+					_sincos = MDCTTables.MDCT_TABLE_1920;
 					break;
 				case 240:
-					sincos = MDCT_TABLE_240;
+					_sincos = MDCTTables.MDCT_TABLE_240;
 					break;
 				default:
 					throw new AACException("unsupported MDCT length: "+length);
 			}
-			fft = new FFT(N4);
-			buf = new float[N4,2];
-            tmp = new float[2];
+			_fft = new FFT(_N4);
+			_buf = new float[_N4,2];
+            _tmp = new float[2];
 		}
 
-		public void Process(float[] input, int inOff, float[] output, int outOff) {
+		public void Process(float[] input, int inOff, float[] output, int outOff) 
+		{
 			int k;
 
 			//pre-IFFT complex multiplication
-			for(k = 0; k<N4; k++) {
-				buf[k,1] = (input[inOff+2*k]*sincos[k][0])+(input[inOff+N2-1-2*k]*sincos[k][1]);
-				buf[k,0] = (input[inOff+N2-1-2*k]*sincos[k][0])-(input[inOff+2*k]*sincos[k][1]);
+			for(k = 0; k<_N4; k++)
+			{
+				_buf[k,1] = (input[inOff+2*k]*_sincos[k][0])+(input[inOff+_N2-1-2*k]*_sincos[k][1]);
+				_buf[k,0] = (input[inOff+_N2-1-2*k]*_sincos[k][0])-(input[inOff+2*k]*_sincos[k][1]);
 			}
 
 			//complex IFFT, non-scaling
-			fft.Process(buf, false);
+			_fft.Process(_buf, false);
 
 			//post-IFFT complex multiplication
-			for(k = 0; k<N4; k++) {
-				tmp[0] = buf[k,0];
-				tmp[1] = buf[k,1];
-				buf[k,1] = (tmp[1]*sincos[k][0])+(tmp[0]*sincos[k][1]);
-				buf[k,0] = (tmp[0]*sincos[k][0])-(tmp[1]*sincos[k][1]);
+			for(k = 0; k<_N4; k++) 
+			{
+				_tmp[0] = _buf[k,0];
+				_tmp[1] = _buf[k,1];
+				_buf[k,1] = (_tmp[1]*_sincos[k][0])+(_tmp[0]*_sincos[k][1]);
+				_buf[k,0] = (_tmp[0]*_sincos[k][0])-(_tmp[1]*_sincos[k][1]);
 			}
 
 			//reordering
-			for(k = 0; k<N8; k += 2) {
-                output[outOff+2*k] = buf[N8+k,1];
-                output[outOff+2+2*k] = buf[N8+1+k,1];
+			for(k = 0; k<_N8; k += 2) 
+			{
+                output[outOff+2*k] = _buf[_N8+k,1];
+                output[outOff+2+2*k] = _buf[_N8+1+k,1];
 
-                output[outOff+1+2*k] = -buf[N8-1-k,0];
-                output[outOff+3+2*k] = -buf[N8-2-k,0];
+                output[outOff+1+2*k] = -_buf[_N8-1-k,0];
+                output[outOff+3+2*k] = -_buf[_N8-2-k,0];
 
-                output[outOff+N4+2*k] = buf[k,0];
-                output[outOff+N4+2+2*k] = buf[1+k,0];
+                output[outOff+_N4+2*k] = _buf[k,0];
+                output[outOff+_N4+2+2*k] = _buf[1+k,0];
 
-                output[outOff+N4+1+2*k] = -buf[N4-1-k,1];
-                output[outOff+N4+3+2*k] = -buf[N4-2-k,1];
+                output[outOff+_N4+1+2*k] = -_buf[_N4-1-k,1];
+                output[outOff+_N4+3+2*k] = -_buf[_N4-2-k,1];
 
-                output[outOff+N2+2*k] = buf[N8+k,0];
-                output[outOff+N2+2+2*k] = buf[N8+1+k,0];
+                output[outOff+_N2+2*k] = _buf[_N8+k,0];
+                output[outOff+_N2+2+2*k] = _buf[_N8+1+k,0];
 
-                output[outOff+N2+1+2*k] = -buf[N8-1-k,1];
-                output[outOff+N2+3+2*k] = -buf[N8-2-k,1];
+                output[outOff+_N2+1+2*k] = -_buf[_N8-1-k,1];
+                output[outOff+_N2+3+2*k] = -_buf[_N8-2-k,1];
 
-                output[outOff+N2+N4+2*k] = -buf[k,1];
-                output[outOff+N2+N4+2+2*k] = -buf[1+k,1];
+                output[outOff+_N2+_N4+2*k] = -_buf[k,1];
+                output[outOff+_N2+_N4+2+2*k] = -_buf[1+k,1];
 
-                output[outOff+N2+N4+1+2*k] = buf[N4-1-k,0];
-                output[outOff+N2+N4+3+2*k] = buf[N4-2-k,0];
+                output[outOff+_N2+_N4+1+2*k] = _buf[_N4-1-k,0];
+                output[outOff+_N2+_N4+3+2*k] = _buf[_N4-2-k,0];
 			}
 		}
 
-		public void ProcessForward(float[] input, float[] output) {
+		public void ProcessForward(float[] input, float[] output)
+		{
 			int n, k;
 			//pre-FFT complex multiplication
-			for(k = 0; k<N8; k++) {
+			for(k = 0; k<_N8; k++)
+			{
 				n = k<<1;
-				tmp[0] = input[N-N4-1-n]+ input[N-N4+n];
-				tmp[1] = input[N4+n]- input[N4-1-n];
+				_tmp[0] = input[_N-_N4-1-n]+ input[_N-_N4+n];
+				_tmp[1] = input[_N4+n]- input[_N4-1-n];
 
-				buf[k,0] = (tmp[0]*sincos[k][0])+(tmp[1]*sincos[k][1]);
-				buf[k,1] = (tmp[1]*sincos[k][0])-(tmp[0]*sincos[k][1]);
+				_buf[k,0] = (_tmp[0]*_sincos[k][0])+(_tmp[1]*_sincos[k][1]);
+				_buf[k,1] = (_tmp[1]*_sincos[k][0])-(_tmp[0]*_sincos[k][1]);
 
-				buf[k,0] *= N;
-				buf[k,1] *= N;
+				_buf[k,0] *= _N;
+				_buf[k,1] *= _N;
 
-				tmp[0] = input[N2-1-n]-input[n];
-				tmp[1] = input[N2+n]+ input[N-1-n];
+				_tmp[0] = input[_N2-1-n]-input[n];
+				_tmp[1] = input[_N2+n]+ input[_N-1-n];
 
-				buf[k+N8,0] = (tmp[0]*sincos[k+N8][0])+(tmp[1]*sincos[k+N8][1]);
-				buf[k+N8,1] = (tmp[1]*sincos[k+N8][0])-(tmp[0]*sincos[k+N8][1]);
+				_buf[k+_N8,0] = (_tmp[0]*_sincos[k+_N8][0])+(_tmp[1]*_sincos[k+_N8][1]);
+				_buf[k+_N8,1] = (_tmp[1]*_sincos[k+_N8][0])-(_tmp[0]*_sincos[k+_N8][1]);
 
-				buf[k+N8,0] *= N;
-				buf[k+N8,1] *= N;
+				_buf[k+_N8,0] *= _N;
+				_buf[k+_N8,1] *= _N;
 			}
 
 			//complex FFT, non-scaling
-			fft.Process(buf, true);
+			_fft.Process(_buf, true);
 
 			//post-FFT complex multiplication
-			for(k = 0; k<N4; k++) {
+			for(k = 0; k<_N4; k++) 
+			{
 				n = k<<1;
 
-				tmp[0] = (buf[k,0]*sincos[k][0])+(buf[k,1]*sincos[k][1]);
-				tmp[1] = (buf[k,1]*sincos[k][0])-(buf[k,0]*sincos[k][1]);
+				_tmp[0] = (_buf[k,0]*_sincos[k][0])+(_buf[k,1]*_sincos[k][1]);
+				_tmp[1] = (_buf[k,1]*_sincos[k][0])-(_buf[k,0]*_sincos[k][1]);
 
-                output[n] = -tmp[0];
-                output[N2-1-n] = tmp[1];
-                output[N2+n] = -tmp[1];
-                output[N-1-n] = tmp[0];
+                output[n] = -_tmp[0];
+                output[_N2-1-n] = _tmp[1];
+                output[_N2+n] = -_tmp[1];
+                output[_N-1-n] = _tmp[0];
 			}
 		}
     }

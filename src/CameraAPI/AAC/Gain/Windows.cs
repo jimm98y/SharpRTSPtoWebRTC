@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Gain
 {
-    public class Windows
+    public static class Windows
     {
         public static float[] SINE_256 = {
 			0.003067956762965976f,

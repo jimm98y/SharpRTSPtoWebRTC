@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class NoiseEnvelope : Constants
+    public static class NoiseEnvelope
     {
         private static float[] E_deq_tab = {
             64.0f, 128.0f, 256.0f, 512.0f, 1024.0f, 2048.0f, 4096.0f, 8192.0f,
@@ -188,79 +188,79 @@
             new float[] {1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f}
         };
 
-        public static void extract_envelope_data(SBR sbr, int ch)
+        public static void ExtractEnvelopeData(SBR sbr, int ch)
         {
             int l, k;
 
-            for (l = 0; l < sbr.L_E[ch]; l++)
+            for (l = 0; l < sbr._L_E[ch]; l++)
             {
-                if (sbr.bs_df_env[ch,l] == 0)
+                if (sbr._bs_df_env[ch,l] == 0)
                 {
-                    for (k = 1; k < sbr.n[sbr.f[ch,l]]; k++)
+                    for (k = 1; k < sbr._n[sbr._f[ch,l]]; k++)
                     {
-                        sbr.E[ch,k,l] = sbr.E[ch,k - 1,l] + sbr.E[ch,k,l];
-                        if (sbr.E[ch,k,l] < 0)
-                            sbr.E[ch,k,l] = 0;
+                        sbr._E[ch,k,l] = sbr._E[ch,k - 1,l] + sbr._E[ch,k,l];
+                        if (sbr._E[ch,k,l] < 0)
+                            sbr._E[ch,k,l] = 0;
                     }
 
                 }
                 else
                 { /* bs_df_env == 1 */
 
-                    int g = (l == 0) ? sbr.f_prev[ch] : sbr.f[ch,l - 1];
+                    int g = (l == 0) ? sbr._f_prev[ch] : sbr._f[ch,l - 1];
                     int E_prev;
 
-                    if (sbr.f[ch,l] == g)
+                    if (sbr._f[ch,l] == g)
                     {
-                        for (k = 0; k < sbr.n[sbr.f[ch,l]]; k++)
+                        for (k = 0; k < sbr._n[sbr._f[ch,l]]; k++)
                         {
                             if (l == 0)
-                                E_prev = sbr.E_prev[ch,k];
+                                E_prev = sbr._E_prev[ch,k];
                             else
-                                E_prev = sbr.E[ch,k,l - 1];
+                                E_prev = sbr._E[ch,k,l - 1];
 
-                            sbr.E[ch,k,l] = E_prev + sbr.E[ch,k,l];
+                            sbr._E[ch,k,l] = E_prev + sbr._E[ch,k,l];
                         }
 
                     }
-                    else if ((g == 1) && (sbr.f[ch,l] == 0))
+                    else if ((g == 1) && (sbr._f[ch,l] == 0))
                     {
                         int i;
 
-                        for (k = 0; k < sbr.n[sbr.f[ch,l]]; k++)
+                        for (k = 0; k < sbr._n[sbr._f[ch,l]]; k++)
                         {
-                            for (i = 0; i < sbr.N_high; i++)
+                            for (i = 0; i < sbr._N_high; i++)
                             {
-                                if (sbr.f_table_res[HI_RES,i] == sbr.f_table_res[LO_RES,k])
+                                if (sbr._f_table_res[Constants.HI_RES, i] == sbr._f_table_res[Constants.LO_RES, k])
                                 {
                                     if (l == 0)
-                                        E_prev = sbr.E_prev[ch,i];
+                                        E_prev = sbr._E_prev[ch,i];
                                     else
-                                        E_prev = sbr.E[ch,i,l - 1];
+                                        E_prev = sbr._E[ch,i,l - 1];
 
-                                    sbr.E[ch,k,l] = E_prev + sbr.E[ch,k,l];
+                                    sbr._E[ch,k,l] = E_prev + sbr._E[ch,k,l];
                                 }
                             }
                         }
 
                     }
-                    else if ((g == 0) && (sbr.f[ch,l] == 1))
+                    else if ((g == 0) && (sbr._f[ch,l] == 1))
                     {
                         int i;
 
-                        for (k = 0; k < sbr.n[sbr.f[ch,l]]; k++)
+                        for (k = 0; k < sbr._n[sbr._f[ch,l]]; k++)
                         {
-                            for (i = 0; i < sbr.N_low; i++)
+                            for (i = 0; i < sbr._N_low; i++)
                             {
-                                if ((sbr.f_table_res[LO_RES,i] <= sbr.f_table_res[HI_RES,k])
-                                    && (sbr.f_table_res[HI_RES,k] < sbr.f_table_res[LO_RES,i + 1]))
+                                if ((sbr._f_table_res[Constants.LO_RES, i] <= sbr._f_table_res[Constants.HI_RES, k])
+                                    && (sbr._f_table_res[Constants.HI_RES, k] < sbr._f_table_res[Constants.LO_RES, i + 1]))
                                 {
                                     if (l == 0)
-                                        E_prev = sbr.E_prev[ch,i];
+                                        E_prev = sbr._E_prev[ch,i];
                                     else
-                                        E_prev = sbr.E[ch,i,l - 1];
+                                        E_prev = sbr._E[ch,i,l - 1];
 
-                                    sbr.E[ch,k,l] = E_prev + sbr.E[ch,k,l];
+                                    sbr._E[ch,k,l] = E_prev + sbr._E[ch,k,l];
                                 }
                             }
                         }
@@ -269,33 +269,33 @@
             }
         }
 
-        public static void extract_noise_floor_data(SBR sbr, int ch)
+        public static void ExtractNoiseFloorData(SBR sbr, int ch)
         {
             int l, k;
 
-            for (l = 0; l < sbr.L_Q[ch]; l++)
+            for (l = 0; l < sbr._L_Q[ch]; l++)
             {
-                if (sbr.bs_df_noise[ch,l] == 0)
+                if (sbr._bs_df_noise[ch,l] == 0)
                 {
-                    for (k = 1; k < sbr.N_Q; k++)
+                    for (k = 1; k < sbr._N_Q; k++)
                     {
-                        sbr.Q[ch,k,l] = sbr.Q[ch,k,l] + sbr.Q[ch,k - 1,l];
+                        sbr._Q[ch,k,l] = sbr._Q[ch,k,l] + sbr._Q[ch,k - 1,l];
                     }
                 }
                 else
                 {
                     if (l == 0)
                     {
-                        for (k = 0; k < sbr.N_Q; k++)
+                        for (k = 0; k < sbr._N_Q; k++)
                         {
-                            sbr.Q[ch,k,l] = sbr.Q_prev[ch,k] + sbr.Q[ch,k,0];
+                            sbr._Q[ch,k,l] = sbr._Q_prev[ch,k] + sbr._Q[ch,k,0];
                         }
                     }
                     else
                     {
-                        for (k = 0; k < sbr.N_Q; k++)
+                        for (k = 0; k < sbr._N_Q; k++)
                         {
-                            sbr.Q[ch,k,l] = sbr.Q[ch,k,l - 1] + sbr.Q[ch,k,l];
+                            sbr._Q[ch,k,l] = sbr._Q[ch,k,l - 1] + sbr._Q[ch,k,l];
                         }
                     }
                 }
@@ -304,13 +304,13 @@
 
         /* calculates 1/(1+Q) */
         /* [0..1] */
-        public static float calc_Q_div(SBR sbr, int ch, int m, int l)
+        public static float CalcQDiv(SBR sbr, int ch, int m, int l)
         {
-            if (sbr.bs_coupling)
+            if (sbr._bs_coupling)
             {
                 /* left channel */
-                if ((sbr.Q[0,m,l] < 0 || sbr.Q[0,m,l] > 30)
-                    || (sbr.Q[1,m,l] < 0 || sbr.Q[1,m,l] > 24 /* 2*panOffset(1) */))
+                if ((sbr._Q[0,m,l] < 0 || sbr._Q[0,m,l] > 30)
+                    || (sbr._Q[1,m,l] < 0 || sbr._Q[1,m,l] > 24 /* 2*panOffset(1) */))
                 {
                     return 0;
                 }
@@ -319,36 +319,36 @@
                     /* the pan parameter is always even */
                     if (ch == 0)
                     {
-                        return Q_div_tab_left[sbr.Q[0,m,l]][sbr.Q[1,m,l] >> 1];
+                        return Q_div_tab_left[sbr._Q[0,m,l]][sbr._Q[1,m,l] >> 1];
                     }
                     else
                     {
-                        return Q_div_tab_right[sbr.Q[0,m,l]][sbr.Q[1,m,l] >> 1];
+                        return Q_div_tab_right[sbr._Q[0,m,l]][sbr._Q[1,m,l] >> 1];
                     }
                 }
             }
             else
             {
                 /* no coupling */
-                if (sbr.Q[ch,m,l] < 0 || sbr.Q[ch,m,l] > 30)
+                if (sbr._Q[ch,m,l] < 0 || sbr._Q[ch,m,l] > 30)
                 {
                     return 0;
                 }
                 else
                 {
-                    return Q_div_tab[sbr.Q[ch,m,l]];
+                    return Q_div_tab[sbr._Q[ch,m,l]];
                 }
             }
         }
 
         /* calculates Q/(1+Q) */
-        /* [0..1] */
-        public static float calc_Q_div2(SBR sbr, int ch, int m, int l)
+        /* [0..1] */ 
+        public static float CalcQDiv2(SBR sbr, int ch, int m, int l)
         {
-            if (sbr.bs_coupling)
+            if (sbr._bs_coupling)
             {
-                if ((sbr.Q[0,m,l] < 0 || sbr.Q[0,m,l] > 30)
-                    || (sbr.Q[1,m,l] < 0 || sbr.Q[1,m,l] > 24 /* 2*panOffset(1) */))
+                if ((sbr._Q[0,m,l] < 0 || sbr._Q[0,m,l] > 30)
+                    || (sbr._Q[1,m,l] < 0 || sbr._Q[1,m,l] > 24 /* 2*panOffset(1) */))
                 {
                     return 0;
                 }
@@ -357,69 +357,69 @@
                     /* the pan parameter is always even */
                     if (ch == 0)
                     {
-                        return Q_div2_tab_left[sbr.Q[0,m,l]][sbr.Q[1,m,l] >> 1];
+                        return Q_div2_tab_left[sbr._Q[0,m,l]][sbr._Q[1,m,l] >> 1];
                     }
                     else
                     {
-                        return Q_div2_tab_right[sbr.Q[0,m,l]][sbr.Q[1,m,l] >> 1];
+                        return Q_div2_tab_right[sbr._Q[0,m,l]][sbr._Q[1,m,l] >> 1];
                     }
                 }
             }
             else
             {
                 /* no coupling */
-                if (sbr.Q[ch,m,l] < 0 || sbr.Q[ch,m,l] > 30)
+                if (sbr._Q[ch,m,l] < 0 || sbr._Q[ch,m,l] > 30)
                 {
                     return 0;
                 }
                 else
                 {
-                    return Q_div2_tab[sbr.Q[ch,m,l]];
+                    return Q_div2_tab[sbr._Q[ch,m,l]];
                 }
             }
         }
 
-        public static void dequantChannel(SBR sbr, int ch)
+        public static void DequantChannel(SBR sbr, int ch)
         {
-            if (!sbr.bs_coupling)
+            if (!sbr._bs_coupling)
             {
                 int exp;
                 int l, k;
-                int amp = (sbr.amp_res[ch]) ? 0 : 1;
+                int amp = (sbr._ampRes[ch]) ? 0 : 1;
 
-                for (l = 0; l < sbr.L_E[ch]; l++)
+                for (l = 0; l < sbr._L_E[ch]; l++)
                 {
-                    for (k = 0; k < sbr.n[sbr.f[ch,l]]; k++)
+                    for (k = 0; k < sbr._n[sbr._f[ch,l]]; k++)
                     {
                         /* +6 for the *64 and -10 for the /32 in the synthesis QMF (fixed)
                          * since this is a energy value: (x/32)^2 = (x^2)/1024
                          */
                         /* exp = (sbr.E[ch][k][l] >> amp) + 6; */
-                        exp = (sbr.E[ch,k,l] >> amp);
+                        exp = (sbr._E[ch,k,l] >> amp);
 
                         if ((exp < 0) || (exp >= 64))
                         {
-                            sbr.E_orig[ch,k,l] = 0;
+                            sbr._E_orig[ch,k,l] = 0;
                         }
                         else
                         {
-                            sbr.E_orig[ch,k,l] = E_deq_tab[exp];
+                            sbr._E_orig[ch,k,l] = E_deq_tab[exp];
 
                             /* save half the table size at the cost of 1 multiply */
-                            if (amp != 0 && (sbr.E[ch,k,l] & 1) != 0)
+                            if (amp != 0 && (sbr._E[ch,k,l] & 1) != 0)
                             {
-                                sbr.E_orig[ch,k,l] = (sbr.E_orig[ch,k,l] * 1.414213562f);
+                                sbr._E_orig[ch,k,l] = (sbr._E_orig[ch,k,l] * 1.414213562f);
                             }
                         }
                     }
                 }
 
-                for (l = 0; l < sbr.L_Q[ch]; l++)
+                for (l = 0; l < sbr._L_Q[ch]; l++)
                 {
-                    for (k = 0; k < sbr.N_Q; k++)
+                    for (k = 0; k < sbr._N_Q; k++)
                     {
-                        sbr.Q_div[ch,k,l] = calc_Q_div(sbr, ch, k, l);
-                        sbr.Q_div2[ch,k,l] = calc_Q_div2(sbr, ch, k, l);
+                        sbr._Q_div[ch,k,l] = CalcQDiv(sbr, ch, k, l);
+                        sbr._Q_div2[ch,k,l] = CalcQDiv2(sbr, ch, k, l);
                     }
                 }
             }
@@ -441,57 +441,57 @@
             0.999756f
         };
 
-        public static void unmap(SBR sbr)
+        public static void Unmap(SBR sbr)
         {
             float tmp;
             int exp0, exp1;
             int l, k;
-            int amp0 = (sbr.amp_res[0]) ? 0 : 1;
-            int amp1 = (sbr.amp_res[1]) ? 0 : 1;
+            int amp0 = (sbr._ampRes[0]) ? 0 : 1;
+            int amp1 = (sbr._ampRes[1]) ? 0 : 1;
 
-            for (l = 0; l < sbr.L_E[0]; l++)
+            for (l = 0; l < sbr._L_E[0]; l++)
             {
-                for (k = 0; k < sbr.n[sbr.f[0,l]]; k++)
+                for (k = 0; k < sbr._n[sbr._f[0,l]]; k++)
                 {
                     /* +6: * 64 ; +1: * 2 ; */
-                    exp0 = (sbr.E[0,k,l] >> amp0) + 1;
+                    exp0 = (sbr._E[0,k,l] >> amp0) + 1;
 
                     /* UN_MAP removed: (x / 4096) same as (x >> 12) */
                     /* E[1] is always even so no need for compensating the divide by 2 with
                      * an extra multiplication
                      */
                     /* exp1 = (sbr.E[1][k][l] >> amp1) - 12; */
-                    exp1 = (sbr.E[1,k,l] >> amp1);
+                    exp1 = (sbr._E[1,k,l] >> amp1);
 
                     if ((exp0 < 0) || (exp0 >= 64)
                         || (exp1 < 0) || (exp1 > 24))
                     {
-                        sbr.E_orig[1,k,l] = 0;
-                        sbr.E_orig[0,k,l] = 0;
+                        sbr._E_orig[1,k,l] = 0;
+                        sbr._E_orig[0,k,l] = 0;
                     }
                     else
                     {
                         tmp = E_deq_tab[exp0];
-                        if (amp0 != 0 && (sbr.E[0,k,l] & 1) != 0)
+                        if (amp0 != 0 && (sbr._E[0,k,l] & 1) != 0)
                         {
                             tmp *= 1.414213562f;
                         }
 
                         /* panning */
-                        sbr.E_orig[0,k,l] = (tmp * E_pan_tab[exp1]);
-                        sbr.E_orig[1,k,l] = (tmp * E_pan_tab[24 - exp1]);
+                        sbr._E_orig[0,k,l] = (tmp * E_pan_tab[exp1]);
+                        sbr._E_orig[1,k,l] = (tmp * E_pan_tab[24 - exp1]);
                     }
                 }
             }
 
-            for (l = 0; l < sbr.L_Q[0]; l++)
+            for (l = 0; l < sbr._L_Q[0]; l++)
             {
-                for (k = 0; k < sbr.N_Q; k++)
+                for (k = 0; k < sbr._N_Q; k++)
                 {
-                    sbr.Q_div[0,k,l] = calc_Q_div(sbr, 0, k, l);
-                    sbr.Q_div[1,k,l] = calc_Q_div(sbr, 1, k, l);
-                    sbr.Q_div2[0,k,l] = calc_Q_div2(sbr, 0, k, l);
-                    sbr.Q_div2[1,k,l] = calc_Q_div2(sbr, 1, k, l);
+                    sbr._Q_div[0,k,l] = CalcQDiv(sbr, 0, k, l);
+                    sbr._Q_div[1,k,l] = CalcQDiv(sbr, 1, k, l);
+                    sbr._Q_div2[0,k,l] = CalcQDiv2(sbr, 0, k, l);
+                    sbr._Q_div2[1,k,l] = CalcQDiv2(sbr, 1, k, l);
                 }
             }
         }

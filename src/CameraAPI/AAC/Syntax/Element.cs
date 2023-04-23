@@ -2,41 +2,42 @@
 
 namespace CameraAPI.AAC.Syntax
 {
-    public class Element : Constants
+    public abstract class Element
     {
-        private int elementInstanceTag;
-        private SBR sbr;
+        private int _elementInstanceTag;
+        private SBR _sbr;
 
-        protected void readElementInstanceTag(BitStream input)
+        protected void ReadElementInstanceTag(BitStream input)
         {
-            elementInstanceTag = input.readBits(4);
+            _elementInstanceTag = input.ReadBits(4);
 	    }
 
-        public int getElementInstanceTag()
+        public int GetElementInstanceTag()
         {
-            return elementInstanceTag;
+            return _elementInstanceTag;
         }
 
-        public void decodeSBR(BitStream input, SampleFrequency sf, int count, bool stereo, bool crc, bool downSampled, bool smallFrames)
+        public void DecodeSBR(BitStream input, SampleFrequency sf, int count, bool stereo, bool crc, bool downSampled, bool smallFrames)
         {
-            if (sbr == null) {
+            if (_sbr == null) 
+            {
                 /* implicit SBR signalling, see 4.6.18.2.6 */
                 int fq = sf.GetFrequency();
                 if (fq < 24000 && !downSampled)
                     sf = SampleFrequencyExtensions.FromFrequency(2 * fq);
-                sbr = new SBR(smallFrames, stereo, sf, downSampled);
+                _sbr = new SBR(smallFrames, stereo, sf, downSampled);
             }
-            sbr.Decode(input, count, crc);
+            _sbr.Decode(input, count, crc);
         }
 
-        public bool isSBRPresent()
+        public bool IsSBRPresent()
         {
-            return sbr != null;
+            return _sbr != null;
         }
 
-        public SBR getSBR()
+        public SBR GetSBR()
         {
-            return sbr;
+            return _sbr;
         }
     }
 }

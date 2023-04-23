@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Filterbank
 {
-    public class FFTables
+    public static class FFTables
     {
         public static float[,] FFT_TABLE_512 = new float[,] {
             {1.0f, 0.0f, 0.0f},

@@ -5,7 +5,7 @@ using System;
 
 namespace CameraAPI.AAC.Syntax
 {
-    public class SyntacticElements : Constants
+    public class SyntacticElements
     {
 		//global properties
 		private DecoderConfig config;
@@ -21,19 +21,21 @@ namespace CameraAPI.AAC.Syntax
 		private int curElem, curCCE, curDSE, curFIL;
 		private float[][] data;
 
-		public SyntacticElements(DecoderConfig config) {
+		public SyntacticElements(DecoderConfig config) 
+		{
 			this.config = config;
 
 			pce = new PCE();
-			elements = new Element[4*MAX_ELEMENTS];
-			cces = new CCE[MAX_ELEMENTS];
-			dses = new DSE[MAX_ELEMENTS];
-			fils = new FIL[MAX_ELEMENTS];
+			elements = new Element[4* Constants.MAX_ELEMENTS];
+			cces = new CCE[Constants.MAX_ELEMENTS];
+			dses = new DSE[Constants.MAX_ELEMENTS];
+			fils = new FIL[Constants.MAX_ELEMENTS];
 
-			startNewFrame();
+			StartNewFrame();
 		}
 
-		public void startNewFrame() {
+		public void StartNewFrame()
+		{
 			curElem = 0;
 			curCCE = 0;
 			curDSE = 0;
@@ -43,43 +45,47 @@ namespace CameraAPI.AAC.Syntax
 			bitsRead = 0;
 		}
 
-		public void decode(BitStream input) {
+		public void Decode(BitStream input) 
+		{
 			++frame;
-			int start = input.getPosition(); //should be 0
+			int start = input.GetPosition(); //should be 0
 
 			int type;
 			Element prev = null;
 			bool content = true;
-			if(!config.getProfile().IsErrorResilientProfile()) {
-				while(content&&(type = input.readBits(3))!=ELEMENT_END) {
-					switch(type) {
-						case ELEMENT_SCE:
-						case ELEMENT_LFE:
+			if(!config.GetProfile().IsErrorResilientProfile()) 
+			{
+				while(content&&(type = input.ReadBits(3))!= Constants.ELEMENT_END)
+				{
+					switch(type) 
+					{
+						case Constants.ELEMENT_SCE:
+						case Constants.ELEMENT_LFE:
 							//LOGGER.finest("SCE");
-							prev = decodeSCE_LFE(input);
+							prev = DecodeSCE_LFE(input);
 							break;
-						case ELEMENT_CPE:
+						case Constants.ELEMENT_CPE:
 							//LOGGER.finest("CPE");
-							prev = decodeCPE(input);
+							prev = DecodeCPE(input);
 							break;
-						case ELEMENT_CCE:
+						case Constants.ELEMENT_CCE:
 							//LOGGER.finest("CCE");
-							decodeCCE(input);
+							DecodeCCE(input);
 							prev = null;
 							break;
-						case ELEMENT_DSE:
+						case Constants.ELEMENT_DSE:
 							//LOGGER.finest("DSE");
-							decodeDSE(input);
+							DecodeDSE(input);
 							prev = null;
 							break;
-						case ELEMENT_PCE:
+						case Constants.ELEMENT_PCE:
 							//LOGGER.finest("PCE");
-							decodePCE(input);
+							DecodePCE(input);
 							prev = null;
 							break;
-						case ELEMENT_FIL:
+						case Constants.ELEMENT_FIL:
 							//LOGGER.finest("FIL");
-							decodeFIL(input, prev);
+							DecodeFIL(input, prev);
 							prev = null;
 							break;
 					}
@@ -88,114 +94,124 @@ namespace CameraAPI.AAC.Syntax
 				content = false;
 				prev = null;
 			}
-			else {
+			else
+			{
 				//error resilient raw data block
-				switch(config.getChannelConfiguration()) {
+				switch(config.GetChannelConfiguration()) 
+				{
 					case ChannelConfiguration.CHANNEL_CONFIG_MONO:
-						decodeSCE_LFE(input);
+						DecodeSCE_LFE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_STEREO:
-						decodeCPE(input);
+						DecodeCPE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_STEREO_PLUS_CENTER:
-						decodeSCE_LFE(input);
-						decodeCPE(input);
+						DecodeSCE_LFE(input);
+						DecodeCPE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_STEREO_PLUS_CENTER_PLUS_REAR_MONO:
-						decodeSCE_LFE(input);
-						decodeCPE(input);
-						decodeSCE_LFE(input);
+						DecodeSCE_LFE(input);
+						DecodeCPE(input);
+						DecodeSCE_LFE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_FIVE:
-						decodeSCE_LFE(input);
-						decodeCPE(input);
-						decodeCPE(input);
+						DecodeSCE_LFE(input);
+						DecodeCPE(input);
+						DecodeCPE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_FIVE_PLUS_ONE:
-						decodeSCE_LFE(input);
-						decodeCPE(input);
-						decodeCPE(input);
-						decodeSCE_LFE(input);
+						DecodeSCE_LFE(input);
+						DecodeCPE(input);
+						DecodeCPE(input);
+						DecodeSCE_LFE(input);
 						break;
 					case ChannelConfiguration.CHANNEL_CONFIG_SEVEN_PLUS_ONE:
-						decodeSCE_LFE(input);
-						decodeCPE(input);
-						decodeCPE(input);
-						decodeCPE(input);
-						decodeSCE_LFE(input);
+						DecodeSCE_LFE(input);
+						DecodeCPE(input);
+						DecodeCPE(input);
+						DecodeCPE(input);
+						DecodeSCE_LFE(input);
 						break;
 					default:
-						throw new AACException("unsupported channel configuration for error resilience: "+config.getChannelConfiguration());
+						throw new AACException("unsupported channel configuration for error resilience: "+config.GetChannelConfiguration());
 				}
 			}
-            input.byteAlign();
+            input.ByteAlign();
 
-			bitsRead = input.getPosition()-start;
+			bitsRead = input.GetPosition()-start;
 		}
 
-		private Element decodeSCE_LFE(BitStream input) {
+		private Element DecodeSCE_LFE(BitStream input)
+		{
 			if(elements[curElem]==null) elements[curElem] = new SCE_LFE(config);
-			((SCE_LFE) elements[curElem]).decode(input, config);
+			((SCE_LFE) elements[curElem]).Decode(input, config);
 			curElem++;
 			return elements[curElem-1];
 		}
 
-		private Element decodeCPE(BitStream input) {
+		private Element DecodeCPE(BitStream input)
+		{
 			if(elements[curElem]==null) elements[curElem] = new CPE(config);
-			((CPE) elements[curElem]).decode(input, config);
+			((CPE) elements[curElem]).Decode(input, config);
 			curElem++;
 			return elements[curElem-1];
 		}
 
-		private void decodeCCE(BitStream input) {
-			if(curCCE==MAX_ELEMENTS) throw new AACException("too much CCE elements");
+		private void DecodeCCE(BitStream input) 
+		{
+			if(curCCE== Constants.MAX_ELEMENTS) throw new AACException("too much CCE elements");
 			if(cces[curCCE]==null) cces[curCCE] = new CCE(config);
-			cces[curCCE].decode(input, config);
+			cces[curCCE].Decode(input, config);
 			curCCE++;
 		}
 
-		private void decodeDSE(BitStream input) {
-			if(curDSE==MAX_ELEMENTS) throw new AACException("too much CCE elements");
+		private void DecodeDSE(BitStream input) 
+		{
+			if(curDSE== Constants.MAX_ELEMENTS) throw new AACException("too much CCE elements");
 			if(dses[curDSE]==null) dses[curDSE] = new DSE();
-			dses[curDSE].decode(input);
+			dses[curDSE].Decode(input);
 			curDSE++;
 		}
 
-		private void decodePCE(BitStream input) {
-			pce.decode(input);
-			config.setProfile(pce.getProfile());
-			config.setSampleFrequency(pce.getSampleFrequency());
-			config.setChannelConfiguration((ChannelConfiguration)(pce.getChannelCount()));
+		private void DecodePCE(BitStream input) 
+		{
+			pce.Decode(input);
+			config.SetProfile(pce.GetProfile());
+			config.SetSampleFrequency(pce.GetSampleFrequency());
+			config.SetChannelConfiguration((ChannelConfiguration)(pce.GetChannelCount()));
 		}
 
-		private void decodeFIL(BitStream input, Element prev) {
-			if(curFIL==MAX_ELEMENTS) throw new AACException("too much FIL elements");
-			if(fils[curFIL]==null) fils[curFIL] = new FIL(config.isSBRDownSampled());
-			fils[curFIL].decode(input, prev, config.getSampleFrequency(), config.isSBREnabled(), config.isSmallFrameUsed());
+		private void DecodeFIL(BitStream input, Element prev)
+		{
+			if(curFIL== Constants.MAX_ELEMENTS) throw new AACException("too much FIL elements");
+			if(fils[curFIL]==null) fils[curFIL] = new FIL(config.IsSBRDownSampled());
+			fils[curFIL].Decode(input, prev, config.GetSampleFrequency(), config.IsSBREnabled(), config.IsSmallFrameUsed());
 			curFIL++;
 
-			if(prev!=null&&prev.isSBRPresent()) {
+			if(prev!=null&&prev.IsSBRPresent()) 
+			{
 				sbrPresent = true;
-				if(!psPresent&&prev.getSBR().isPSUsed()) psPresent = true;
+				if(!psPresent&&prev.GetSBR().IsPSUsed()) psPresent = true;
 			}
 		}
 
-		public void process(FilterBank filterBank) {
-			Profile profile = config.getProfile();
-			SampleFrequency sf = config.getSampleFrequency();
+		public void Process(FilterBank filterBank)
+		{
+			Profile profile = config.GetProfile();
+			SampleFrequency sf = config.GetSampleFrequency();
 			//final ChannelConfiguration channels = config.getChannelConfiguration();
 
-			int chs = (int)config.getChannelConfiguration();
+			int chs = (int)config.GetChannelConfiguration();
 			if(chs==1&&psPresent) chs++;
 			int mult = sbrPresent ? 2 : 1;
 			//only reallocate if needed
-			if (data == null || chs != data.Length || (mult * config.getFrameLength()) != data[0].Length)
+			if (data == null || chs != data.Length || (mult * config.GetFrameLength()) != data[0].Length)
 			{
 				data = new float[chs][];
 
 				for(int i = 0; i < chs; i++)
 				{
-					data[i] = new float[mult * config.getFrameLength()];
+					data[i] = new float[mult * config.GetFrameLength()];
 				}
 			}
 
@@ -203,147 +219,165 @@ namespace CameraAPI.AAC.Syntax
 			Element e;
 			SCE_LFE scelfe;
 			CPE cpe;
-			for(int i = 0; i<elements.Length&&channel<chs; i++) {
+			for(int i = 0; i<elements.Length&&channel<chs; i++)
+			{
 				e = elements[i];
 				if(e==null) continue;
-				if(e is SCE_LFE) {
+				if(e is SCE_LFE)
+				{
 					scelfe = (SCE_LFE) e;
-					channel += processSingle(scelfe, filterBank, channel, profile, sf);
+					channel += ProcessSingle(scelfe, filterBank, channel, profile, sf);
 				}
-				else if(e is CPE) {
+				else if(e is CPE)
+				{
 					cpe = (CPE) e;
-					processPair(cpe, filterBank, channel, profile, sf);
+					ProcessPair(cpe, filterBank, channel, profile, sf);
 					channel += 2;
 				}
-				else if(e is CCE) {
+				else if(e is CCE) 
+				{
 					//applies invquant and save the result in the CCE
-					((CCE) e).process();
+					((CCE) e).Process();
 					channel++;
 				}
 			}
 		}
 
-		private int processSingle(SCE_LFE scelfe, FilterBank filterBank, int channel, Profile profile, SampleFrequency sf) {
-			ICStream ics = scelfe.getICStream();
-			ICSInfo info = ics.getInfo();
-			LTPrediction ltp = info.getLTPrediction();
-			int elementID = scelfe.getElementInstanceTag();
+		private int ProcessSingle(SCE_LFE scelfe, FilterBank filterBank, int channel, Profile profile, SampleFrequency sf) 
+		{
+			ICStream ics = scelfe.GetICStream();
+			ICSInfo info = ics.GetInfo();
+			LTPrediction ltp = info.GetLTPrediction();
+			int elementID = scelfe.GetElementInstanceTag();
 
 			//inverse quantization
-			float[] iqData = ics.getInvQuantData();
+			float[] iqData = ics.GetInvQuantData();
 
 			//prediction
-			if(profile.Equals(Profile.AAC_MAIN)&&info.isICPredictionPresent()) info.getICPrediction().process(ics, iqData, sf);
-            if (ltp != null) ltp.process(ics, iqData, filterBank, sf);
+			if(profile.Equals(Profile.AAC_MAIN)&&info.IsICPredictionPresent()) info.GetICPrediction().Process(ics, iqData, sf);
+            if (ltp != null) ltp.Process(ics, iqData, filterBank, sf);
 
             //dependent coupling
             processDependentCoupling(false, elementID, CCE.BEFORE_TNS, iqData, null);
 
 			//TNS
-			if(ics.isTNSDataPresent()) ics.getTNS().process(ics, iqData, sf, false);
+			if(ics.IsTNSDataPresent()) ics.GetTNS().Process(ics, iqData, sf, false);
 
 			//dependent coupling
 			processDependentCoupling(false, elementID, CCE.AFTER_TNS, iqData, null);
 
 			//filterbank
-			filterBank.Process(info.getWindowSequence(), info.getWindowShape(ICSInfo.CURRENT), info.getWindowShape(ICSInfo.PREVIOUS), iqData, data[channel], channel);
+			filterBank.Process(info.GetWindowSequence(), info.GetWindowShape(ICSInfo.CURRENT), info.GetWindowShape(ICSInfo.PREVIOUS), iqData, data[channel], channel);
 
-            if (ltp != null) ltp.updateState(data[channel], filterBank.GetOverlap(channel), profile);
+            if (ltp != null) ltp.UpdateState(data[channel], filterBank.GetOverlap(channel), profile);
 
             //dependent coupling
-            processIndependentCoupling(false, elementID, data[channel], null);
+            ProcessIndependentCoupling(false, elementID, data[channel], null);
 
 			//gain control
-			if(ics.isGainControlPresent()) ics.getGainControl().Process(iqData, info.getWindowShape(ICSInfo.CURRENT), info.getWindowShape(ICSInfo.PREVIOUS), info.getWindowSequence());
+			if(ics.IsGainControlPresent()) ics.GetGainControl().Process(iqData, info.GetWindowShape(ICSInfo.CURRENT), info.GetWindowShape(ICSInfo.PREVIOUS), info.GetWindowSequence());
 
 			//SBR
 			int chs = 1;
-			if(sbrPresent&&config.isSBREnabled()) {
+			if(sbrPresent&&config.IsSBREnabled()) 
+			{
 				//if(data[channel].Length==config.getFrameLength()) LOGGER.log(Level.WARNING, "SBR data present, but buffer has normal size!");
-				SBR sbr = scelfe.getSBR();
-				if(sbr.isPSUsed()) {
+				SBR sbr = scelfe.GetSBR();
+				if(sbr.IsPSUsed())
+				{
 					chs = 2;
-                    scelfe.getSBR().processPS(data[channel], data[channel + 1], false);
+                    scelfe.GetSBR().ProcessPS(data[channel], data[channel + 1], false);
                 }
-				else scelfe.getSBR().process(data[channel], false);
+				else 
+					scelfe.GetSBR().Process(data[channel], false);
 			}
 			return chs;
 		}
 
-		private void processPair(CPE cpe, FilterBank filterBank, int channel, Profile profile, SampleFrequency sf) {
-			ICStream ics1 = cpe.getLeftChannel();
-			ICStream ics2 = cpe.getRightChannel();
-			ICSInfo info1 = ics1.getInfo();
-			ICSInfo info2 = ics2.getInfo();
-            LTPrediction ltp1 = info1.getLTPrediction();
-            LTPrediction ltp2 = info2.getLTPrediction();
-            int elementID = cpe.getElementInstanceTag();
+		private void ProcessPair(CPE cpe, FilterBank filterBank, int channel, Profile profile, SampleFrequency sf) 
+		{
+			ICStream ics1 = cpe.GetLeftChannel();
+			ICStream ics2 = cpe.GetRightChannel();
+			ICSInfo info1 = ics1.GetInfo();
+			ICSInfo info2 = ics2.GetInfo();
+            LTPrediction ltp1 = info1.GetLTPrediction();
+            LTPrediction ltp2 = info2.GetLTPrediction();
+            int elementID = cpe.GetElementInstanceTag();
 
 			//inverse quantization
-			float[] iqData1 = ics1.getInvQuantData();
-			float[] iqData2 = ics2.getInvQuantData();
+			float[] iqData1 = ics1.GetInvQuantData();
+			float[] iqData2 = ics2.GetInvQuantData();
 
 			//MS
-			if(cpe.isCommonWindow()&&cpe.isMSMaskPresent()) MS.process(cpe, iqData1, iqData2);
+			if(cpe.IsCommonWindow()&&cpe.IsMSMaskPresent()) MS.Process(cpe, iqData1, iqData2);
 			//main prediction
-			if(profile.Equals(Profile.AAC_MAIN)) {
-				if(info1.isICPredictionPresent()) info1.getICPrediction().process(ics1, iqData1, sf);
-				if(info2.isICPredictionPresent()) info2.getICPrediction().process(ics2, iqData2, sf);
+			if(profile.Equals(Profile.AAC_MAIN))
+			{
+				if(info1.IsICPredictionPresent()) info1.GetICPrediction().Process(ics1, iqData1, sf);
+				if(info2.IsICPredictionPresent()) info2.GetICPrediction().Process(ics2, iqData2, sf);
 			}
 			//IS
-			IS.process(cpe, iqData1, iqData2);
+			IS.Process(cpe, iqData1, iqData2);
 
             //LTP
-            if (ltp1 != null) ltp1.process(ics1, iqData1, filterBank, sf);
-            if (ltp2 != null) ltp2.process(ics2, iqData2, filterBank, sf);
+            if (ltp1 != null) ltp1.Process(ics1, iqData1, filterBank, sf);
+            if (ltp2 != null) ltp2.Process(ics2, iqData2, filterBank, sf);
 
             //dependent coupling
             processDependentCoupling(true, elementID, CCE.BEFORE_TNS, iqData1, iqData2);
 
 			//TNS
-			if(ics1.isTNSDataPresent()) ics1.getTNS().process(ics1, iqData1, sf, false);
-			if(ics2.isTNSDataPresent()) ics2.getTNS().process(ics2, iqData2, sf, false);
+			if(ics1.IsTNSDataPresent()) ics1.GetTNS().Process(ics1, iqData1, sf, false);
+			if(ics2.IsTNSDataPresent()) ics2.GetTNS().Process(ics2, iqData2, sf, false);
 
 			//dependent coupling
 			processDependentCoupling(true, elementID, CCE.AFTER_TNS, iqData1, iqData2);
 
 			//filterbank
-			filterBank.Process(info1.getWindowSequence(), info1.getWindowShape(ICSInfo.CURRENT), info1.getWindowShape(ICSInfo.PREVIOUS), iqData1, data[channel], channel);
-			filterBank.Process(info2.getWindowSequence(), info2.getWindowShape(ICSInfo.CURRENT), info2.getWindowShape(ICSInfo.PREVIOUS), iqData2, data[channel+1], channel+1);
+			filterBank.Process(info1.GetWindowSequence(), info1.GetWindowShape(ICSInfo.CURRENT), info1.GetWindowShape(ICSInfo.PREVIOUS), iqData1, data[channel], channel);
+			filterBank.Process(info2.GetWindowSequence(), info2.GetWindowShape(ICSInfo.CURRENT), info2.GetWindowShape(ICSInfo.PREVIOUS), iqData2, data[channel+1], channel+1);
 
-            if (ltp1 != null) ltp1.updateState(data[channel], filterBank.GetOverlap(channel), profile);
-            if (ltp2 != null) ltp2.updateState(data[channel + 1], filterBank.GetOverlap(channel + 1), profile);
+            if (ltp1 != null) ltp1.UpdateState(data[channel], filterBank.GetOverlap(channel), profile);
+            if (ltp2 != null) ltp2.UpdateState(data[channel + 1], filterBank.GetOverlap(channel + 1), profile);
 
             //independent coupling
-            processIndependentCoupling(true, elementID, data[channel], data[channel+1]);
+            ProcessIndependentCoupling(true, elementID, data[channel], data[channel+1]);
 
 			//gain control
-			if(ics1.isGainControlPresent()) ics1.getGainControl().Process(iqData1, info1.getWindowShape(ICSInfo.CURRENT), info1.getWindowShape(ICSInfo.PREVIOUS), info1.getWindowSequence());
-			if(ics2.isGainControlPresent()) ics2.getGainControl().Process(iqData2, info2.getWindowShape(ICSInfo.CURRENT), info2.getWindowShape(ICSInfo.PREVIOUS), info2.getWindowSequence());
+			if(ics1.IsGainControlPresent()) ics1.GetGainControl().Process(iqData1, info1.GetWindowShape(ICSInfo.CURRENT), info1.GetWindowShape(ICSInfo.PREVIOUS), info1.GetWindowSequence());
+			if(ics2.IsGainControlPresent()) ics2.GetGainControl().Process(iqData2, info2.GetWindowShape(ICSInfo.CURRENT), info2.GetWindowShape(ICSInfo.PREVIOUS), info2.GetWindowSequence());
 
 			//SBR
-			if(sbrPresent&&config.isSBREnabled()) {
+			if(sbrPresent&&config.IsSBREnabled()) 
+			{
 				//if(data[channel].Length==config.getFrameLength()) LOGGER.log(Level.WARNING, "SBR data present, but buffer has normal size!");
-				cpe.getSBR().process(data[channel], data[channel+1], false);
+				cpe.GetSBR().Process(data[channel], data[channel+1], false);
 			}
 		}
 
-		private void processIndependentCoupling(bool channelPair, int elementID, float[] data1, float[] data2) {
+		private void ProcessIndependentCoupling(bool channelPair, int elementID, float[] data1, float[] data2)
+		{
 			int index, c, chSelect;
 			CCE cce;
-			for(int i = 0; i<cces.Length; i++) {
+			for(int i = 0; i<cces.Length; i++)
+			{
 				cce = cces[i];
 				index = 0;
-				if(cce!=null&&cce.getCouplingPoint()==CCE.AFTER_IMDCT) {
-					for(c = 0; c<=cce.getCoupledCount(); c++) {
-						chSelect = cce.getCHSelect(c);
-						if(cce.isChannelPair(c)==channelPair&&cce.getIDSelect(c)==elementID) {
-							if(chSelect!=1) {
-								cce.applyIndependentCoupling(index, data1);
+				if(cce!=null&&cce.GetCouplingPoint()==CCE.AFTER_IMDCT) 
+				{
+					for(c = 0; c<=cce.GetCoupledCount(); c++)
+					{
+						chSelect = cce.GetCHSelect(c);
+						if(cce.IsChannelPair(c)==channelPair&&cce.GetIDSelect(c)==elementID)
+						{
+							if(chSelect!=1) 
+							{
+								cce.ApplyIndependentCoupling(index, data1);
 								if(chSelect!=0) index++;
 							}
-							if(chSelect!=2) {
-								cce.applyIndependentCoupling(index, data2);
+							if(chSelect!=2) 
+							{
+								cce.ApplyIndependentCoupling(index, data2);
 								index++;
 							}
 						}
@@ -353,41 +387,50 @@ namespace CameraAPI.AAC.Syntax
 			}
 		}
 
-		private void processDependentCoupling(bool channelPair, int elementID, int couplingPoint, float[] data1, float[] data2) {
+		private void processDependentCoupling(bool channelPair, int elementID, int couplingPoint, float[] data1, float[] data2)
+		{
 			int index, c, chSelect;
 			CCE cce;
-			for(int i = 0; i<cces.Length; i++) {
+			for(int i = 0; i<cces.Length; i++)
+			{
 				cce = cces[i];
 				index = 0;
-				if(cce!=null&&cce.getCouplingPoint()==couplingPoint) {
-					for(c = 0; c<=cce.getCoupledCount(); c++) {
-						chSelect = cce.getCHSelect(c);
-						if(cce.isChannelPair(c)==channelPair&&cce.getIDSelect(c)==elementID) {
-							if(chSelect!=1) {
-								cce.applyDependentCoupling(index, data1);
+				if(cce!=null&&cce.GetCouplingPoint()==couplingPoint) 
+				{
+					for(c = 0; c<=cce.GetCoupledCount(); c++) 
+					{
+						chSelect = cce.GetCHSelect(c);
+						if(cce.IsChannelPair(c)==channelPair&&cce.GetIDSelect(c)==elementID) 
+						{
+							if(chSelect!=1)
+							{
+								cce.ApplyDependentCoupling(index, data1);
 								if(chSelect!=0) index++;
 							}
-							if(chSelect!=2) {
-								cce.applyDependentCoupling(index, data2);
+							if(chSelect!=2) 
+							{
+								cce.ApplyDependentCoupling(index, data2);
 								index++;
 							}
 						}
-						else index += 1+((chSelect==3) ? 1 : 0);
+						else
+							index += 1+((chSelect==3) ? 1 : 0);
 					}
 				}
 			}
 		}
 
-		public void sendToOutput(SampleBuffer buffer) {
+		public void SendToOutput(SampleBuffer buffer) 
+		{
 			bool be = buffer.BigEndian;
 
             // always allocate at least two channels
             // mono can't be upgraded after implicit PS occures
             int chs = Math.Max(data.Length, 2);
 
-            int mult = (sbrPresent&&config.isSBREnabled()) ? 2 : 1;
-			int length = mult*config.getFrameLength();
-			int freq = mult*config.getSampleFrequency().GetFrequency();
+            int mult = (sbrPresent&&config.IsSBREnabled()) ? 2 : 1;
+			int length = mult*config.GetFrameLength();
+			int freq = mult*config.GetSampleFrequency().GetFrequency();
 
 			byte[] b = buffer.Data;
 			if(b.Length!=chs*length*2) b = new byte[chs*length*2];
@@ -395,19 +438,23 @@ namespace CameraAPI.AAC.Syntax
 			float[] cur;
 			int i, j, off;
 			short s;
-			for(i = 0; i<chs; i++) {
+			for(i = 0; i<chs; i++) 
+			{
                 // duplicate possible mono channel
                 cur = data[i < data.Length ? i : 0];
-                for (j = 0; j<length; j++) {
+                for (j = 0; j<length; j++) 
+				{
 					s = (short) Math.Max(Math.Min(Math.Round(cur[j]), short.MaxValue), short.MinValue);
 					off = (j*chs+i)*2;
-					if(be) {
-						b[off] = (byte) ((s>>8)&BYTE_MASK);
-						b[off+1] = (byte) (s&BYTE_MASK);
+					if(be)
+					{
+						b[off] = (byte) ((s>>8) & Constants.BYTE_MASK);
+						b[off+1] = (byte) (s & Constants.BYTE_MASK);
 					}
-					else {
-						b[off+1] = (byte) ((s>>8)&BYTE_MASK);
-						b[off] = (byte) (s&BYTE_MASK);
+					else
+					{
+						b[off+1] = (byte) ((s>>8) & Constants.BYTE_MASK);
+						b[off] = (byte) (s & Constants.BYTE_MASK);
 					}
 				}
 			}

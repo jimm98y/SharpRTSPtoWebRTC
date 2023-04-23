@@ -1,8 +1,8 @@
 ﻿namespace CameraAPI.AAC.Filterbank
 {
-    public class MDCTTables
+    public static class MDCTTables
     {
-        public float[][] MDCT_TABLE_2048 = {
+        public static float[][] MDCT_TABLE_2048 = {
             new float[] {0.031249997702054f, 0.000011984224612f},
             new float[] {0.031249813866531f, 0.000107857810004f},
             new float[] {0.031249335895858f, 0.000203730380198f},
@@ -516,7 +516,7 @@
             new float[] {0.000179762382174f, 0.031249482963498f},
             new float[] {0.000083889473581f, 0.031249887400697f}
         };
-        public float[][] MDCT_TABLE_128 = {
+        public static float[][] MDCT_TABLE_128 = {
             new float[] {0.088387931675923f, 0.000271171628935f},
             new float[] {0.088354655998507f, 0.002440238387037f},
             new float[] {0.088268158780110f, 0.004607835236780f},
@@ -582,7 +582,7 @@
             new float[] {0.004066145255116f, 0.088294770302461f},
             new float[] {0.001898058472816f, 0.088367965768336f}
         };
-        public float[][] MDCT_TABLE_1920 = {
+        public static float[][] MDCT_TABLE_1920 = {
             new float[] {0.032274858518097f, 0.000013202404176f},
             new float[] {0.032274642494505f, 0.000118821372483f},
             new float[] {0.032274080835421f, 0.000224439068308f},
@@ -1064,7 +1064,7 @@
             new float[] {0.000198034825504f, 0.032274253653254f},
             new float[] {0.000092416705518f, 0.032274728903884f}
         };
-        public float[][] MDCT_TABLE_240 = {
+        public static float[][] MDCT_TABLE_240 = {
             new float[] {0.091286604111815f, 0.000298735779793f},
             new float[] {0.091247502481454f, 0.002688238127538f},
             new float[] {0.091145864370807f, 0.005075898091152f},

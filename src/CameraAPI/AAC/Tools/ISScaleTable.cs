@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Tools
 {
-    public class ISScaleTable
+    public static class ISScaleTable
     {
         public static float[] SCALE_TABLE = {
             1.0f,

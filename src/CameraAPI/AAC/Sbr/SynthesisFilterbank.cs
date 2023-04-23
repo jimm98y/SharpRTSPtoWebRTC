@@ -2,7 +2,7 @@
 
 namespace CameraAPI.AAC.Sbr
 {
-    public class SynthesisFilterbank : FilterbankTable
+    public class SynthesisFilterbank
     {
         private static float[,] qmf32_pre_twiddle = {
             {0.999924701839145f, -0.012271538285720f},
@@ -39,23 +39,23 @@ namespace CameraAPI.AAC.Sbr
             {0.715730825283819f, -0.698376249408973f}
         };  
 
-        private float[] v; //double ringbuffer
-        private int v_index; //ringbuffer index
-        private int channels;
+        private float[] _v; //double ringbuffer
+        private int _v_index; //ringbuffer index
+        private int _channels;
 
         public SynthesisFilterbank(int channels)
         {
-            this.channels = channels;
-            v = new float[2 * channels * 20];
-            v_index = 0;
+            this._channels = channels;
+            _v = new float[2 * channels * 20];
+            _v_index = 0;
         }
 
         public void Reset()
         {
-            Arrays.Fill(v, 0);
+            Arrays.Fill(_v, 0);
         }
 
-        public void sbr_qmf_synthesis_32(SBR sbr, float[,,] X,
+        public void SbrQmfSynthesis32(SBR sbr, float[,,] X,
             float[] output)
         {
             float[] x1 = new float[32], x2 = new float[32];
@@ -65,7 +65,7 @@ namespace CameraAPI.AAC.Sbr
 
 
             /* qmf subsample l */
-            for (l = 0; l < sbr.numTimeSlotsRate; l++)
+            for (l = 0; l < sbr._numTimeSlotsRate; l++)
             {
                 /* shift buffer v */
                 /* buffer is not shifted, we are using a ringbuffer */
@@ -88,33 +88,33 @@ namespace CameraAPI.AAC.Sbr
 
                 for (n = 0; n < 32; n++)
                 {
-                    this.v[this.v_index + n] = this.v[this.v_index + 640 + n] = -x1[n] + x2[n];
-                    this.v[this.v_index + 63 - n] = this.v[this.v_index + 640 + 63 - n] = x1[n] + x2[n];
+                    this._v[this._v_index + n] = this._v[this._v_index + 640 + n] = -x1[n] + x2[n];
+                    this._v[this._v_index + 63 - n] = this._v[this._v_index + 640 + 63 - n] = x1[n] + x2[n];
                 }
 
                 /* calculate 32 output samples and window */
                 for (k = 0; k < 32; k++)
                 {
-                    output[outt++] = (this.v[this.v_index + k] * qmf_c[2 * k])
-                        + (this.v[this.v_index + 96 + k] * qmf_c[64 + 2 * k])
-                        + (this.v[this.v_index + 128 + k] * qmf_c[128 + 2 * k])
-                        + (this.v[this.v_index + 224 + k] * qmf_c[192 + 2 * k])
-                        + (this.v[this.v_index + 256 + k] * qmf_c[256 + 2 * k])
-                        + (this.v[this.v_index + 352 + k] * qmf_c[320 + 2 * k])
-                        + (this.v[this.v_index + 384 + k] * qmf_c[384 + 2 * k])
-                        + (this.v[this.v_index + 480 + k] * qmf_c[448 + 2 * k])
-                        + (this.v[this.v_index + 512 + k] * qmf_c[512 + 2 * k])
-                        + (this.v[this.v_index + 608 + k] * qmf_c[576 + 2 * k]);
+                    output[outt++] = (this._v[this._v_index + k] * FilterbankTable.qmf_c[2 * k])
+                        + (this._v[this._v_index + 96 + k] * FilterbankTable.qmf_c[64 + 2 * k])
+                        + (this._v[this._v_index + 128 + k] * FilterbankTable.qmf_c[128 + 2 * k])
+                        + (this._v[this._v_index + 224 + k] * FilterbankTable.qmf_c[192 + 2 * k])
+                        + (this._v[this._v_index + 256 + k] * FilterbankTable.qmf_c[256 + 2 * k])
+                        + (this._v[this._v_index + 352 + k] * FilterbankTable.qmf_c[320 + 2 * k])
+                        + (this._v[this._v_index + 384 + k] * FilterbankTable.qmf_c[384 + 2 * k])
+                        + (this._v[this._v_index + 480 + k] * FilterbankTable.qmf_c[448 + 2 * k])
+                        + (this._v[this._v_index + 512 + k] * FilterbankTable.qmf_c[512 + 2 * k])
+                        + (this._v[this._v_index + 608 + k] * FilterbankTable.qmf_c[576 + 2 * k]);
                 }
 
                 /* update ringbuffer index */
-                this.v_index -= 64;
-                if (this.v_index < 0)
-                    this.v_index = (640 - 64);
+                this._v_index -= 64;
+                if (this._v_index < 0)
+                    this._v_index = (640 - 64);
             }
         }
 
-        public void sbr_qmf_synthesis_64(SBR sbr, float[,,] X,
+        public void SbrQmfSynthesis64(SBR sbr, float[,,] X,
             float[] output)
         {
             float[] in_real1 = new float[32], in_imag1 = new float[32], out_real1 = new float[32], out_imag1 = new float[32];
@@ -125,7 +125,7 @@ namespace CameraAPI.AAC.Sbr
 
 
             /* qmf subsample l */
-            for (l = 0; l < sbr.numTimeSlotsRate; l++)
+            for (l = 0; l < sbr._numTimeSlotsRate; l++)
             {
                 /* shift buffer v */
                 /* buffer is not shifted, we use double ringbuffer */
@@ -150,10 +150,10 @@ namespace CameraAPI.AAC.Sbr
                 in_real2[31] = scale * X[l,63 - 62,1];
 
                 // dct4_kernel is DCT_IV without reordering which is done before and after FFT
-                DCT.dct4_kernel(in_real1, in_imag1, out_real1, out_imag1);
-                DCT.dct4_kernel(in_real2, in_imag2, out_real2, out_imag2);
+                DCT.Dct4Kernel(in_real1, in_imag1, out_real1, out_imag1);
+                DCT.Dct4Kernel(in_real2, in_imag2, out_real2, out_imag2);
 
-                int pring_buffer_1 = v_index; //*v
+                int pring_buffer_1 = _v_index; //*v
                 int pring_buffer_3 = pring_buffer_1 + 1280;
                 //        ptemp_1 = x1;
                 //        ptemp_2 = x2;
@@ -161,34 +161,34 @@ namespace CameraAPI.AAC.Sbr
                 for (n = 0; n < 32; n++)
                 {
                     // pring_buffer_3 and pring_buffer_4 are needed only for double ring buffer
-                    v[pring_buffer_1 + 2 * n] = v[pring_buffer_3 + 2 * n] = out_real2[n] - out_real1[n];
-                    v[pring_buffer_1 + 127 - 2 * n] = v[pring_buffer_3 + 127 - 2 * n] = out_real2[n] + out_real1[n];
-                    v[pring_buffer_1 + 2 * n + 1] = v[pring_buffer_3 + 2 * n + 1] = out_imag2[31 - n] + out_imag1[31 - n];
-                    v[pring_buffer_1 + 127 - (2 * n + 1)] = v[pring_buffer_3 + 127 - (2 * n + 1)] = out_imag2[31 - n] - out_imag1[31 - n];
+                    _v[pring_buffer_1 + 2 * n] = _v[pring_buffer_3 + 2 * n] = out_real2[n] - out_real1[n];
+                    _v[pring_buffer_1 + 127 - 2 * n] = _v[pring_buffer_3 + 127 - 2 * n] = out_real2[n] + out_real1[n];
+                    _v[pring_buffer_1 + 2 * n + 1] = _v[pring_buffer_3 + 2 * n + 1] = out_imag2[31 - n] + out_imag1[31 - n];
+                    _v[pring_buffer_1 + 127 - (2 * n + 1)] = _v[pring_buffer_3 + 127 - (2 * n + 1)] = out_imag2[31 - n] - out_imag1[31 - n];
                 }
 
-                pring_buffer_1 = v_index; //*v
+                pring_buffer_1 = _v_index; //*v
 
                 /* calculate 64 output samples and window */
                 for (k = 0; k < 64; k++)
                 {
                     output[outt++]
-                        = (v[pring_buffer_1 + k + 0] * qmf_c[k + 0])
-                        + (v[pring_buffer_1 + k + 192] * qmf_c[k + 64])
-                        + (v[pring_buffer_1 + k + 256] * qmf_c[k + 128])
-                        + (v[pring_buffer_1 + k + (256 + 192)] * qmf_c[k + 192])
-                        + (v[pring_buffer_1 + k + 512] * qmf_c[k + 256])
-                        + (v[pring_buffer_1 + k + (512 + 192)] * qmf_c[k + 320])
-                        + (v[pring_buffer_1 + k + 768] * qmf_c[k + 384])
-                        + (v[pring_buffer_1 + k + (768 + 192)] * qmf_c[k + 448])
-                        + (v[pring_buffer_1 + k + 1024] * qmf_c[k + 512])
-                        + (v[pring_buffer_1 + k + (1024 + 192)] * qmf_c[k + 576]);
+                        = (_v[pring_buffer_1 + k + 0] * FilterbankTable.qmf_c[k + 0])
+                        + (_v[pring_buffer_1 + k + 192] * FilterbankTable.qmf_c[k + 64])
+                        + (_v[pring_buffer_1 + k + 256] * FilterbankTable.qmf_c[k + 128])
+                        + (_v[pring_buffer_1 + k + (256 + 192)] * FilterbankTable.qmf_c[k + 192])
+                        + (_v[pring_buffer_1 + k + 512] * FilterbankTable.qmf_c[k + 256])
+                        + (_v[pring_buffer_1 + k + (512 + 192)] * FilterbankTable.qmf_c[k + 320])
+                        + (_v[pring_buffer_1 + k + 768] * FilterbankTable.qmf_c[k + 384])
+                        + (_v[pring_buffer_1 + k + (768 + 192)] * FilterbankTable.qmf_c[k + 448])
+                        + (_v[pring_buffer_1 + k + 1024] * FilterbankTable.qmf_c[k + 512])
+                        + (_v[pring_buffer_1 + k + (1024 + 192)] * FilterbankTable.qmf_c[k + 576]);
                 }
 
                 /* update ringbuffer index */
-                this.v_index -= 128;
-                if (this.v_index < 0)
-                    this.v_index = (1280 - 128);
+                this._v_index -= 128;
+                if (this._v_index < 0)
+                    this._v_index = (1280 - 128);
             }
         }
 

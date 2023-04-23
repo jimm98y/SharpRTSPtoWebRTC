@@ -2,25 +2,23 @@
 
 namespace CameraAPI.AAC.Sbr
 {
-    public class FBT : Constants
+    public static class FBT
     {
         /* calculate the start QMF channel for the master frequency band table */
         /* parameter is also called k0 */
         public static int QmfStartChannel(int bs_start_freq, int bs_samplerate_mode,
             SampleFrequency sample_rate)
         {
-
-            int startMin = startMinTable[(int)sample_rate];
-            int offsetIndex = offsetIndexTable[(int)sample_rate];
+            int startMin = Constants.startMinTable[(int)sample_rate];
+            int offsetIndex = Constants.offsetIndexTable[(int)sample_rate];
 
             if (bs_samplerate_mode != 0)
             {
-                return startMin + OFFSET[offsetIndex][bs_start_freq];
-
+                return startMin + Constants.OFFSET[offsetIndex][bs_start_freq];
             }
             else
             {
-                return startMin + OFFSET[6][bs_start_freq];
+                return startMin + Constants.OFFSET[6][bs_start_freq];
             }
         }
 
@@ -41,9 +39,9 @@ namespace CameraAPI.AAC.Sbr
             new int[] {0, -1, -2, -3, -4, -5, -6, -6, -6, -6, -6, -6, -6, -6},
             new int[] {0, -3, -6, -9, -12, -15, -18, -20, -22, -24, -26, -28, -30, -32}
         };
+
         /* calculate the stop QMF channel for the master frequency band table */
         /* parameter is also called k2 */
-
         public static int QmfStopChannel(int bs_stop_freq, SampleFrequency sample_rate,
             int k0)
         {
@@ -70,8 +68,7 @@ namespace CameraAPI.AAC.Sbr
 
          version for bs_freq_scale = 0
          */
-        public static int MasterFrequencyTableFs0(SBR sbr, int k0, int k2,
-            bool bs_alter_scale)
+        public static int MasterFrequencyTableFs0(SBR sbr, int k0, int k2, bool bs_alter_scale)
         {
             int incr;
             int k;
@@ -83,7 +80,7 @@ namespace CameraAPI.AAC.Sbr
             /* mft only defined for k2 > k0 */
             if (k2 <= k0)
             {
-                sbr.N_master = 0;
+                sbr._N_master = 0;
                 return 1;
             }
 
@@ -121,14 +118,14 @@ namespace CameraAPI.AAC.Sbr
                 }
             }
 
-            sbr.f_master[0] = k0;
+            sbr._f_master[0] = k0;
             for (k = 1; k <= nrBands; k++)
             {
-                sbr.f_master[k] = (sbr.f_master[k - 1] + vDk[k - 1]);
+                sbr._f_master[k] = (sbr._f_master[k - 1] + vDk[k - 1]);
             }
 
-            sbr.N_master = nrBands;
-            sbr.N_master = Math.Min(sbr.N_master, 64);
+            sbr._N_master = nrBands;
+            sbr._N_master = Math.Min(sbr._N_master, 64);
 
             return 0;
         }
@@ -153,8 +150,7 @@ namespace CameraAPI.AAC.Sbr
         /*
          version for bs_freq_scale > 0
          */
-        public static int MasterFrequencyTable(SBR sbr, int k0, int k2,
-            int bs_freq_scale, bool bs_alter_scale)
+        public static int MasterFrequencyTable(SBR sbr, int k0, int k2, int bs_freq_scale, bool bs_alter_scale)
         {
             int k, bands;
             bool twoRegions;
@@ -169,7 +165,7 @@ namespace CameraAPI.AAC.Sbr
             /* mft only defined for k2 > k0 */
             if (k2 <= k0)
             {
-                sbr.N_master = 0;
+                sbr._N_master = 0;
                 return 1;
             }
 
@@ -218,11 +214,11 @@ namespace CameraAPI.AAC.Sbr
             {
                 for (k = 0; k <= nrBand0; k++)
                 {
-                    sbr.f_master[k] = vk0[k];
+                    sbr._f_master[k] = vk0[k];
                 }
 
-                sbr.N_master = nrBand0;
-                sbr.N_master = Math.Min(sbr.N_master, 64);
+                sbr._N_master = nrBand0;
+                sbr._N_master = Math.Min(sbr._N_master, 64);
                 return 0;
             }
 
@@ -263,15 +259,15 @@ namespace CameraAPI.AAC.Sbr
                     return 1;
             }
 
-            sbr.N_master = nrBand0 + nrBand1;
-            sbr.N_master = Math.Min(sbr.N_master, 64);
+            sbr._N_master = nrBand0 + nrBand1;
+            sbr._N_master = Math.Min(sbr._N_master, 64);
             for (k = 0; k <= nrBand0; k++)
             {
-                sbr.f_master[k] = vk0[k];
+                sbr._f_master[k] = vk0[k];
             }
-            for (k = nrBand0 + 1; k <= sbr.N_master; k++)
+            for (k = nrBand0 + 1; k <= sbr._N_master; k++)
             {
-                sbr.f_master[k] = vk1[k - nrBand0];
+                sbr._f_master[k] = vk1[k - nrBand0];
             }
 
             return 0;
@@ -285,50 +281,50 @@ namespace CameraAPI.AAC.Sbr
             int minus;
 
             /* The following relation shall be satisfied: bs_xover_band < N_Master */
-            if (sbr.N_master <= bs_xover_band)
+            if (sbr._N_master <= bs_xover_band)
                 return 1;
 
-            sbr.N_high = sbr.N_master - bs_xover_band;
-            sbr.N_low = (sbr.N_high >> 1) + (sbr.N_high - ((sbr.N_high >> 1) << 1));
+            sbr._N_high = sbr._N_master - bs_xover_band;
+            sbr._N_low = (sbr._N_high >> 1) + (sbr._N_high - ((sbr._N_high >> 1) << 1));
 
-            sbr.n[0] = sbr.N_low;
-            sbr.n[1] = sbr.N_high;
+            sbr._n[0] = sbr._N_low;
+            sbr._n[1] = sbr._N_high;
 
-            for (k = 0; k <= sbr.N_high; k++)
+            for (k = 0; k <= sbr._N_high; k++)
             {
-                sbr.f_table_res[HI_RES,k] = sbr.f_master[k + bs_xover_band];
+                sbr._f_table_res[Constants.HI_RES, k] = sbr._f_master[k + bs_xover_band];
             }
 
-            sbr.M = sbr.f_table_res[HI_RES,sbr.N_high] - sbr.f_table_res[HI_RES,0];
-            sbr.kx = sbr.f_table_res[HI_RES,0];
-            if (sbr.kx > 32)
+            sbr._M = sbr._f_table_res[Constants.HI_RES, sbr._N_high] - sbr._f_table_res[Constants.HI_RES, 0];
+            sbr._kx = sbr._f_table_res[Constants.HI_RES, 0];
+            if (sbr._kx > 32)
                 return 1;
-            if (sbr.kx + sbr.M > 64)
+            if (sbr._kx + sbr._M > 64)
                 return 1;
 
-            minus = ((sbr.N_high & 1) != 0) ? 1 : 0;
+            minus = ((sbr._N_high & 1) != 0) ? 1 : 0;
 
-            for (k = 0; k <= sbr.N_low; k++)
+            for (k = 0; k <= sbr._N_low; k++)
             {
                 if (k == 0)
                     i = 0;
                 else
                     i = (2 * k - minus);
-                sbr.f_table_res[LO_RES,k] = sbr.f_table_res[HI_RES,i];
+                sbr._f_table_res[Constants.LO_RES, k] = sbr._f_table_res[Constants.HI_RES, i];
             }
 
-            sbr.N_Q = 0;
-            if (sbr.bs_noise_bands == 0)
+            sbr._N_Q = 0;
+            if (sbr._bs_noise_bands == 0)
             {
-                sbr.N_Q = 1;
+                sbr._N_Q = 1;
             }
             else
             {
-                sbr.N_Q = (Math.Max(1, FindBands(0, sbr.bs_noise_bands, sbr.kx, k2)));
-                sbr.N_Q = Math.Min(5, sbr.N_Q);
+                sbr._N_Q = (Math.Max(1, FindBands(0, sbr._bs_noise_bands, sbr._kx, k2)));
+                sbr._N_Q = Math.Min(5, sbr._N_Q);
             }
 
-            for (k = 0; k <= sbr.N_Q; k++)
+            for (k = 0; k <= sbr._N_Q; k++)
             {
                 if (k == 0)
                 {
@@ -337,21 +333,21 @@ namespace CameraAPI.AAC.Sbr
                 else
                 {
                     /* i = i + (int32_t)((sbr.N_low - i)/(sbr.N_Q + 1 - k)); */
-                    i += (sbr.N_low - i) / (sbr.N_Q + 1 - k);
+                    i += (sbr._N_low - i) / (sbr._N_Q + 1 - k);
                 }
-                sbr.f_table_noise[k] = sbr.f_table_res[LO_RES,i];
+                sbr._f_table_noise[k] = sbr._f_table_res[Constants.LO_RES, i];
             }
 
             /* build table for mapping k to g in hf patching */
             for (k = 0; k < 64; k++)
             {
                 int g;
-                for (g = 0; g < sbr.N_Q; g++)
+                for (g = 0; g < sbr._N_Q; g++)
                 {
-                    if ((sbr.f_table_noise[g] <= k)
-                        && (k < sbr.f_table_noise[g + 1]))
+                    if ((sbr._f_table_noise[g] <= k)
+                        && (k < sbr._f_table_noise[g + 1]))
                     {
-                        sbr.table_map_k_to_g[k] = g;
+                        sbr._table_map_k_to_g[k] = g;
                         break;
                     }
                 }
@@ -369,39 +365,38 @@ namespace CameraAPI.AAC.Sbr
 
         public static void LimiterFrequencyTable(SBR sbr)
         {
-
             int k, s;
             int nrLim;
 
-            sbr.f_table_lim[0,0] = sbr.f_table_res[LO_RES,0] - sbr.kx;
-            sbr.f_table_lim[0,1] = sbr.f_table_res[LO_RES,sbr.N_low] - sbr.kx;
-            sbr.N_L[0] = 1;
+            sbr._f_table_lim[0,0] = sbr._f_table_res[Constants.LO_RES, 0] - sbr._kx;
+            sbr._f_table_lim[0,1] = sbr._f_table_res[Constants.LO_RES, sbr._N_low] - sbr._kx;
+            sbr._N_L[0] = 1;
 
             for (s = 1; s < 4; s++)
             {
                 int[] limTable = new int[100 /*TODO*/];
                 int[] patchBorders = new int[64/*??*/];
 
-                patchBorders[0] = sbr.kx;
-                for (k = 1; k <= sbr.noPatches; k++)
+                patchBorders[0] = sbr._kx;
+                for (k = 1; k <= sbr._noPatches; k++)
                 {
-                    patchBorders[k] = patchBorders[k - 1] + sbr.patchNoSubbands[k - 1];
+                    patchBorders[k] = patchBorders[k - 1] + sbr._patchNoSubbands[k - 1];
                 }
 
-                for (k = 0; k <= sbr.N_low; k++)
+                for (k = 0; k <= sbr._N_low; k++)
                 {
-                    limTable[k] = sbr.f_table_res[LO_RES,k];
+                    limTable[k] = sbr._f_table_res[Constants.LO_RES, k];
                 }
-                for (k = 1; k < sbr.noPatches; k++)
+                for (k = 1; k < sbr._noPatches; k++)
                 {
-                    limTable[k + sbr.N_low] = patchBorders[k];
+                    limTable[k + sbr._N_low] = patchBorders[k];
                 }
 
                 /* needed */
                 //qsort(limTable, sbr.noPatches+sbr.N_low, sizeof(limTable[0]), longcmp);
-                Array.Sort(limTable, 0, sbr.noPatches + sbr.N_low);
+                Array.Sort(limTable, 0, sbr._noPatches + sbr._N_low);
                 k = 1;
-                nrLim = sbr.noPatches + sbr.N_low - 1;
+                nrLim = sbr._noPatches + sbr._N_low - 1;
 
                 if (nrLim < 0) // TODO: BIG FAT PROBLEM
                     return;
@@ -422,7 +417,7 @@ namespace CameraAPI.AAC.Sbr
                         if (limTable[k] != limTable[k - 1])
                         {
                             bool found = false, found2 = false;
-                            for (i = 0; i <= sbr.noPatches; i++)
+                            for (i = 0; i <= sbr._noPatches; i++)
                             {
                                 if (limTable[k] == patchBorders[i])
                                     found = true;
@@ -430,7 +425,7 @@ namespace CameraAPI.AAC.Sbr
                             if (found)
                             {
                                 found2 = false;
-                                for (i = 0; i <= sbr.noPatches; i++)
+                                for (i = 0; i <= sbr._noPatches; i++)
                                 {
                                     if (limTable[k - 1] == patchBorders[i])
                                         found2 = true;
@@ -443,16 +438,16 @@ namespace CameraAPI.AAC.Sbr
                                 else
                                 {
                                     /* remove (k-1)th element */
-                                    limTable[k - 1] = sbr.f_table_res[LO_RES,sbr.N_low];
+                                    limTable[k - 1] = sbr._f_table_res[Constants.LO_RES, sbr._N_low];
                                     //qsort(limTable, sbr.noPatches+sbr.N_low, sizeof(limTable[0]), longcmp);
-                                    Array.Sort(limTable, 0, sbr.noPatches + sbr.N_low);
+                                    Array.Sort(limTable, 0, sbr._noPatches + sbr._N_low);
                                     nrLim--;
                                     continue;
                                 }
                             }
                         }
                         /* remove kth element */
-                        limTable[k] = sbr.f_table_res[LO_RES,sbr.N_low];
+                        limTable[k] = sbr._f_table_res[Constants.LO_RES, sbr._N_low];
                         //qsort(limTable, nrLim, sizeof(limTable[0]), longcmp);
                         Array.Sort(limTable, 0, nrLim);
                         nrLim--;
@@ -465,10 +460,10 @@ namespace CameraAPI.AAC.Sbr
                     }
                 }
 
-                sbr.N_L[s] = nrLim;
+                sbr._N_L[s] = nrLim;
                 for (k = 0; k <= nrLim; k++)
                 {
-                    sbr.f_table_lim[s,k] = limTable[k] - sbr.kx;
+                    sbr._f_table_lim[s,k] = limTable[k] - sbr._kx;
                 }
 
             }

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Filterbank
 {
-    public class SineWindows
+    public static class SineWindows
     {
         public static float[] SINE_1024 = {
             0.00076699031874270449f,

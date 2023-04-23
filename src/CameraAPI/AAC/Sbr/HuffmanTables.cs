@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class HuffmanTables
+    public static class HuffmanTables
     {
         public static int[][] T_HUFFMAN_ENV_1_5DB = {
             new int[] {1, 2},
@@ -506,6 +506,7 @@
             new int[] {-54, 23},
             new int[] {-53, -52}
             };
+
         public static int[][] F_HUFFMAN_ENV_BAL_3_0DB = {
             new int[] {-64, 1},
             new int[] {-65, 2},

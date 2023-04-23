@@ -3,22 +3,18 @@ using CameraAPI.AAC.Syntax;
 
 namespace CameraAPI.AAC.Tools
 {
-    public class IS : Constants
+    public class IS
     {
-        public IS()
+        public static void Process(CPE cpe, float[] specL, float[] specR)
         {
-        }
-
-        public static void process(CPE cpe, float[] specL, float[] specR)
-        {
-            ICStream ics = cpe.getRightChannel();
-            ICSInfo info = ics.getInfo();
-            int[] offsets = info.getSWBOffsets();
-            int windowGroups = info.getWindowGroupCount();
-            int maxSFB = info.getMaxSFB();
+            ICStream ics = cpe.GetRightChannel();
+            ICSInfo info = ics.GetInfo();
+            int[] offsets = info.GetSWBOffsets();
+            int windowGroups = info.GetWindowGroupCount();
+            int maxSFB = info.GetMaxSFB();
             int[] sfbCB = ics.getSfbCB();
-            int[] sectEnd = ics.getSectEnd();
-            float[] scaleFactors = ics.getScaleFactors();
+            int[] sectEnd = ics.GetSectEnd();
+            float[] scaleFactors = ics.GetScaleFactors();
 
             int w, i, j, c, end, off;
             int idx = 0, groupOff = 0;
@@ -33,10 +29,10 @@ namespace CameraAPI.AAC.Tools
                         for (; i < end; i++, idx++)
                         {
                             c = sfbCB[idx] == HCB.INTENSITY_HCB ? 1 : -1;
-                            if (cpe.isMSMaskPresent())
-                                c *= cpe.isMSUsed(idx) ? -1 : 1;
+                            if (cpe.IsMSMaskPresent())
+                                c *= cpe.IsMSUsed(idx) ? -1 : 1;
                             scale = c * scaleFactors[idx];
-                            for (w = 0; w < info.getWindowGroupLength(g); w++)
+                            for (w = 0; w < info.GetWindowGroupLength(g); w++)
                             {
                                 off = groupOff + w * 128 + offsets[i];
                                 for (j = 0; j < offsets[i + 1] - offsets[i]; j++)
@@ -53,7 +49,7 @@ namespace CameraAPI.AAC.Tools
                         i = end;
                     }
                 }
-                groupOff += info.getWindowGroupLength(g) * 128;
+                groupOff += info.GetWindowGroupLength(g) * 128;
             }
         }
     }

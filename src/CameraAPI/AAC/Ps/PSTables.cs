@@ -1,36 +1,43 @@
 ﻿namespace CameraAPI.AAC.Ps
 {
-    public class PSTables : PSConstants
+    public static class PSTables 
     {
         /* type definitaions */
 		/* static data tables */
-		public static int[] nr_iid_par_tab = {
+		public static int[] nr_iid_par_tab =
+		{
 			10, 20, 34, 10, 20, 34, 0, 0
 		};
-        public static int[] nr_icc_par_tab = {
+        public static int[] nr_icc_par_tab = 
+		{
 			10, 20, 34, 10, 20, 34, 0, 0
 		};
-        public static int[] nr_ipdopd_par_tab = {
+        public static int[] nr_ipdopd_par_tab =
+		{
 			5, 11, 17, 5, 11, 17, 0, 0
 		};
-        public static int[][] num_env_tab = {
+        public static int[][] num_env_tab = 
+		{
 			new int[] {0, 1, 2, 4},
 			new int[] {1, 2, 3, 4}
 		};
-        public static float[] filter_a = { /* a(m) = exp(-d_48kHz(m)/7) */
+        public static float[] filter_a =
+		{ /* a(m) = exp(-d_48kHz(m)/7) */
 			0.65143905753106f,
 			0.56471812200776f,
 			0.48954165955695f
 		};
 
-        public static int[] group_border20 = {
+        public static int[] group_border20 = 
+		{
 			6, 7, 0, 1, 2, 3, /* 6 subqmf subbands */
 			9, 8, /* 2 subqmf subbands */
 			10, 11, /* 2 subqmf subbands */
 			3, 4, 5, 6, 7, 8, 9, 11, 14, 18, 23, 35, 64
 		};
 
-        public static int[] group_border34 = {
+        public static int[] group_border34 = 
+		{
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, /* 12 subqmf subbands */
 			12, 13, 14, 15, 16, 17, 18, 19, /*  8 subqmf subbands */
 			20, 21, 22, 23, /*  4 subqmf subbands */
@@ -39,13 +46,15 @@
 			32-27, 33-27, 34-27, 35-27, 36-27, 37-27, 38-27, 40-27, 42-27, 44-27, 46-27, 48-27, 51-27, 54-27, 57-27, 60-27, 64-27, 68-27, 91-27
 		};
 
-        public static int[] map_group2bk20 = {
-			(NEGATE_IPD_MASK|1), (NEGATE_IPD_MASK|0),
+        public static int[] map_group2bk20 = 
+		{
+			(PSConstants.NEGATE_IPD_MASK|1), (PSConstants.NEGATE_IPD_MASK|0),
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 		};
 
-        public static int[] map_group2bk34 = {
-			0, 1, 2, 3, 4, 5, 6, 6, 7, (NEGATE_IPD_MASK|2), (NEGATE_IPD_MASK|1), (NEGATE_IPD_MASK|0),
+        public static int[] map_group2bk34 = 
+		{
+			0, 1, 2, 3, 4, 5, 6, 6, 7, (PSConstants.NEGATE_IPD_MASK|2), (PSConstants.NEGATE_IPD_MASK|1), (PSConstants.NEGATE_IPD_MASK|0),
 			10, 10, 4, 5, 6, 7, 8, 9,
 			10, 11, 12, 9,
 			14, 11, 12, 13,
@@ -56,7 +65,8 @@
         public static int[] delay_length_d = {3, 4, 5 /* d_48kHz */};
         /* tables */
         /* filters are mirrored in coef 6, second half left out */
-        public static float[] p8_13_20 = {
+        public static float[] p8_13_20 = 
+		{
 			0.00746082949812f,
 			0.02270420949825f,
 			0.04546865930473f,
@@ -66,7 +76,8 @@
 			0.125f
 		};
 
-        public static float[] p2_13_20 = {
+        public static float[] p2_13_20 = 
+		{
 			0.0f,
 			0.01899487526049f,
 			0.0f,
@@ -76,7 +87,8 @@
 			0.5f
 		};
 
-        public static float[] p12_13_34 = {
+        public static float[] p12_13_34 = 
+		{
 			0.04081179924692f,
 			0.03812810994926f,
 			0.05144908135699f,
@@ -86,7 +98,8 @@
 			0.08333333333333f
 		};
 
-        public static float[] p8_13_34 = {
+        public static float[] p8_13_34 = 
+		{
 			0.01565675600122f,
 			0.03752716391991f,
 			0.05417891378782f,
@@ -96,7 +109,8 @@
 			0.125f
 		};
 
-        public static float[] p4_13_34 = {
+        public static float[] p4_13_34 = 
+		{
 			-0.05908211155639f,
 			-0.04871498374946f,
 			0.0f,
@@ -108,7 +122,8 @@
 
         /* RE(ps->Phi_Fract_Qmf[j]) = (float)cos(M_PI*(j+0.5)*(0.39)); */
         /* IM(ps->Phi_Fract_Qmf[j]) = (float)sin(M_PI*(j+0.5)*(0.39)); */
-        public static float[][] Phi_Fract_Qmf = {
+        public static float[][] Phi_Fract_Qmf = 
+		{
 			new float[] {0.8181497455f, 0.5750052333f},
 			new float[] {-0.2638730407f, 0.9645574093f},
 			new float[] {-0.9969173074f, 0.0784590989f},
@@ -177,7 +192,8 @@
 
         /* RE(Phi_Fract_SubQmf20[j]) = (float)cos(M_PI*f_center_20[j]*0.39); */
         /* IM(Phi_Fract_SubQmf20[j]) = (float)sin(M_PI*f_center_20[j]*0.39); */
-        public static float[][] Phi_Fract_SubQmf20 = {
+        public static float[][] Phi_Fract_SubQmf20 = 
+		{
 			new float[] {0.9882950187f, 0.1525546312f},
 			new float[] {0.8962930441f, 0.4434623122f},
 			new float[] {0.7208535671f, 0.6930873394f},
@@ -194,7 +210,8 @@
 
         /* RE(Phi_Fract_SubQmf34[j]) = (float)cos(M_PI*f_center_34[j]*0.39); */
         /* IM(Phi_Fract_SubQmf34[j]) = (float)sin(M_PI*f_center_34[j]*0.39); */
-        public static float[][] Phi_Fract_SubQmf34 = {
+        public static float[][] Phi_Fract_SubQmf34 = 
+		{
 			new float[] {1.0000000000f, 0.0000000000f},
 			new float[] {1.0000000000f, 0.0000000000f},
 			new float[] {1.0000000000f, 0.0000000000f},
@@ -231,7 +248,8 @@
 
         /* RE(Q_Fract_allpass_Qmf[j][i]) = (float)cos(M_PI*(j+0.5)*(frac_delay_q[i])); */
         /* IM(Q_Fract_allpass_Qmf[j][i]) = (float)sin(M_PI*(j+0.5)*(frac_delay_q[i])); */
-        public static float[][][] Q_Fract_allpass_Qmf = {
+        public static float[][][] Q_Fract_allpass_Qmf = 
+		{
 			new float[][] {new float[] {0.7804303765f, 0.6252426505f},   new float[] { 0.3826834261f, 0.9238795042f}, new float[] { 0.8550928831f, 0.5184748173f}},
 			new float[][] {new float[] {-0.4399392009f, 0.8980275393f},  new float[] {-0.9238795042f, -0.3826834261f}, new float[] {-0.0643581524f, 0.9979268909f}},
 			new float[][] {new float[] {-0.9723699093f, -0.2334454209f}, new float[] {0.9238795042f, -0.3826834261f},  new float[] {-0.9146071672f, 0.4043435752f}},
@@ -300,7 +318,8 @@
 
         /* RE(Q_Fract_allpass_SubQmf20[j][i]) = (float)cos(M_PI*f_center_20[j]*frac_delay_q[i]); */
         /* IM(Q_Fract_allpass_SubQmf20[j][i]) = (float)sin(M_PI*f_center_20[j]*frac_delay_q[i]); */
-        public static float[][][] Q_Fract_allpass_SubQmf20 = {
+        public static float[][][] Q_Fract_allpass_SubQmf20 =
+		{
 			new float[][] { new float[] {0.9857769012f, 0.1680592746f},    new float[] {0.9569403529f, 0.2902846634f},   new float[] {0.9907300472f, 0.1358452588f}},
 			new float[][] { new float[] {0.8744080663f, 0.4851911962f},    new float[] {0.6343932748f, 0.7730104327f},   new float[] {0.9175986052f, 0.3975082636f}},
 			new float[][] { new float[] {0.6642524004f, 0.7475083470f},    new float[] {0.0980171412f, 0.9951847196f},   new float[] {0.7767338753f, 0.6298289299f}},
@@ -317,7 +336,8 @@
 
         /* RE(Q_Fract_allpass_SubQmf34[j][i]) = (float)cos(M_PI*f_center_34[j]*frac_delay_q[i]); */
         /* IM(Q_Fract_allpass_SubQmf34[j][i]) = (float)sin(M_PI*f_center_34[j]*frac_delay_q[i]); */
-        public static float[][][] Q_Fract_allpass_SubQmf34 = {
+        public static float[][][] Q_Fract_allpass_SubQmf34 = 
+		{
 			new float[][] { new float[] {1.0000000000f, 0.0000000000f},  new float[] {1.0000000000f, 0.0000000000f},    new float[] {1.0000000000f, 0.0000000000f}},
 			new float[][] { new float[] {1.0000000000f, 0.0000000000f},  new float[] {1.0000000000f, 0.0000000000f},    new float[] {1.0000000000f, 0.0000000000f}},
 			new float[][] { new float[] {1.0000000000f, 0.0000000000f},  new float[] {1.0000000000f, 0.0000000000f},    new float[] {1.0000000000f, 0.0000000000f}},
@@ -352,19 +372,22 @@
             new float[][] { new float[] {-0.6129069924f, -0.7901550531f},new float[]  {0.7071067691f, 0.7071067691f},   new float[] {-0.9917160273f, -0.1284494549f}}
 		};
 
-        public static float[] cos_alphas = {
+        public static float[] cos_alphas = 
+		{
 			1.0000000000f, 0.9841239700f, 0.9594738210f,
 			0.8946843079f, 0.8269340931f, 0.7071067812f,
 			0.4533210856f, 0.0000000000f
 		};
 
-        public static float[] sin_alphas = {
+        public static float[] sin_alphas =
+		{
 			0.0000000000f, 0.1774824264f, 0.2817977763f,
 			0.4466989918f, 0.5622988580f, 0.7071067812f,
 			0.8913472911f, 1.0000000000f
 		};
 
-        public static float[][] cos_betas_normal = {
+        public static float[][] cos_betas_normal =
+		{
 			new float[] {1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f},
 			new float[] {1.0000000000f, 0.9995871699f, 0.9989419133f, 0.9972204583f, 0.9953790839f, 0.9920112747f, 0.9843408180f, 0.9681727381f},
 			new float[] {1.0000000000f, 0.9984497744f, 0.9960279377f, 0.9895738413f, 0.9826814632f, 0.9701058164f, 0.9416098832f, 0.8822105900f},
@@ -375,7 +398,8 @@
             new float[] {1.0000000000f, 0.9858996945f, 0.9639898866f, 0.9063034786f, 0.8458214608f, 0.7384262300f, 0.5089811277f, 0.0905465944f}
 		};
 
-        public static float[][] sin_betas_normal = {
+        public static float[][] sin_betas_normal = 
+		{
 			new float[] {0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f},
 			new float[] {0.0000000000f, -0.0287313368f, -0.0459897147f, -0.0745074328f, -0.0960233266f, -0.1261492408f, -0.1762757894f, -0.2502829383f},
 			new float[] {0.0000000000f, -0.0556601118f, -0.0890412670f, -0.1440264301f, -0.1853028382f, -0.2426823129f, -0.3367058477f, -0.4708550466f},
@@ -386,7 +410,8 @@
             new float[] {0.0000000000f, -0.1673373610f, -0.2659389001f, -0.4226275012f, -0.5334660781f, -0.6743342664f, -0.8607776784f, -0.9958922202f}
 		};
 
-        public static float[][] cos_betas_fine = {
+        public static float[][] cos_betas_fine = 
+		{
 			new float[] {1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f, 1.0000000000f},
 			new float[] {1.0000000000f, 0.9995871699f, 0.9989419133f, 0.9972204583f, 0.9953790839f, 0.9920112747f, 0.9843408180f, 0.9681727381f},
 			new float[] {1.0000000000f, 0.9984497744f, 0.9960279377f, 0.9895738413f, 0.9826814632f, 0.9701058164f, 0.9416098832f, 0.8822105900f},
@@ -405,7 +430,8 @@
             new float[] {1.0000000000f, 0.9842241136f, 0.9597283916f, 0.8953385094f, 0.8279961409f, 0.7088635748f, 0.4564246834f, 0.0049751355f}
 		};
 
-        public static float[][] sin_betas_fine = {
+        public static float[][] sin_betas_fine = 
+		{
 			new float[] {0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f, 0.0000000000f},
 			new float[] {0.0000000000f, -0.0287313368f, -0.0459897147f, -0.0745074328f, -0.0960233266f, -0.1261492408f, -0.1762757894f, -0.2502829383f},
 			new float[] {0.0000000000f, -0.0556601118f, -0.0890412670f, -0.1440264301f, -0.1853028382f, -0.2426823129f, -0.3367058477f, -0.4708550466f},
@@ -424,7 +450,8 @@
             new float[] {0.0000000000f, -0.1769262394f, -0.2809295540f, -0.4453862969f, -0.5607337966f, -0.7053456119f, -0.8897620516f, -0.9999876239f}
 		};
 
-        public static float[][] sincos_alphas_B_normal = {
+        public static float[][] sincos_alphas_B_normal = 
+		{
 			new float[] {0.0561454100f, 0.0526385859f, 0.0472937334f, 0.0338410641f, 0.0207261065f, 0.0028205635f, 0.0028205635f, 0.0028205635f},
 			new float[] {0.1249065138f, 0.1173697697f, 0.1057888284f, 0.0761985131f, 0.0468732723f, 0.0063956103f, 0.0063956103f, 0.0063956103f},
 			new float[] {0.1956693050f, 0.1846090179f, 0.1673645109f, 0.1220621836f, 0.0757362479f, 0.0103882630f, 0.0103882630f, 0.0103882630f},
@@ -442,7 +469,8 @@
             new float[] {0.9984226014f, 0.9986136287f, 0.9988810254f, 0.9994272242f, 0.9997851906f, 0.9999960221f, 0.9999960221f, 0.9999960221f}
 		};
 
-        public static float[][] sincos_alphas_B_fine = {
+        public static float[][] sincos_alphas_B_fine = 
+		{
 			new float[] {0.0031622158f, 0.0029630181f, 0.0026599892f, 0.0019002704f, 0.0011626042f, 0.0001580278f, 0.0001580278f, 0.0001580278f},
 			new float[] {0.0056232673f, 0.0052689825f, 0.0047302825f, 0.0033791756f, 0.0020674015f, 0.0002811710f, 0.0002811710f, 0.0002811710f},
 			new float[] {0.0099994225f, 0.0093696693f, 0.0084117414f, 0.0060093796f, 0.0036766009f, 0.0005000392f, 0.0005000392f, 0.0005000392f},
@@ -476,7 +504,8 @@
             new float[] {0.9999950000f, 0.9999956102f, 0.9999964621f, 0.9999981945f, 0.9999993242f, 0.9999999875f, 0.9999999875f, 0.9999999875f}
 		};
 
-        public static float[][] cos_gammas_normal = {
+        public static float[][] cos_gammas_normal = 
+		{
 			new float[] {1.0000000000f, 0.9841239707f, 0.9594738226f, 0.8946843024f, 0.8269341029f, 0.7245688486f, 0.7245688486f, 0.7245688486f},
 			new float[] {1.0000000000f, 0.9849690570f, 0.9617776789f, 0.9020941550f, 0.8436830391f, 0.7846832804f, 0.7846832804f, 0.7846832804f},
 			new float[] {1.0000000000f, 0.9871656089f, 0.9676774734f, 0.9199102884f, 0.8785067015f, 0.8464232214f, 0.8464232214f, 0.8464232214f},
@@ -487,7 +516,8 @@
             new float[] {1.0000000000f, 0.9998081748f, 0.9995400312f, 0.9989936459f, 0.9986365356f, 0.9984265591f, 0.9984265591f, 0.9984265591f}
 		};
 
-        public static float[][] cos_gammas_fine = {
+        public static float[][] cos_gammas_fine = 
+		{
 			new float[] {1.0000000000f, 0.9841239707f, 0.9594738226f, 0.8946843024f, 0.8269341029f, 0.7245688486f, 0.7245688486f, 0.7245688486f},
 			new float[] {1.0000000000f, 0.9849690570f, 0.9617776789f, 0.9020941550f, 0.8436830391f, 0.7846832804f, 0.7846832804f, 0.7846832804f},
 			new float[] {1.0000000000f, 0.9871656089f, 0.9676774734f, 0.9199102884f, 0.8785067015f, 0.8464232214f, 0.8464232214f, 0.8464232214f},
@@ -506,7 +536,8 @@
             new float[] {1.0000000000f, 0.9999993891f, 0.9999985397f, 0.9999968037f, 0.9999956786f, 0.9999950155f, 0.9999950155f, 0.9999950155f}
 		};
 
-        public static float[][] sin_gammas_normal = {
+        public static float[][] sin_gammas_normal =
+		{
 			new float[] {0.0000000000f, 0.1774824223f, 0.2817977711f, 0.4466990028f, 0.5622988435f, 0.6892024258f, 0.6892024258f, 0.6892024258f},
 			new float[] {0.0000000000f, 0.1727308798f, 0.2738315110f, 0.4315392630f, 0.5368416242f, 0.6198968861f, 0.6198968861f, 0.6198968861f},
 			new float[] {0.0000000000f, 0.1596999079f, 0.2521910140f, 0.3921288836f, 0.4777300236f, 0.5325107795f, 0.5325107795f, 0.5325107795f},
@@ -517,7 +548,8 @@
             new float[] {0.0000000000f, 0.0195860576f, 0.0303269852f, 0.0448519274f, 0.0522022017f, 0.0560750040f, 0.0560750040f, 0.0560750040f}
 		};
 
-        public static float[][] sin_gammas_fine = {
+        public static float[][] sin_gammas_fine = 
+		{
 			new float[] {0.0000000000f, 0.1774824223f, 0.2817977711f, 0.4466990028f, 0.5622988435f, 0.6892024258f, 0.6892024258f, 0.6892024258f},
 			new float[] {0.0000000000f, 0.1727308798f, 0.2738315110f, 0.4315392630f, 0.5368416242f, 0.6198968861f, 0.6198968861f, 0.6198968861f},
 			new float[] {0.0000000000f, 0.1596999079f, 0.2521910140f, 0.3921288836f, 0.4777300236f, 0.5325107795f, 0.5325107795f, 0.5325107795f},
@@ -536,7 +568,8 @@
             new float[] {0.0000000000f, 0.0011053943f, 0.0017089869f, 0.0025283670f, 0.0029398552f, 0.0031573685f, 0.0031573685f, 0.0031573685f}
 		};
 
-        public static float[] sf_iid_normal = {
+        public static float[] sf_iid_normal = 
+		{
 			1.4119827747f, 1.4031381607f, 1.3868767023f,
 			1.3483997583f, 1.2912493944f, 1.1960374117f,
 			1.1073724031f, 1.0000000000f, 0.8796171546f,
@@ -544,7 +577,8 @@
 			0.2767182887f, 0.1766446233f, 0.0794016272f
 		};
 
-        public static float[] sf_iid_fine = {
+        public static float[] sf_iid_fine = 
+		{
 			1.4142065048f, 1.4141912460f, 1.4141428471f,
 			1.4139900208f, 1.4135069847f, 1.4119827747f,
 			1.4097729921f, 1.4053947926f, 1.3967796564f,
@@ -557,7 +591,8 @@
 			0.0251446925f, 0.0141414283f, 0.0079525812f,
 			0.0044721137f
 		};
-        public static float[] ipdopd_cos_tab = {
+        public static float[] ipdopd_cos_tab = 
+		{
 			1.000000000000000f,
 			0.707106781186548f,
 			0.000000000000000f,
@@ -569,7 +604,8 @@
 			1.000000000000000f
 		};
 
-        public static float[] ipdopd_sin_tab = {
+        public static float[] ipdopd_sin_tab = 
+		{
 			0.000000000000000f,
 			0.707106781186547f,
 			1.000000000000000f,

@@ -3,21 +3,17 @@ using CameraAPI.AAC.Syntax;
 
 namespace CameraAPI.AAC.Tools
 {
-    public class MS : Constants
+    public class MS
     {
-        public MS()
+        public static void Process(CPE cpe, float[] specL, float[] specR)
         {
-        }
-
-        public static void process(CPE cpe, float[] specL, float[] specR)
-        {
-            ICStream ics = cpe.getLeftChannel();
-            ICSInfo info = ics.getInfo();
-            int[] offsets = info.getSWBOffsets();
-            int windowGroups = info.getWindowGroupCount();
-            int maxSFB = info.getMaxSFB();
+            ICStream ics = cpe.GetLeftChannel();
+            ICSInfo info = ics.GetInfo();
+            int[] offsets = info.GetSWBOffsets();
+            int windowGroups = info.GetWindowGroupCount();
+            int maxSFB = info.GetMaxSFB();
             int[] sfbCBl = ics.getSfbCB();
-            int[] sfbCBr = cpe.getRightChannel().getSfbCB();
+            int[] sfbCBr = cpe.GetRightChannel().getSfbCB();
             int groupOff = 0;
             int g, i, w, j, idx = 0;
 
@@ -25,9 +21,9 @@ namespace CameraAPI.AAC.Tools
             {
                 for (i = 0; i < maxSFB; i++, idx++)
                 {
-                    if (cpe.isMSUsed(idx) && sfbCBl[idx] < HCB.NOISE_HCB && sfbCBr[idx] < HCB.NOISE_HCB)
+                    if (cpe.IsMSUsed(idx) && sfbCBl[idx] < HCB.NOISE_HCB && sfbCBr[idx] < HCB.NOISE_HCB)
                     {
-                        for (w = 0; w < info.getWindowGroupLength(g); w++)
+                        for (w = 0; w < info.GetWindowGroupLength(g); w++)
                         {
                             int off = groupOff + w * 128 + offsets[i];
                             for (j = 0; j < offsets[i + 1] - offsets[i]; j++)
@@ -39,7 +35,7 @@ namespace CameraAPI.AAC.Tools
                         }
                     }
                 }
-                groupOff += info.getWindowGroupLength(g) * 128;
+                groupOff += info.GetWindowGroupLength(g) * 128;
             }
         }
     }

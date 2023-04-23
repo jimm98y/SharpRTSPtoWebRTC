@@ -2,26 +2,25 @@
 
 namespace CameraAPI.AAC.Sbr
 {
-    public class AnalysisFilterbank : FilterbankTable
+    public class AnalysisFilterbank
     {
-        private float[] x; //x is implemented as double ringbuffer
-        private int x_index; //ringbuffer index
-        private int channels;
+        private float[] _x; //x is implemented as double ringbuffer
+        private int _xIndex; //ringbuffer index
+        private int _channels;
 
         public AnalysisFilterbank(int channels)
         {
-            this.channels = channels;
-            x = new float[2 * channels * 10];
-            x_index = 0;
+            this._channels = channels;
+            _x = new float[2 * channels * 10];
+            _xIndex = 0;
         }
 
         public void Reset()
         {
-            Arrays.Fill(x, 0);
+            Arrays.Fill(_x, 0);
         }
 
-        public void SbrQmfAnalysis32(SBR sbr, float[] input,
-            float[,,,] X, int ch, int offset, int kx)
+        public void SbrQmfAnalysis32(SBR sbr, float[] input, float[,,,] X, int ch, int offset, int kx)
         {
             float[] u = new float[64];
             float[] in_real = new float[32], in_imag = new float[32];
@@ -30,7 +29,7 @@ namespace CameraAPI.AAC.Sbr
             int l;
 
             /* qmf subsample l */
-            for (l = 0; l < sbr.numTimeSlotsRate; l++)
+            for (l = 0; l < sbr._numTimeSlotsRate; l++)
             {
                 int n;
 
@@ -41,23 +40,23 @@ namespace CameraAPI.AAC.Sbr
                 /* add new samples to input buffer x */
                 for (n = 32 - 1; n >= 0; n--)
                 {
-                    this.x[this.x_index + n] = this.x[this.x_index + n + 320] = input[iin++];
+                    this._x[this._xIndex + n] = this._x[this._xIndex + n + 320] = input[iin++];
                 }
 
                 /* window and summation to create array u */
                 for (n = 0; n < 64; n++)
                 {
-                    u[n] = (this.x[this.x_index + n] * qmf_c[2 * n])
-                        + (this.x[this.x_index + n + 64] * qmf_c[2 * (n + 64)])
-                        + (this.x[this.x_index + n + 128] * qmf_c[2 * (n + 128)])
-                        + (this.x[this.x_index + n + 192] * qmf_c[2 * (n + 192)])
-                        + (this.x[this.x_index + n + 256] * qmf_c[2 * (n + 256)]);
+                    u[n] = (this._x[this._xIndex + n] * FilterbankTable.qmf_c[2 * n])
+                        + (this._x[this._xIndex + n + 64] * FilterbankTable.qmf_c[2 * (n + 64)])
+                        + (this._x[this._xIndex + n + 128] * FilterbankTable.qmf_c[2 * (n + 128)])
+                        + (this._x[this._xIndex + n + 192] * FilterbankTable.qmf_c[2 * (n + 192)])
+                        + (this._x[this._xIndex + n + 256] * FilterbankTable.qmf_c[2 * (n + 256)]);
                 }
 
                 /* update ringbuffer index */
-                this.x_index -= 32;
-                if (this.x_index < 0)
-                    this.x_index = (320 - 32);
+                this._xIndex -= 32;
+                if (this._xIndex < 0)
+                    this._xIndex = (320 - 32);
 
                 /* calculate 32 subband samples by introducing X */
                 // Reordering of data moved from DCT_IV to here
@@ -72,7 +71,7 @@ namespace CameraAPI.AAC.Sbr
                 in_real[31] = -u[33];
 
                 // dct4_kernel is DCT_IV without reordering which is done before and after FFT
-                DCT.dct4_kernel(in_real, in_imag, out_real, out_imag);
+                DCT.Dct4Kernel(in_real, in_imag, out_real, out_imag);
 
                 // Reordering of data moved from DCT_IV to here
                 for (n = 0; n < 16; n++)

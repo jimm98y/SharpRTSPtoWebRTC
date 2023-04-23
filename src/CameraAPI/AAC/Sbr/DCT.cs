@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class DCT
+    public static class DCT
     {
         private static int n = 32;
 
@@ -132,7 +132,7 @@
         // FFT decimation in frequency
         // 4*16*2+16=128+16=144 multiplications
         // 6*16*2+10*8+4*16*2=192+80+128=400 additions
-        private static void fft_dif(float[] Real, float[] Imag)
+        private static void FftDif(float[] Real, float[] Imag)
         {
             float w_real, w_imag; // For faster access
             float point1_real, point1_imag, point2_real, point2_imag; // For faster access
@@ -355,7 +355,7 @@
         }
 
         /* size 64 only! */
-        public static void dct4_kernel(float[] in_real, float[] in_imag, float[] out_real, float[] out_imag)
+        public static void Dct4Kernel(float[] in_real, float[] in_imag, float[] out_real, float[] out_imag)
         {
             // Tables with bit reverse values for 5 bits, bit reverse of i at i-th position
             int i, i_rev;
@@ -374,7 +374,7 @@
             }
 
             /* Step 3: FFT, but with output in bit reverse order */
-            fft_dif(in_real, in_imag);
+            FftDif(in_real, in_imag);
 
             /* Step 4: modulate + bitreverse reordering */
             // 3*31+2=95 multiplications

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Gain
 {
-    public class PQFTables
+    public static class PQFTables
     {
         public static float[] PROTO_TABLE = {
 			1.2206911E-5f,

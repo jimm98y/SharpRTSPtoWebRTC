@@ -3,97 +3,98 @@ using System.Linq;
 
 namespace CameraAPI.AAC.Syntax
 {
-    public class ICSInfo : Constants
+    public class ICSInfo
     {
         public const int WINDOW_SHAPE_SINE = 0;
 		public const int WINDOW_SHAPE_KAISER = 1;
 		public const int PREVIOUS = 0;
 		public const int CURRENT = 1;
 
-		public enum WindowSequence {
-
+		public enum WindowSequence 
+		{
 			ONLY_LONG_SEQUENCE = 0,
 			LONG_START_SEQUENCE = 1,
 			EIGHT_SHORT_SEQUENCE = 2,
 			LONG_STOP_SEQUENCE = 3
 		}
 
-		private int frameLength;
-		private WindowSequence windowSequence;
-		private int[] windowShape;
-		private int maxSFB;
+		private int _frameLength;
+		private WindowSequence _windowSequence;
+		private int[] _windowShape;
+		private int _maxSFB;
 		//prediction
-		private bool predictionDataPresent;
-		private ICPrediction icPredict;
-		private LTPrediction ltPredict;
+		private bool _predictionDataPresent;
+		private ICPrediction _icPredict;
+		private LTPrediction _ltPredict;
 		//windows/sfbs
-		private int windowCount;
-		private int windowGroupCount;
-		private int[] windowGroupLength;
-		private int swbCount;
-		private int[] swbOffsets;
+		private int _windowCount;
+		private int _windowGroupCount;
+		private int[] _windowGroupLength;
+		private int _swbCount;
+		private int[] _swbOffsets;
 
-		public ICSInfo(DecoderConfig config) {
-			this.frameLength = config.getFrameLength();
-			windowShape = new int[2];
-			windowSequence = WindowSequence.ONLY_LONG_SEQUENCE;
-			windowGroupLength = new int[MAX_WINDOW_GROUP_COUNT];
+		public ICSInfo(DecoderConfig config)
+		{
+			this._frameLength = config.GetFrameLength();
+			_windowShape = new int[2];
+			_windowSequence = WindowSequence.ONLY_LONG_SEQUENCE;
+			_windowGroupLength = new int[Constants.MAX_WINDOW_GROUP_COUNT];
 
-            if (LTPrediction.isLTPProfile(config.getProfile()))
-                ltPredict = new LTPrediction(frameLength);
+            if (LTPrediction.IsLTPProfile(config.GetProfile()))
+                _ltPredict = new LTPrediction(_frameLength);
             else
-                ltPredict = null;
+                _ltPredict = null;
         }
 
 		/* ========== decoding ========== */
-		public void decode(BitStream input, DecoderConfig conf, bool commonWindow) {
-			SampleFrequency sf = conf.getSampleFrequency();
+		public void Decode(BitStream input, DecoderConfig conf, bool commonWindow) {
+			SampleFrequency sf = conf.GetSampleFrequency();
 			if(sf.Equals(SampleFrequency.SAMPLE_FREQUENCY_NONE)) throw new AACException("invalid sample frequency");
 
-			input.skipBit(); //reserved
-			windowSequence = (WindowSequence)(input.readBits(2));
-			windowShape[PREVIOUS] = windowShape[CURRENT];
-			windowShape[CURRENT] = input.readBit();
+			input.SkipBit(); //reserved
+			_windowSequence = (WindowSequence)(input.ReadBits(2));
+			_windowShape[PREVIOUS] = _windowShape[CURRENT];
+			_windowShape[CURRENT] = input.ReadBit();
 
-			windowGroupCount = 1;
-			windowGroupLength[0] = 1;
+			_windowGroupCount = 1;
+			_windowGroupLength[0] = 1;
 
-			if(windowSequence.Equals(WindowSequence.EIGHT_SHORT_SEQUENCE)) {
-				maxSFB = input.readBits(4);
+			if(_windowSequence.Equals(WindowSequence.EIGHT_SHORT_SEQUENCE)) {
+				_maxSFB = input.ReadBits(4);
 				int i;
 				for(i = 0; i<7; i++) {
-					if(input.readBool()) windowGroupLength[windowGroupCount-1]++;
+					if(input.ReadBool()) _windowGroupLength[_windowGroupCount-1]++;
 					else {
-						windowGroupCount++;
-						windowGroupLength[windowGroupCount-1] = 1;
+						_windowGroupCount++;
+						_windowGroupLength[_windowGroupCount-1] = 1;
 					}
 				}
-				windowCount = 8;
-				swbOffsets = ScaleFactorBands.SWB_OFFSET_SHORT_WINDOW[(int)sf];
-				swbCount = ScaleFactorBands.SWB_SHORT_WINDOW_COUNT[(int)sf];
+				_windowCount = 8;
+				_swbOffsets = ScaleFactorBands.SWB_OFFSET_SHORT_WINDOW[(int)sf];
+				_swbCount = ScaleFactorBands.SWB_SHORT_WINDOW_COUNT[(int)sf];
 			}
 			else {
-				maxSFB = input.readBits(6);
-				windowCount = 1;
-				swbOffsets = ScaleFactorBands.SWB_OFFSET_LONG_WINDOW[(int)sf];
-				swbCount = ScaleFactorBands.SWB_LONG_WINDOW_COUNT[(int)sf];
-				predictionDataPresent = input.readBool();
-				if(predictionDataPresent) readPredictionData(input, conf.getProfile(), sf, commonWindow);
+				_maxSFB = input.ReadBits(6);
+				_windowCount = 1;
+				_swbOffsets = ScaleFactorBands.SWB_OFFSET_LONG_WINDOW[(int)sf];
+				_swbCount = ScaleFactorBands.SWB_LONG_WINDOW_COUNT[(int)sf];
+				_predictionDataPresent = input.ReadBool();
+				if(_predictionDataPresent) ReadPredictionData(input, conf.GetProfile(), sf, commonWindow);
 			}
 		}
 
-		private void readPredictionData(BitStream input, Profile profile, SampleFrequency sf, bool commonWindow) {
+		private void ReadPredictionData(BitStream input, Profile profile, SampleFrequency sf, bool commonWindow) {
 			switch(profile) {
 				case Profile.AAC_MAIN:
-					if(icPredict==null) icPredict = new ICPrediction();
-					icPredict.decode(input, maxSFB, sf);
+					if(_icPredict==null) _icPredict = new ICPrediction();
+					_icPredict.Decode(input, _maxSFB, sf);
 					break;
 				case Profile.AAC_LTP:
-                    ltPredict.decode(input, this, profile);
+                    _ltPredict.Decode(input, this, profile);
                     break;
 				case Profile.ER_AAC_LTP:
 					if(!commonWindow) {
-                        ltPredict.decode(input, this, profile);
+                        _ltPredict.Decode(input, this, profile);
                     }
 					break;
 				default:
@@ -102,79 +103,79 @@ namespace CameraAPI.AAC.Syntax
 		}
 
 		/* =========== gets ============ */
-		public int getMaxSFB() {
-			return maxSFB;
+		public int GetMaxSFB() {
+			return _maxSFB;
 		}
 
-		public int getSWBCount() {
-			return swbCount;
+		public int GetSWBCount() {
+			return _swbCount;
 		}
 
-		public int[] getSWBOffsets() {
-			return swbOffsets;
+		public int[] GetSWBOffsets() {
+			return _swbOffsets;
 		}
 
-		public int getSWBOffsetMax() {
-			return swbOffsets[swbCount];
+		public int GetSWBOffsetMax() {
+			return _swbOffsets[_swbCount];
 		}
 
-		public int getWindowCount() {
-			return windowCount;
+		public int GetWindowCount() {
+			return _windowCount;
 		}
 
-		public int getWindowGroupCount() {
-			return windowGroupCount;
+		public int GetWindowGroupCount() {
+			return _windowGroupCount;
 		}
 
-		public int getWindowGroupLength(int g) {
-			return windowGroupLength[g];
+		public int GetWindowGroupLength(int g) {
+			return _windowGroupLength[g];
 		}
 
-		public WindowSequence getWindowSequence() {
-			return windowSequence;
+		public WindowSequence GetWindowSequence() {
+			return _windowSequence;
 		}
 
-		public bool isEightShortFrame() {
-			return windowSequence.Equals(WindowSequence.EIGHT_SHORT_SEQUENCE);
+		public bool IsEightShortFrame() {
+			return _windowSequence.Equals(WindowSequence.EIGHT_SHORT_SEQUENCE);
 		}
 
-		public int getWindowShape(int index) {
-			return windowShape[index];
+		public int GetWindowShape(int index) {
+			return _windowShape[index];
 		}
 
-		public bool isICPredictionPresent() {
-			return predictionDataPresent;
+		public bool IsICPredictionPresent() {
+			return _predictionDataPresent;
 		}
 
-		public ICPrediction getICPrediction() {
-			return icPredict;
+		public ICPrediction GetICPrediction() {
+			return _icPredict;
 		}
 
-        public LTPrediction getLTPrediction() {
-            return ltPredict;
+        public LTPrediction GetLTPrediction() {
+            return _ltPredict;
         }
 
-		public void unsetPredictionSFB(int sfb) {
-			if(predictionDataPresent) icPredict.setPredictionUnused(sfb);
-            if (ltPredict != null) ltPredict.setPredictionUnused(sfb);
+		public void UnsetPredictionSFB(int sfb) {
+			if(_predictionDataPresent) _icPredict.SetPredictionUnused(sfb);
+            if (_ltPredict != null) _ltPredict.SetPredictionUnused(sfb);
         }
 
-		public void setData(BitStream input, DecoderConfig conf, ICSInfo info) {
-			windowSequence = info.windowSequence;
-			windowShape[PREVIOUS] = windowShape[CURRENT];
-			windowShape[CURRENT] = info.windowShape[CURRENT];
-			maxSFB = info.maxSFB;
-			predictionDataPresent = info.predictionDataPresent;
-			if(predictionDataPresent) icPredict = info.icPredict;
+		public void SetData(BitStream input, DecoderConfig conf, ICSInfo info) {
+			_windowSequence = info._windowSequence;
+			_windowShape[PREVIOUS] = _windowShape[CURRENT];
+			_windowShape[CURRENT] = info._windowShape[CURRENT];
+			_maxSFB = info._maxSFB;
+			_predictionDataPresent = info._predictionDataPresent;
+			if(_predictionDataPresent) _icPredict = info._icPredict;
 			
-			windowCount = info.windowCount;
-			windowGroupCount = info.windowGroupCount;
-			windowGroupLength = info.windowGroupLength.ToArray();
-			swbCount = info.swbCount;
-			swbOffsets = info.swbOffsets.ToArray();
+			_windowCount = info._windowCount;
+			_windowGroupCount = info._windowGroupCount;
+			_windowGroupLength = info._windowGroupLength.ToArray();
+			_swbCount = info._swbCount;
+			_swbOffsets = info._swbOffsets.ToArray();
 
-            if (predictionDataPresent) {
-                ltPredict.decode(input, this, conf.getProfile());
+            if (_predictionDataPresent) {
+                _ltPredict.Decode(input, this, conf.GetProfile());
             }
         }
     }

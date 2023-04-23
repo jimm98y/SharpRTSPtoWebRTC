@@ -2,165 +2,190 @@
 
 namespace CameraAPI.AAC
 {
-    public class DecoderConfig : Constants
+    public class DecoderConfig
     {
-        private Profile profile, extProfile;
-		private SampleFrequency sampleFrequency;
-		private ChannelConfiguration channelConfiguration;
-		private bool frameLengthFlag;
-		private bool dependsOnCoreCoder;
-		private int coreCoderDelay;
-		private bool extensionFlag;
+        private Profile _profile, _extProfile;
+		private SampleFrequency _sampleFrequency;
+		private ChannelConfiguration _channelConfiguration;
+		private bool _frameLengthFlag;
+		private bool _dependsOnCoreCoder;
+		private int _coreCoderDelay;
+		private bool _extensionFlag;
 		//extension: SBR
-		private bool sbrPresent, downSampledSBR, sbrEnabled;
+		private bool _sbrPresent, _downSampledSBR, _sbrEnabled;
 		//extension: error resilience
-		private bool sectionDataResilience, scalefactorResilience, spectralDataResilience;
+		private bool _sectionDataResilience, _scalefactorResilience, _spectralDataResilience;
 
-		public DecoderConfig() {
-			profile = Profile.AAC_MAIN;
-			extProfile = Profile.UNKNOWN;
-			sampleFrequency = SampleFrequency.SAMPLE_FREQUENCY_NONE;
-			channelConfiguration = ChannelConfiguration.CHANNEL_CONFIG_UNSUPPORTED;
-			frameLengthFlag = false;
-			sbrPresent = false;
-			downSampledSBR = false;
-			sbrEnabled = true;
-			sectionDataResilience = false;
-			scalefactorResilience = false;
-			spectralDataResilience = false;
-		}
-
-		public void setSBRPresent(bool sbr)
+		public DecoderConfig() 
 		{
-			sbrPresent = sbr;
+			_profile = Profile.AAC_MAIN;
+			_extProfile = Profile.UNKNOWN;
+			_sampleFrequency = SampleFrequency.SAMPLE_FREQUENCY_NONE;
+			_channelConfiguration = ChannelConfiguration.CHANNEL_CONFIG_UNSUPPORTED;
+			_frameLengthFlag = false;
+			_sbrPresent = false;
+			_downSampledSBR = false;
+			_sbrEnabled = true;
+			_sectionDataResilience = false;
+			_scalefactorResilience = false;
+			_spectralDataResilience = false;
 		}
 
-        public void setSBRDownsampled(bool sbr)
+		public void SetSBRPresent(bool sbr)
+		{
+			_sbrPresent = sbr;
+		}
+
+        public void SetSBRDownsampled(bool sbr)
         {
-            downSampledSBR = sbr;
+            _downSampledSBR = sbr;
         }
 
         /* ========== gets/sets ========== */
-        public ChannelConfiguration getChannelConfiguration() {
-			return channelConfiguration;
+        public ChannelConfiguration GetChannelConfiguration()
+		{
+			return _channelConfiguration;
 		}
 
-		public void setChannelConfiguration(ChannelConfiguration channelConfiguration) {
-			this.channelConfiguration = channelConfiguration;
+		public void SetChannelConfiguration(ChannelConfiguration channelConfiguration)
+		{
+			this._channelConfiguration = channelConfiguration;
 		}
 
-		public int getCoreCoderDelay() {
-			return coreCoderDelay;
+		public int GetCoreCoderDelay() 
+		{
+			return _coreCoderDelay;
 		}
 
-		public void setCoreCoderDelay(int coreCoderDelay) {
-			this.coreCoderDelay = coreCoderDelay;
+		public void SetCoreCoderDelay(int coreCoderDelay) 
+		{
+			this._coreCoderDelay = coreCoderDelay;
 		}
 
-		public bool isDependsOnCoreCoder() {
-			return dependsOnCoreCoder;
+		public bool IsDependsOnCoreCoder() 
+		{
+			return _dependsOnCoreCoder;
 		}
 
-		public void setDependsOnCoreCoder(bool dependsOnCoreCoder) {
-			this.dependsOnCoreCoder = dependsOnCoreCoder;
+		public void SetDependsOnCoreCoder(bool dependsOnCoreCoder)
+		{
+			this._dependsOnCoreCoder = dependsOnCoreCoder;
 		}
 
-		public Profile getExtObjectType() {
-			return extProfile;
+		public Profile GetExtObjectType() 
+		{
+			return _extProfile;
 		}
 
-		public void setExtObjectType(Profile extObjectType) {
-			this.extProfile = extObjectType;
+		public void SetExtObjectType(Profile extObjectType) 
+		{
+			this._extProfile = extObjectType;
 		}
 
-		public int getFrameLength() {
-			return frameLengthFlag ? WINDOW_SMALL_LEN_LONG : WINDOW_LEN_LONG;
+		public int GetFrameLength()
+		{
+			return _frameLengthFlag ? Constants.WINDOW_SMALL_LEN_LONG : Constants.WINDOW_LEN_LONG;
 		}
 
-		public bool isSmallFrameUsed() {
-			return frameLengthFlag;
+		public bool IsSmallFrameUsed()
+		{
+			return _frameLengthFlag;
 		}
 
-		public void setSmallFrameUsed(bool shortFrame) {
-			this.frameLengthFlag = shortFrame;
+		public void SetSmallFrameUsed(bool shortFrame) 
+		{
+			this._frameLengthFlag = shortFrame;
 		}
 
-		public Profile getProfile() {
-			return profile;
+		public Profile GetProfile() {
+			return _profile;
 		}
 
-		public void setProfile(Profile profile) {
-			this.profile = profile;
+		public void SetProfile(Profile profile) 
+		{
+			this._profile = profile;
 		}
 
-		public SampleFrequency getSampleFrequency() {
-			return sampleFrequency;
+		public SampleFrequency GetSampleFrequency()
+		{
+			return _sampleFrequency;
 		}
 
-		public void setSampleFrequency(SampleFrequency sampleFrequency) {
-			this.sampleFrequency = sampleFrequency;
+		public void SetSampleFrequency(SampleFrequency sampleFrequency)
+		{
+			this._sampleFrequency = sampleFrequency;
 		}
 
 		//=========== SBR =============
-		public bool isSBRPresent() {
-			return sbrPresent;
+		public bool IsSBRPresent() 
+		{
+			return _sbrPresent;
 		}
 
-		public bool isSBRDownSampled() {
-			return downSampledSBR;
+		public bool IsSBRDownSampled() 
+		{
+			return _downSampledSBR;
 		}
 
-		public bool isSBREnabled() {
-			return sbrEnabled;
+		public bool IsSBREnabled() 
+		{
+			return _sbrEnabled;
 		}
 
-		public void setSBREnabled(bool enabled) {
-			sbrEnabled = enabled;
+		public void IetSBREnabled(bool enabled)
+		{
+			_sbrEnabled = enabled;
 		}
 
 		//=========== ER =============
-		public bool isScalefactorResilienceUsed() {
-			return scalefactorResilience;
+		public bool IsScalefactorResilienceUsed() 
+		{
+			return _scalefactorResilience;
 		}
 
-		public bool isSectionDataResilienceUsed() {
-			return sectionDataResilience;
+		public bool IsSectionDataResilienceUsed()
+		{
+			return _sectionDataResilience;
 		}
 
-		public bool isSpectralDataResilienceUsed() {
-			return spectralDataResilience;
+		public bool IsSpectralDataResilienceUsed() 
+		{
+			return _spectralDataResilience;
 		}
 
-		/* ======== static builder ========= */
-		/**
-		 * Parses the input arrays as a DecoderSpecificInfo, as used in MP4
-		 * containers.
-		 * 
-		 * @return a DecoderConfig
-		 */
-		public static DecoderConfig parseMP4DecoderSpecificInfo(byte[] data) {
+        /* ======== static builder ========= */
+
+        /// <summary>
+        /// Parses the input arrays as a DecoderSpecificInfo, as used in MP4 containers.
+        /// </summary>
+        /// <param name="data">Data.</param>
+        /// <returns>a DecoderConfig</returns>
+        /// <exception cref="AACException"></exception>
+        public static DecoderConfig ParseMP4DecoderSpecificInfo(byte[] data) 
+		{
 			BitStream input = new BitStream(data);
 			DecoderConfig config = new DecoderConfig();
 
-			try {
-				config.profile = readProfile(input);
+			try 
+			{
+				config._profile = ReadProfile(input);
 
-				int sf = input.readBits(4);
-				if(sf==0xF) config.sampleFrequency = SampleFrequencyExtensions.FromFrequency(input.readBits(24));
-				else config.sampleFrequency = (SampleFrequency)sf;
-				config.channelConfiguration = (ChannelConfiguration)(input.readBits(4));
+				int sf = input.ReadBits(4);
+				if(sf==0xF) config._sampleFrequency = SampleFrequencyExtensions.FromFrequency(input.ReadBits(24));
+				else config._sampleFrequency = (SampleFrequency)sf;
+				config._channelConfiguration = (ChannelConfiguration)(input.ReadBits(4));
 
-				switch(config.profile) {
+				switch(config._profile) {
 					case Profile.AAC_SBR:
-						config.extProfile = config.profile;
-						config.sbrPresent = true;
-						sf = input.readBits(4);
+						config._extProfile = config._profile;
+						config._sbrPresent = true;
+						sf = input.ReadBits(4);
 						//TODO: 24 bits already read; read again?
 						//if(sf==0xF) config.sampleFrequency = SampleFrequency.forFrequency(in.readBits(24));
 						//if sample frequencies are the same: downsample SBR
-						config.downSampledSBR = (int)config.sampleFrequency==sf;
-						config.sampleFrequency = (SampleFrequency)(sf);
-						config.profile = readProfile(input);
+						config._downSampledSBR = (int)config._sampleFrequency==sf;
+						config._sampleFrequency = (SampleFrequency)(sf);
+						config._profile = ReadProfile(input);
 						break;
 					case Profile.AAC_MAIN:
 					case Profile.AAC_LC:
@@ -170,66 +195,76 @@ namespace CameraAPI.AAC
 					case Profile.ER_AAC_LTP:
 					case Profile.ER_AAC_LD:
 						//ga-specific info:
-						config.frameLengthFlag = input.readBool();
-						if(config.frameLengthFlag) throw new AACException("config uses 960-sample frames, not yet supported"); //TODO: are 960-frames working yet?
-						config.dependsOnCoreCoder = input.readBool();
-						if(config.dependsOnCoreCoder) config.coreCoderDelay = input.readBits(14);
-						else config.coreCoderDelay = 0;
-						config.extensionFlag = input.readBool();
+						config._frameLengthFlag = input.ReadBool();
+						if(config._frameLengthFlag) throw new AACException("config uses 960-sample frames, not yet supported"); //TODO: are 960-frames working yet?
+						config._dependsOnCoreCoder = input.ReadBool();
+						if(config._dependsOnCoreCoder) config._coreCoderDelay = input.ReadBits(14);
+						else config._coreCoderDelay = 0;
+						config._extensionFlag = input.ReadBool();
 
-						if(config.extensionFlag) {
-							if(config.profile.IsErrorResilientProfile()) {
-								config.sectionDataResilience = input.readBool();
-								config.scalefactorResilience = input.readBool();
-								config.spectralDataResilience = input.readBool();
+						if(config._extensionFlag) 
+						{
+							if(config._profile.IsErrorResilientProfile())
+							{
+								config._sectionDataResilience = input.ReadBool();
+								config._scalefactorResilience = input.ReadBool();
+								config._spectralDataResilience = input.ReadBool();
 							}
                             //extensionFlag3
-                            input.skipBit();
+                            input.SkipBit();
 						}
 
-						if(config.channelConfiguration==ChannelConfiguration.CHANNEL_CONFIG_NONE) {
+						if(config._channelConfiguration==ChannelConfiguration.CHANNEL_CONFIG_NONE) 
+						{
                             //TODO: is this working correct? -> ISO 14496-3 part 1: 1.A.4.3
-                            input.skipBits(3); //PCE
+                            input.SkipBits(3); //PCE
 							PCE pce = new PCE();
-							pce.decode(input);
-							config.profile = pce.getProfile();
-							config.sampleFrequency = pce.getSampleFrequency();
-							config.channelConfiguration = (ChannelConfiguration)(pce.getChannelCount());
+							pce.Decode(input);
+							config._profile = pce.GetProfile();
+							config._sampleFrequency = pce.GetSampleFrequency();
+							config._channelConfiguration = (ChannelConfiguration)(pce.GetChannelCount());
 						}
 
-						if(input.getBitsLeft()>10) readSyncExtension(input, config);
+						if(input.GetBitsLeft()>10) ReadSyncExtension(input, config);
 						break;
 					default:
-						throw new AACException("profile not supported: "+ (int)config.profile);
+						throw new AACException("profile not supported: "+ (int)config._profile);
 				}
 				return config;
 			}
-			finally {
-                input.destroy();
+			finally 
+			{
+                input.Destroy();
 			}
 		}
 
-		private static Profile readProfile(BitStream input) {
-			int i = input.readBits(5);
-			if(i==31) i = 32+ input.readBits(6);
+		private static Profile ReadProfile(BitStream input) 
+		{
+			int i = input.ReadBits(5);
+			if(i==31) i = 32+ input.ReadBits(6);
 			return (Profile)(i);
 		}
 
-		private static void readSyncExtension(BitStream input, DecoderConfig config) {
-			int type = input.readBits(11);
-			switch(type) {
+		private static void ReadSyncExtension(BitStream input, DecoderConfig config) 
+		{
+			int type = input.ReadBits(11);
+			switch(type) 
+			{
 				case 0x2B7:
-					Profile profile = (Profile)(input.readBits(5));
+					Profile profile = (Profile)(input.ReadBits(5));
 
-					if(profile.Equals(Profile.AAC_SBR)) {
-						config.sbrPresent = input.readBool();
-						if(config.sbrPresent) {
-							config.profile = profile;
+					if(profile.Equals(Profile.AAC_SBR)) 
+					{
+						config._sbrPresent = input.ReadBool();
+						if(config._sbrPresent)
+						{
+							config._profile = profile;
 
-							int tmp = input.readBits(4);
+							int tmp = input.ReadBits(4);
 
-							if(tmp==(int)config.sampleFrequency) config.downSampledSBR = true;
-							if(tmp==15) {
+							if(tmp==(int)config._sampleFrequency) config._downSampledSBR = true;
+							if(tmp==15) 
+							{
 								throw new AACException("sample rate specified explicitly, not supported yet!");
 								//tmp = in.readBits(24);
 							}

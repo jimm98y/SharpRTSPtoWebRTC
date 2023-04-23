@@ -7,26 +7,29 @@ namespace CameraAPI.AAC.Syntax
 		private const int WORD_BITS = 32;
 		private const int WORD_BYTES = 4;
 		private const int BYTE_MASK = 0xff;
-		private byte[] buffer;
-		private int pos; //offset in the buffer array
-		private int cache; //current 4 bytes, that are read from the buffer
-		protected int bitsCached; //remaining bits in current cache
-		protected int position; //number of total bits read
+		private byte[] _buffer;
+		private int _pos; //offset in the buffer array
+		private int _cache; //current 4 bytes, that are read from the buffer
+		protected int _bitsCached; //remaining bits in current cache
+		protected int _position; //number of total bits read
 
-		public BitStream() {
+		public BitStream() 
+		{ }
+
+		public BitStream(byte[] data)
+		{
+			SetData(data);
 		}
 
-		public BitStream(byte[] data) {
-			setData(data);
+		public void Destroy() 
+		{
+			Reset();
+			_buffer = null;
 		}
 
-		public void destroy() {
-			reset();
-			buffer = null;
-		}
-
-		public void setData(byte[] data) {
-			reset();
+		public void SetData(byte[] data) 
+		{
+			Reset();
 
             int size = data.Length;
 
@@ -34,158 +37,186 @@ namespace CameraAPI.AAC.Syntax
             int shift = size % WORD_BYTES;
 
             // push leading bytes to cache
-            bitsCached = 8 * shift;
+            _bitsCached = 8 * shift;
 
             for (int i = 0; i < shift; ++i)
             {
                 byte c = data[i];
-                cache <<= 8;
-                cache |= 0xff & c;
+                _cache <<= 8;
+                _cache |= 0xff & c;
             }
 
             size -= shift;
 
             //only reallocate if needed
-            if (buffer == null || buffer.Length != size)
-                buffer = new byte[size];
+            if (_buffer == null || _buffer.Length != size)
+                _buffer = new byte[size];
 
-            Buffer.BlockCopy(data, shift, buffer, 0, buffer.Length);
+            Buffer.BlockCopy(data, shift, _buffer, 0, _buffer.Length);
         }
 
-		public void byteAlign() {
-			int toFlush = bitsCached&7;
-			if(toFlush>0) skipBits(toFlush);
+		public void ByteAlign() 
+		{
+			int toFlush = _bitsCached&7;
+			if(toFlush>0) SkipBits(toFlush);
 		}
 
-		public void reset() {
-			pos = 0;
-			bitsCached = 0;
-			cache = 0;
-			position = 0;
+		public void Reset() 
+		{
+			_pos = 0;
+			_bitsCached = 0;
+			_cache = 0;
+			_position = 0;
 		}
 
-		public int getPosition() {
-			return position;
+		public int GetPosition() 
+		{
+			return _position;
 		}
 
-		public int getBitsLeft() {
-			return 8*(buffer.Length-pos)+bitsCached;
+		public int GetBitsLeft() 
+		{
+			return 8*(_buffer.Length-_pos)+_bitsCached;
 		}
 
 		/**
 		 * Reads the next four bytes.
 		 * @param peek if true, the stream pointer will not be increased
 		 */
-		protected int readCache(bool peek) {
+		protected int ReadCache(bool peek) 
+		{
 			int i;
-			if(pos>buffer.Length-WORD_BYTES) throw new AACException("end of stream", true);
-			else i = ((buffer[pos]&BYTE_MASK)<<24)
-						|((buffer[pos+1]&BYTE_MASK)<<16)
-						|((buffer[pos+2]&BYTE_MASK)<<8)
-						|(buffer[pos+3]&BYTE_MASK);
-			if(!peek) pos += WORD_BYTES;
+			if(_pos>_buffer.Length-WORD_BYTES) throw new AACException("end of stream", true);
+			else i = ((_buffer[_pos]&BYTE_MASK)<<24)
+						|((_buffer[_pos+1]&BYTE_MASK)<<16)
+						|((_buffer[_pos+2]&BYTE_MASK)<<8)
+						|(_buffer[_pos+3]&BYTE_MASK);
+			if(!peek) _pos += WORD_BYTES;
 			return i;
 		}
 
-		public int readBits(int n) {
+		public int ReadBits(int n) 
+		{
 			int result;
-			if(bitsCached>=n) {
-				bitsCached -= n;
-				result = (cache>>bitsCached) & maskBits(n);
-				position += n;
+			if(_bitsCached>=n) 
+			{
+				_bitsCached -= n;
+				result = (_cache>>_bitsCached) & MaskBits(n);
+				_position += n;
 			}
-			else {
-				position += n;
-				int c = cache & maskBits(bitsCached);
-				int left = n-bitsCached;
-				cache = readCache(false);
-				bitsCached = WORD_BITS-left;
-				result = ((cache>>bitsCached) & maskBits(left))|(c<<left);
+			else 
+			{
+				_position += n;
+				int c = _cache & MaskBits(_bitsCached);
+				int left = n-_bitsCached;
+				_cache = ReadCache(false);
+				_bitsCached = WORD_BITS-left;
+				result = ((_cache>>_bitsCached) & MaskBits(left))|(c<<left);
 			}
 			return result;
 		}
 
-		public int readBit() {
+		public int ReadBit() 
+		{
 			int i;
-			if(bitsCached>0) {
-				bitsCached--;
-				i = (cache>>(bitsCached))&1;
-				position++;
+			if(_bitsCached>0)
+			{
+				_bitsCached--;
+				i = (_cache>>(_bitsCached))&1;
+				_position++;
 			}
-			else {
-				cache = readCache(false);
-				bitsCached = WORD_BITS-1;
-				position++;
-				i = (cache>>bitsCached)&1;
+			else
+			{
+				_cache = ReadCache(false);
+				_bitsCached = WORD_BITS-1;
+				_position++;
+				i = (_cache>>_bitsCached)&1;
 			}
 			return i;
 		}
 
-		public bool readBool() {
-			return (readBit()&0x1)!=0;
+		public bool ReadBool() 
+		{
+			return (ReadBit()&0x1)!=0;
 		}
 
-		public int peekBits(int n) {
+		public int PeekBits(int n)
+		{
 			int ret;
-			if(bitsCached>=n) {
-				ret = (cache>>(bitsCached-n)) & maskBits(n);
+			if(_bitsCached>=n) 
+			{
+				ret = (_cache>>(_bitsCached-n)) & MaskBits(n);
 			}
-			else {
+			else 
+			{
 				//old cache
-				int c = cache & maskBits(bitsCached);
-				n -= bitsCached;
+				int c = _cache & MaskBits(_bitsCached);
+				n -= _bitsCached;
 				//read next & combine
-				ret = ((readCache(true)>>WORD_BITS-n) & maskBits(n))|(c<<n);
+				ret = ((ReadCache(true)>>WORD_BITS-n) & MaskBits(n))|(c<<n);
 			}
 			return ret;
 		}
 
-		public int peekBit() {
+		public int PeekBit() 
+		{
 			int ret;
-			if(bitsCached>0) {
-				ret = (cache>>(bitsCached-1))&1;
+			if(_bitsCached>0) 
+			{
+				ret = (_cache>>(_bitsCached-1))&1;
 			}
-			else {
-				int word = readCache(true);
+			else
+			{
+				int word = ReadCache(true);
 				ret = (word>>WORD_BITS-1)&1;
 			}
 			return ret;
 		}
 
-		public void skipBits(int n) {
-			position += n;
-			if(n<=bitsCached) {
-				bitsCached -= n;
+		public void SkipBits(int n) 
+		{
+			_position += n;
+			if(n<=_bitsCached) 
+			{
+				_bitsCached -= n;
 			}
-			else {
-				n -= bitsCached;
-				while(n>=WORD_BITS) {
+			else 
+			{
+				n -= _bitsCached;
+				while(n>=WORD_BITS)
+				{
 					n -= WORD_BITS;
-					readCache(false);
+					ReadCache(false);
 				}
-				if(n>0) {
-					cache = readCache(false);
-					bitsCached = WORD_BITS-n;
+				if(n>0) 
+				{
+					_cache = ReadCache(false);
+					_bitsCached = WORD_BITS-n;
 				}
-				else {
-					cache = 0;
-					bitsCached = 0;
+				else 
+				{
+					_cache = 0;
+					_bitsCached = 0;
 				}
 			}
 		}
 
-		public void skipBit() {
-			position++;
-			if(bitsCached>0) {
-				bitsCached--;
+		public void SkipBit() 
+		{
+			_position++;
+			if(_bitsCached>0) 
+			{
+				_bitsCached--;
 			}
-			else {
-				cache = readCache(false);
-				bitsCached = WORD_BITS-1;
+			else 
+			{
+				_cache = ReadCache(false);
+				_bitsCached = WORD_BITS-1;
 			}
 		}
 
-		public int maskBits(int n) {
+		public int MaskBits(int n) 
+		{
 			int i;
 			if(n==32) i = -1;
 			else i = (1<<n)-1;

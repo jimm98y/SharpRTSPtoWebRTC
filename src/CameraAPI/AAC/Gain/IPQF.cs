@@ -1,15 +1,15 @@
 ﻿namespace CameraAPI.AAC.Gain
 {
-    public class IPQF : GCConstants
+    public class IPQF
     {
-        private float[] buf;
-        private float[,] tmp1, tmp2;
+        private float[] _buf;
+        private float[,] _tmp1, _tmp2;
 
         public IPQF()
         {
-            buf = new float[BANDS];
-            tmp1 = new float[BANDS / 2,NPQFTAPS / BANDS];
-            tmp2 = new float[BANDS / 2,NPQFTAPS / BANDS];
+            _buf = new float[GCConstants.BANDS];
+            _tmp1 = new float[GCConstants.BANDS / 2, GCConstants.NPQFTAPS / GCConstants.BANDS];
+            _tmp2 = new float[GCConstants.BANDS / 2, GCConstants.NPQFTAPS / GCConstants.BANDS];
         }
 
         public void Process(float[][] input, int frameLen, int maxBand, float[] output)
@@ -20,71 +20,71 @@
 			    output[i] = 0.0f;
             }
 
-            for (i = 0; i < frameLen / BANDS; i++)
+            for (i = 0; i < frameLen / GCConstants.BANDS; i++)
             {
-                for (j = 0; j < BANDS; j++)
+                for (j = 0; j < GCConstants.BANDS; j++)
                 {
-                    buf[j] = input[j][i] ;
+                    _buf[j] = input[j][i] ;
                 }
-                PerformSynthesis(buf, output, i * BANDS);
+                PerformSynthesis(_buf, output, i * GCConstants.BANDS);
             }
         }
 
         private void PerformSynthesis(float[] input, float[] output, int outOff)
         {
-            int kk = NPQFTAPS / (2 * BANDS);
+            int kk = GCConstants.NPQFTAPS / (2 * GCConstants.BANDS);
             int i, n, k;
             float acc;
 
-            for (n = 0; n < BANDS / 2; ++n)
+            for (n = 0; n < GCConstants.BANDS / 2; ++n)
             {
                 for (k = 0; k < 2 * kk - 1; ++k)
                 {
-                    tmp1[n,k] = tmp1[n,k + 1];
-                    tmp2[n,k] = tmp2[n,k + 1];
+                    _tmp1[n,k] = _tmp1[n,k + 1];
+                    _tmp2[n,k] = _tmp2[n,k + 1];
                 }
             }
 
-            for (n = 0; n < BANDS / 2; ++n)
+            for (n = 0; n < GCConstants.BANDS / 2; ++n)
             {
                 acc = 0.0f;
-                for (i = 0; i < BANDS; ++i)
+                for (i = 0; i < GCConstants.BANDS; ++i)
                 {
                     acc += PQFTables.COEFS_Q0[n][i] * input[i] ;
                 }
-                tmp1[n,2 * kk - 1] = acc;
+                _tmp1[n,2 * kk - 1] = acc;
 
                 acc = 0.0f;
-                for (i = 0; i < BANDS; ++i)
+                for (i = 0; i < GCConstants.BANDS; ++i)
                 {
                     acc += PQFTables.COEFS_Q1[n][i] * input[i] ;
                 }
-                tmp2[n,2 * kk - 1] = acc;
+                _tmp2[n,2 * kk - 1] = acc;
             }
 
-            for (n = 0; n < BANDS / 2; ++n)
+            for (n = 0; n < GCConstants.BANDS / 2; ++n)
             {
                 acc = 0.0f;
                 for (k = 0; k < kk; ++k)
                 {
-                    acc += PQFTables.COEFS_T0[n][k] * tmp1[n,2 * kk - 1 - 2 * k];
+                    acc += PQFTables.COEFS_T0[n][k] * _tmp1[n,2 * kk - 1 - 2 * k];
                 }
                 for (k = 0; k < kk; ++k)
                 {
-                    acc += PQFTables.COEFS_T1[n][k] * tmp2[n,2 * kk - 2 - 2 * k];
+                    acc += PQFTables.COEFS_T1[n][k] * _tmp2[n,2 * kk - 2 - 2 * k];
                 }
 			    output[outOff+n] = acc;
 
                 acc = 0.0f;
                 for (k = 0; k < kk; ++k)
                 {
-                    acc += PQFTables.COEFS_T0[BANDS - 1 - n][k] * tmp1[n,2 * kk - 1 - 2 * k];
+                    acc += PQFTables.COEFS_T0[GCConstants.BANDS - 1 - n][k] * _tmp1[n,2 * kk - 1 - 2 * k];
                 }
                 for (k = 0; k < kk; ++k)
                 {
-                    acc -= PQFTables.COEFS_T1[BANDS - 1 - n][k] * tmp2[n,2 * kk - 2 - 2 * k];
+                    acc -= PQFTables.COEFS_T1[GCConstants.BANDS - 1 - n][k] * _tmp2[n,2 * kk - 2 - 2 * k];
                 }
-			    output[outOff+BANDS - 1 - n] = acc;
+			    output[outOff+ GCConstants.BANDS - 1 - n] = acc;
             }
         }
     }

@@ -5,55 +5,63 @@ namespace CameraAPI.AAC.Transport
     public sealed class ADIFHeader
     {
         private const long ADIF_ID = 0x41444946; //'ADIF'
-		private long id;
-		private bool copyrightIDPresent;
-		private byte[] copyrightID;
-		private bool originalCopy, home, bitstreamType;
-		private int bitrate;
-		private int pceCount;
-		private int[] adifBufferFullness;
-		private PCE[] pces;
+		private long _id;
+		private bool _copyrightIDPresent;
+		private byte[] _copyrightID;
+		private bool _originalCopy, _home, _bitstreamType;
+		private int _bitrate;
+		private int _pceCount;
+		private int[] _adifBufferFullness;
+		private PCE[] _pces;
 
-		public static bool isPresent(BitStream input) {
-			return input.peekBits(32)==ADIF_ID;
+		public static bool IsPresent(BitStream input)
+		{
+			return input.PeekBits(32)==ADIF_ID;
 		}
 
-		private ADIFHeader() {
-			copyrightID = new byte[9];
+		private ADIFHeader() 
+		{
+			_copyrightID = new byte[9];
 		}
 
-		public static ADIFHeader readHeader(BitStream input) {
+		public static ADIFHeader ReadHeader(BitStream input) 
+		{
 			ADIFHeader h = new ADIFHeader();
-			h.decode(input);
+			h.Decode(input);
 			return h;
 		}
 
-		private void decode(BitStream input) {
+		private void Decode(BitStream input) 
+		{
 			int i;
-			id = input.readBits(32); //'ADIF'
-			copyrightIDPresent = input.readBool();
-			if(copyrightIDPresent) {
-				for(i = 0; i<9; i++) {
-					copyrightID[i] = (byte)input.readBits(8);
+			_id = input.ReadBits(32); //'ADIF'
+			_copyrightIDPresent = input.ReadBool();
+			if(_copyrightIDPresent) 
+			{
+				for(i = 0; i<9; i++) 
+				{
+					_copyrightID[i] = (byte)input.ReadBits(8);
 				}
 			}
-			originalCopy = input.readBool();
-			home = input.readBool();
-			bitstreamType = input.readBool();
-			bitrate = input.readBits(23);
-			pceCount = input.readBits(4)+1;
-			pces = new PCE[pceCount];
-			adifBufferFullness = new int[pceCount];
-			for(i = 0; i<pceCount; i++) {
-				if(bitstreamType) adifBufferFullness[i] = -1;
-				else adifBufferFullness[i] = input.readBits(20);
-				pces[i] = new PCE();
-				pces[i].decode(input);
+			_originalCopy = input.ReadBool();
+			_home = input.ReadBool();
+			_bitstreamType = input.ReadBool();
+			_bitrate = input.ReadBits(23);
+			_pceCount = input.ReadBits(4)+1;
+			_pces = new PCE[_pceCount];
+			_adifBufferFullness = new int[_pceCount];
+			for(i = 0; i<_pceCount; i++)
+			{
+				if(_bitstreamType) _adifBufferFullness[i] = -1;
+				else _adifBufferFullness[i] = input.ReadBits(20);
+				_pces[i] = new PCE();
+				_pces[i].Decode(input);
 			}
 		}
 
-		public PCE getFirstPCE() {
-			return pces[0];
+		public PCE GetFirstPCE()
+		{
+			return _pces[0];
 		}
     }
 }

@@ -1,34 +1,34 @@
 ﻿namespace CameraAPI.AAC.Ps
 {
-    public class Filterbank : PSTables
+    public class Filterbank
     {
-        private int frame_len;
-        private int[] resolution20 = new int[3];
-        private int[] resolution34 = new int[5];
+        private int _frameLen;
+        private int[] _resolution20 = new int[3];
+        private int[] _resolution34 = new int[5];
 
-        private float[,] work;
-        private float[,,] buffer;
-        private float[,,] temp;
+        private float[,] _work;
+        private float[,,] _buffer;
+        private float[,,] _temp;
 
         public Filterbank(int numTimeSlotsRate)
         {
-            this.resolution34[0] = 12;
-            this.resolution34[1] = 8;
-            this.resolution34[2] = 4;
-            this.resolution34[3] = 4;
-            this.resolution34[4] = 4;
+            this._resolution34[0] = 12;
+            this._resolution34[1] = 8;
+            this._resolution34[2] = 4;
+            this._resolution34[3] = 4;
+            this._resolution34[4] = 4;
 
-            this.resolution20[0] = 8;
-            this.resolution20[1] = 2;
-            this.resolution20[2] = 2;
+            this._resolution20[0] = 8;
+            this._resolution20[1] = 2;
+            this._resolution20[2] = 2;
 
-            this.frame_len = numTimeSlotsRate;
+            this._frameLen = numTimeSlotsRate;
 
-            this.work = new float[(this.frame_len + 12),2];
+            this._work = new float[(this._frameLen + 12),2];
 
-            this.buffer = new float[5,frame_len,2];
+            this._buffer = new float[5,_frameLen,2];
 
-            temp = new float[frame_len,12,2];
+            _temp = new float[_frameLen,12,2];
         }
 
         public void HybridAnalysis(float[,,] X, float[,,] X_hybrid, bool use34, int numTimeSlotsRate)
@@ -36,7 +36,7 @@
             int k, n, band;
             int offset = 0;
             int qmf_bands = (use34) ? 5 : 3;
-            int[] resolution = (use34) ? this.resolution34 : this.resolution20;
+            int[] resolution = (use34) ? this._resolution34 : this._resolution20;
 
             for (band = 0; band < qmf_bands; band++)
             {
@@ -44,52 +44,52 @@
                 //memcpy(this.work, this.buffer[band], 12*sizeof(qmf_t));
                 for (int i = 0; i < 12; i++)
                 {
-                    work[i,0] = buffer[band,i,0];
-                    work[i,1] = buffer[band,i,1];
+                    _work[i,0] = _buffer[band,i,0];
+                    _work[i,1] = _buffer[band,i,1];
                 }
 
                 /* add new samples */
-                for (n = 0; n < this.frame_len; n++)
+                for (n = 0; n < this._frameLen; n++)
                 {
-                    this.work[12 + n,0] = X[n + 6 /*delay*/,band,0];
-                    this.work[12 + n,0] = X[n + 6 /*delay*/,band,0];
+                    this._work[12 + n,0] = X[n + 6 /*delay*/,band,0];
+                    this._work[12 + n,0] = X[n + 6 /*delay*/,band,0];
                 }
 
                 /* store samples */
                 //memcpy(this.buffer[band], this.work+this.frame_len, 12*sizeof(qmf_t));
                 for (int i = 0; i < 12; i++)
                 {
-                    buffer[band,i,0] = work[frame_len + i,0];
-                    buffer[band,i,1] = work[frame_len + i,1];
+                    _buffer[band,i,0] = _work[_frameLen + i,0];
+                    _buffer[band,i,1] = _work[_frameLen + i,1];
                 }
 
                 switch (resolution[band])
                 {
                     case 2:
                         /* Type B real filter, Q[p] = 2 */
-                        ChannelFilter2(this.frame_len, p2_13_20, this.work, this.temp);
+                        ChannelFilter2(this._frameLen, PSTables.p2_13_20, this._work, this._temp);
                         break;
                     case 4:
                         /* Type A complex filter, Q[p] = 4 */
-                        ChannelFilter4(this.frame_len, p4_13_34, this.work, this.temp);
+                        ChannelFilter4(this._frameLen, PSTables.p4_13_34, this._work, this._temp);
                         break;
                     case 8:
                         /* Type A complex filter, Q[p] = 8 */
-                        ChannelFilter8(this.frame_len, (use34) ? p8_13_34 : p8_13_20,
-                            this.work, this.temp);
+                        ChannelFilter8(this._frameLen, (use34) ? PSTables.p8_13_34 : PSTables.p8_13_20,
+                            this._work, this._temp);
                         break;
                     case 12:
                         /* Type A complex filter, Q[p] = 12 */
-                        ChannelFilter12(this.frame_len, p12_13_34, this.work, this.temp);
+                        ChannelFilter12(this._frameLen, PSTables.p12_13_34, this._work, this._temp);
                         break;
                 }
 
-                for (n = 0; n < this.frame_len; n++)
+                for (n = 0; n < this._frameLen; n++)
                 {
                     for (k = 0; k < resolution[band]; k++)
                     {
-                        X_hybrid[n,offset + k,0] = this.temp[n,k,0];
-                        X_hybrid[n,offset + k,1] = this.temp[n,k,1];
+                        X_hybrid[n,offset + k,0] = this._temp[n,k,0];
+                        X_hybrid[n,offset + k,1] = this._temp[n,k,1];
                     }
                 }
                 offset += resolution[band];
@@ -114,8 +114,7 @@
         }
 
         /* real filter, size 2 */
-        static void ChannelFilter2(int frame_len, float[] filter,
-            float[,] buffer, float[,,] X_hybrid)
+        private static void ChannelFilter2(int frame_len, float[] filter, float[,] buffer, float[,,] X_hybrid)
         {
             int i;
 
@@ -147,8 +146,7 @@
         }
 
         /* complex filter, size 4 */
-        static void ChannelFilter4(int frame_len, float[] filter,
-            float[,] buffer, float[,,] X_hybrid)
+        private static void ChannelFilter4(int frame_len, float[] filter, float[,] buffer, float[,,] X_hybrid)
         {
             int i;
             float[] input_re1 = new float[2], input_re2 = new float[2];
@@ -202,7 +200,7 @@
             }
         }
 
-        static void DCT3_4_Unscaled(float[] y, float[] x)
+        private static void DCT3_4_Unscaled(float[] y, float[] x)
         {
             float f0, f1, f2, f3, f4, f5, f6, f7, f8;
 
@@ -222,8 +220,7 @@
         }
 
         /* complex filter, size 8 */
-        void ChannelFilter8(int frame_len, float[] filter,
-            float[,] buffer, float[,,] X_hybrid)
+        private void ChannelFilter8(int frame_len, float[] filter, float[,] buffer, float[,,] X_hybrid)
         {
             int i, n;
             float[] input_re1 = new float[4], input_re2 = new float[4];
@@ -294,7 +291,7 @@
             }
         }
 
-        void DCT3_6_Unscaled(float[] y, float[] x)
+        private void DCT3_6_Unscaled(float[] y, float[] x)
         {
             float f0, f1, f2, f3, f4, f5, f6, f7;
 
@@ -315,8 +312,7 @@
         }
 
         /* complex filter, size 12 */
-        void ChannelFilter12(int frame_len, float[] filter,
-            float[,] buffer, float[,,] X_hybrid)
+        private void ChannelFilter12(int frame_len, float[] filter, float[,] buffer, float[,,] X_hybrid)
         {
             int i, n;
             float[] input_re1 = new float[6], input_re2 = new float[6];
@@ -363,17 +359,16 @@
             }
         }
 
-        public void HybridSynthesis(float[,,] X, float[,,] X_hybrid,
-            bool use34, int numTimeSlotsRate)
+        public void HybridSynthesis(float[,,] X, float[,,] X_hybrid, bool use34, int numTimeSlotsRate)
         {
             int k, n, band;
             int offset = 0;
             int qmf_bands = (use34) ? 5 : 3;
-            int[] resolution = (use34) ? this.resolution34 : this.resolution20;
+            int[] resolution = (use34) ? this._resolution34 : this._resolution20;
 
             for (band = 0; band < qmf_bands; band++)
             {
-                for (n = 0; n < this.frame_len; n++)
+                for (n = 0; n < this._frameLen; n++)
                 {
                     X[n,band,0] = 0;
                     X[n,band,1] = 0;

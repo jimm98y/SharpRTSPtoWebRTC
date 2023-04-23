@@ -1,11 +1,9 @@
 ﻿namespace CameraAPI.AAC.Sbr
 {
-    public class Constants
+    public static class Constants
     {
-        public static int[] startMinTable = {7, 7, 10, 11, 12, 16, 16,
-			17, 24, 32, 35, 48};
-        public static int[] offsetIndexTable = {5, 5, 4, 4, 4, 3, 2, 1, 0,
-			6, 6, 6};
+        public static int[] startMinTable = {7, 7, 10, 11, 12, 16, 16, 17, 24, 32, 35, 48};
+        public static int[] offsetIndexTable = {5, 5, 4, 4, 4, 3, 2, 1, 0, 6, 6, 6};
         public static int[][] OFFSET = {
 			new int[] {-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7}, //16000
 			new int[] {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13}, //22050

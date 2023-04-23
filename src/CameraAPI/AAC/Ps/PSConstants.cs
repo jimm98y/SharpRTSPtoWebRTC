@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Ps
 {
-    public class PSConstants
+    public static class PSConstants
     {
         public const int MAX_PS_ENVELOPES = 5;
         public const int NO_ALLPASS_LINKS = 3;

@@ -1,6 +1,6 @@
 ﻿namespace CameraAPI.AAC.Syntax
 {
-    public class ScaleFactorBands
+    public static class ScaleFactorBands
     {
 		/* scalefactor-band tables end with -1, so that an error can be detected
 		by index[i+1] without an exception */

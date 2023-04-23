@@ -1,9 +1,9 @@
 ﻿namespace CameraAPI.AAC.Error
 {
-    public abstract class RVLCTables
+    public static class RVLCTables
     {
         //index,length,codeword
-        public int[][] RVLC_BOOK = new int[][] {
+        public static int[][] RVLC_BOOK = new int[][] {
             new int[] {0, 1, 0}, /*         0 */
 		    new int[] { -1, 3, 5 }, /*       101 */
 		    new int[] { 1, 3, 7 }, /*       111 */
@@ -29,7 +29,7 @@
 		    new int[] { 6, 9, 427 }, /* 110101011 */
 		    new int[] { 99, 10, 0 }
         };
-        public int[][] ESCAPE_BOOK = {
+        public static int[][] ESCAPE_BOOK = {
             new int[] { 1, 2, 0 },
             new int[] { 0, 2, 2 },
             new int[] { 3, 3, 2 },

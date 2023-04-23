@@ -4,79 +4,87 @@ namespace CameraAPI.AAC.Syntax
 {
     public class CPE : Element
     {
-        private MSMask msMask;
-		private bool[] msUsed;
-		private bool commonWindow;
-		ICStream icsL, icsR;
+        private MSMask _msMask;
+		private bool[] _msUsed;
+		private bool _commonWindow;
+		ICStream _icsL, _icsR;
 
-		public CPE(DecoderConfig config) {
-			msUsed = new bool[Constants.MAX_MS_MASK];
-			icsL = new ICStream(config);
-			icsR = new ICStream(config);
+		public CPE(DecoderConfig config)
+		{
+			_msUsed = new bool[Constants.MAX_MS_MASK];
+			_icsL = new ICStream(config);
+			_icsR = new ICStream(config);
 		}
 
-		public void decode(BitStream input, DecoderConfig conf) {
-			Profile profile = conf.getProfile();
-			SampleFrequency sf = conf.getSampleFrequency();
+		public void Decode(BitStream input, DecoderConfig conf) 
+		{
+			Profile profile = conf.GetProfile();
+			SampleFrequency sf = conf.GetSampleFrequency();
 			if(sf.Equals(SampleFrequency.SAMPLE_FREQUENCY_NONE)) throw new AACException("invalid sample frequency");
 
-			readElementInstanceTag(input);
+			ReadElementInstanceTag(input);
 
-			commonWindow = input.readBool();
-			ICSInfo info = icsL.getInfo();
-			if(commonWindow) {
-				info.decode(input, conf, commonWindow);
-                icsR.getInfo().setData(input, conf, info);
+			_commonWindow = input.ReadBool();
+			ICSInfo info = _icsL.GetInfo();
+			if(_commonWindow) {
+				info.Decode(input, conf, _commonWindow);
+                _icsR.GetInfo().SetData(input, conf, info);
 
-                msMask = (MSMask)(input.readBits(2));
-				if(msMask.Equals(MSMask.TYPE_USED)) {
-					int maxSFB = info.getMaxSFB();
-					int windowGroupCount = info.getWindowGroupCount();
+                _msMask = (MSMask)(input.ReadBits(2));
+				if(_msMask.Equals(MSMask.TYPE_USED)) {
+					int maxSFB = info.GetMaxSFB();
+					int windowGroupCount = info.GetWindowGroupCount();
 
 					for(int idx = 0; idx<windowGroupCount*maxSFB; idx++) {
-						msUsed[idx] = input.readBool();
+						_msUsed[idx] = input.ReadBool();
 					}
 				}
-				else if(msMask.Equals(MSMask.TYPE_ALL_1)) Arrays.Fill(msUsed, true);
-				else if(msMask.Equals(MSMask.TYPE_ALL_0)) Arrays.Fill(msUsed, false);
+				else if(_msMask.Equals(MSMask.TYPE_ALL_1)) Arrays.Fill(_msUsed, true);
+				else if(_msMask.Equals(MSMask.TYPE_ALL_0)) Arrays.Fill(_msUsed, false);
 				else throw new AACException("reserved MS mask type used");
 			}
 			else {
-				msMask = MSMask.TYPE_ALL_0;
-				Arrays.Fill(msUsed, false);
+				_msMask = MSMask.TYPE_ALL_0;
+				Arrays.Fill(_msUsed, false);
 			}
 
             if (profile.IsErrorResilientProfile()) {
-                LTPrediction ltp = icsR.getInfo().getLTPrediction();
-                if (ltp != null) ltp.decode(input, info, profile);
+                LTPrediction ltp = _icsR.GetInfo().GetLTPrediction();
+                if (ltp != null) ltp.Decode(input, info, profile);
             }
 
-			icsL.decode(input, commonWindow, conf);
-			icsR.decode(input, commonWindow, conf);
+			_icsL.Decode(input, _commonWindow, conf);
+			_icsR.Decode(input, _commonWindow, conf);
 		}
 
-		public ICStream getLeftChannel() {
-			return icsL;
+		public ICStream GetLeftChannel()
+		{
+			return _icsL;
 		}
 
-		public ICStream getRightChannel() {
-			return icsR;
+		public ICStream GetRightChannel() 
+		{
+			return _icsR;
 		}
 
-		public MSMask getMSMask() {
-			return msMask;
+		public MSMask GetMSMask() 
+		{
+			return _msMask;
 		}
 
-		public bool isMSUsed(int off) {
-			return msUsed[off];
+		public bool IsMSUsed(int off) 
+		{
+			return _msUsed[off];
 		}
 
-		public bool isMSMaskPresent() {
-			return !msMask.Equals(MSMask.TYPE_ALL_0);
+		public bool IsMSMaskPresent()
+		{
+			return !_msMask.Equals(MSMask.TYPE_ALL_0);
 		}
 
-		public bool isCommonWindow() {
-			return commonWindow;
+		public bool IsCommonWindow() 
+		{
+			return _commonWindow;
 		}
     }
 }
