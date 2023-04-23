@@ -43,49 +43,49 @@ namespace CameraAPI
         public enum MEDIA_REQUEST { VIDEO_ONLY, AUDIO_ONLY, VIDEO_AND_AUDIO };
         private enum RTSP_STATUS { WaitingToConnect, Connecting, ConnectFailed, Connected };
 
-        Rtsp.RtspTcpTransport _rtspSocket = null; // RTSP connection
-        volatile RTSP_STATUS _rtspSocketStatus = RTSP_STATUS.WaitingToConnect;
-        Rtsp.RtspListener _rtspClient = null;   // this wraps around a the RTSP tcp_socket stream
+        private Rtsp.RtspTcpTransport _rtspSocket = null; // RTSP connection
+        private volatile RTSP_STATUS _rtspSocketStatus = RTSP_STATUS.WaitingToConnect;
+        private Rtsp.RtspListener _rtspClient = null;   // this wraps around a the RTSP tcp_socket stream
         RTP_TRANSPORT _rtpTransport = RTP_TRANSPORT.UNKNOWN; // Mode, either RTP over UDP or RTP over TCP using the RTSP socket
-        Rtsp.UDPSocket _videoUdpPair = null;       // Pair of UDP ports used in RTP over UDP mode or in MULTICAST mode
-        Rtsp.UDPSocket _audioUdpPair = null;       // Pair of UDP ports used in RTP over UDP mode or in MULTICAST mode
-        string _rtspUrl = "";             // RTSP URL (username & password will be stripped out
-        string _userName = "";            // Username
-        string _password = "";            // Password
-        string _hostname = "";            // RTSP Server hostname or IP address
-        int _rtspPort = 0;                // RTSP Server TCP Port number
-        string _session = "";             // RTSP Session
-        string _authType = null;          // cached from most recent WWW-Authenticate reply
-        string _realm = null;             // cached from most recent WWW-Authenticate reply
-        string _nonce = null;             // cached from most recent WWW-Authenticate reply
-        uint _ssrc = 12345;
-        bool _clientWantsVideo = false;  // Client wants to receive Video
-        bool _clientWantsAudio = false;  // Client wants to receive Audio
-        Uri _videoUri = null;            // URI used for the Video Track
-        int _videoPayload = -1;          // Payload Type for the Video. (often 96 which is the first dynamic payload value. Bosch use 35)
-        int _videoDataChannel = -1;      // RTP Channel Number used for the video RTP stream or the UDP port number
-        int _videoRtcpChannel = -1;      // RTP Channel Number used for the video RTCP status report messages OR the UDP port number
-        bool _h264SpsPpsFired = false;   // True if the SDP included a sprop-Parameter-Set for H264 video
-        bool _h265VpsSpsPpsFired = false; // True if the SDP included a sprop-vps, sprop-sps and sprop_pps for H265 video
-        string _videoCodec = "";         // Codec used with Payload Types 96..127 (eg "H264")
+        private Rtsp.UDPSocket _videoUdpPair = null;       // Pair of UDP ports used in RTP over UDP mode or in MULTICAST mode
+        private Rtsp.UDPSocket _audioUdpPair = null;       // Pair of UDP ports used in RTP over UDP mode or in MULTICAST mode
+        private string _rtspUrl = "";             // RTSP URL (username & password will be stripped out
+        private string _userName = "";            // Username
+        private string _password = "";            // Password
+        private string _hostname = "";            // RTSP Server hostname or IP address
+        private int _rtspPort = 0;                // RTSP Server TCP Port number
+        private string _session = "";             // RTSP Session
+        private string _authType = null;          // cached from most recent WWW-Authenticate reply
+        private string _realm = null;             // cached from most recent WWW-Authenticate reply
+        private string _nonce = null;             // cached from most recent WWW-Authenticate reply
+        private uint _ssrc = 12345;
+        private bool _clientWantsVideo = false;  // Client wants to receive Video
+        private bool _clientWantsAudio = false;  // Client wants to receive Audio
+        private Uri _videoUri = null;            // URI used for the Video Track
+        private int _videoPayload = -1;          // Payload Type for the Video. (often 96 which is the first dynamic payload value. Bosch use 35)
+        private int _videoDataChannel = -1;      // RTP Channel Number used for the video RTP stream or the UDP port number
+        private int _videoRtcpChannel = -1;      // RTP Channel Number used for the video RTCP status report messages OR the UDP port number
+        private bool _h264SpsPpsFired = false;   // True if the SDP included a sprop-Parameter-Set for H264 video
+        private bool _h265VpsSpsPpsFired = false; // True if the SDP included a sprop-vps, sprop-sps and sprop_pps for H265 video
+        private string _videoCodec = "";         // Codec used with Payload Types 96..127 (eg "H264")
 
-        Uri _audioUri = null;            // URI used for the Audio Track
-        int _audioPayload = -1;          // Payload Type for the Video. (often 96 which is the first dynamic payload value)
-        int _audioDataChannel = -1;     // RTP Channel Number used for the audio RTP stream or the UDP port number
-        int _audioRtcpChannel = -1;     // RTP Channel Number used for the audio RTCP status report messages OR the UDP port number
-        string _audioCodec = "";         // Codec used with Payload Types (eg "PCMA" or "AMR")
+        private Uri _audioUri = null;            // URI used for the Audio Track
+        private int _audioPayload = -1;          // Payload Type for the Video. (often 96 which is the first dynamic payload value)
+        private int _audioDataChannel = -1;     // RTP Channel Number used for the audio RTP stream or the UDP port number
+        private int _audioRtcpChannel = -1;     // RTP Channel Number used for the audio RTCP status report messages OR the UDP port number
+        private string _audioCodec = "";         // Codec used with Payload Types (eg "PCMA" or "AMR")
 
-        bool _serverSupportsGetParameter = false; // Used with RTSP keepalive
+        private bool _serverSupportsGetParameter = false; // Used with RTSP keepalive
 #pragma warning disable 0414 // Remove unread private members
-        bool _serverSupportsSetParameter = false; // Used with RTSP keepalive
+        private bool _serverSupportsSetParameter = false; // Used with RTSP keepalive
 #pragma warning restore 0414 // Remove unread private members
-        System.Timers.Timer _keepaliveTimer = null; // Used with RTSP keepalive
+        private System.Timers.Timer _keepaliveTimer = null; // Used with RTSP keepalive
 
-        Rtsp.H264Payload _h264Payload = null;
-        Rtsp.H265Payload _h265Payload = null;
-        Rtsp.G711Payload _g711Payload = new Rtsp.G711Payload();
-        Rtsp.AMRPayload _amrPayload = new Rtsp.AMRPayload();
-        SharpRtsp.Patch.AACPayload _aacPayload = null;
+        private Rtsp.H264Payload _h264Payload = null;
+        private Rtsp.H265Payload _h265Payload = null;
+        private Rtsp.G711Payload _g711Payload = new Rtsp.G711Payload();
+        private Rtsp.AMRPayload _amrPayload = new Rtsp.AMRPayload();
+        private SharpRtsp.Patch.AACPayload _aacPayload = null;
 
         private object _syncRoot = new object();
 

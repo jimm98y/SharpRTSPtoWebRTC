@@ -7,13 +7,14 @@ using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace CameraAPI
 {
     public class RTSPClientWrapper
     {
+        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
+
         private readonly ILogger _logger;
 
         private ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
@@ -29,7 +30,6 @@ namespace CameraAPI
         private byte[] _sps = null;
         private byte[] _pps = null;
         private byte[] _vps = null;
-        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
 
         public int AudioType { get; private set; } = -1;
         public int VideoType { get; private set; } = -1;
@@ -65,67 +65,129 @@ namespace CameraAPI
             client.Received_NALs += Client_Received_NALs;
         }
 
-        private void Client_Received_NALs(List<byte[]> nalUnits, uint rtpTimestamp)
+        private void Client_RtpMessageReceived(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip)
         {
-            if (_vps == null)
-                return;
+            // forward RTP to WebRTC "as is", just without the RTP header
+            byte[] msg = rtp.Skip(skip).ToArray();
 
-            if (nalUnits.Count == 0)
-                return;
-
-            IEnumerable<byte> msg = new byte[0];
-
-            // join all NAL units in this AU into a single array and prefix each NAL with Annex B
-            for (int i = 0; i < nalUnits.Count; i++)
+            if (payloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
-                msg = msg.Concat(_annexB).Concat(nalUnits[i]);
-            }                        
+                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only, H265 requires re-packetization
+                {
+                    foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+                    {
+                        // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
+                        //  we have to keep sending it in between the NALs
+                        if (_lastVideoMarkerBit == 1 && markerBit == 0)
+                        {
+                            if (_sps != null)
+                            {
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, timestamp, 0, payloadType);
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, timestamp, 0, payloadType);
+                            }
+                        }
 
-            foreach (var peerConnection in _peerConnections)
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, timestamp, markerBit, payloadType);
+                    }
+
+                    _lastVideoMarkerBit = markerBit;
+                }
+                else if(VideoCodecEnum != VideoCodecsEnum.H265)
+                {
+                    _logger.LogDebug($"Unsupported video codec {VideoCodecEnum}");
+                }
+            }
+            else if (payloadType == AudioType && AudioCodecEnum != AudioCodecsEnum.Unknown) // avoid sending RTP for unsupported codecs (AAC)
             {
-                SendH265Nal(peerConnection.Value, VideoType, msg.ToArray(), true, rtpTimestamp);
+                if (AudioCodecEnum == AudioCodecsEnum.PCMU || AudioCodecEnum == AudioCodecsEnum.PCMA)
+                {
+                    // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
+                    foreach (var peerConnection in _peerConnections)
+                    {
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, timestamp, markerBit, payloadType);
+                    }
+                }
+                else if (AudioCodecEnum != AudioCodecsEnum.OPUS)
+                {
+                    _logger.LogDebug($"Unsupported audio codec {AudioCodecEnum}");
+                }
             }
         }
 
-        private void SendH265Nal(RTCPeerConnection peerConnection, int payloadTypeID, byte[] nal, bool isLastNal, uint timestamp)
+        #region H265 WebRTC for Safari
+
+        private void Client_Received_NALs(List<byte[]> nalUnits, uint rtpTimestamp)
         {
-            const int max_len = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header
-            byte nal2 = nal[4];
+            if (VideoCodecEnum == VideoCodecsEnum.H265)
+            {
+                if (nalUnits.Count == 0)
+                    return;
+
+                // TODO: use VPS/SPS/PPS from the SDP in case it's not among the NALs for the IDR frame
+                IEnumerable<byte> msg = new byte[0];
+
+                // join all NAL units in this AU into a single array and prefix each NAL with Annex B
+                for (int i = 0; i < nalUnits.Count; i++)
+                {
+                    msg = msg.Concat(_annexB).Concat(nalUnits[i]);
+                }
+
+                foreach (var peerConnection in _peerConnections)
+                {
+                    SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), rtpTimestamp);
+                }
+            }
+        }
+
+        private static void SendSafariH265AU(RTCPeerConnection peerConnection, int payloadTypeID, byte[] au, uint timestamp)
+        {
+            /*
+            You need a correct H265 stream: VPS, SPS, PPS, I-frame, P-frame(s).
+            You need it with Annex-B headers 00 00 00 01 before each NAL unit.
+            You need split your stream on RTP payloads with one byte header:
+                03 for payload with VPS, SPS, PPS, I-frame start
+                01 for all next packets from this I-frame
+                02 for payload with P-frame
+                00 for all next packets from this P-frame
+            Don't forget set marker flag only for last packet of each Access Units
+            */
+            const int maxRtpPayloadLength = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header
+            byte auType = au[4];
             int start = -1;
 
-            if (nal.Length <= max_len)
+            if (au.Length <= maxRtpPayloadLength)
             {
-                int markerBit = (isLastNal ? 1 : 0);
-                Tuple<byte, int> h265RtpHeader = GetH265RtpHeader(nal2, start);
-                byte[] array = new byte[nal.Length + 1];
+                int markerBit = 1;
+                Tuple<byte, int> h265RtpHeader = GetSafariH265RtpHeader(auType, start);
+                byte[] array = new byte[au.Length + 1];
                 array[0] = h265RtpHeader.Item1;
-                Buffer.BlockCopy(nal, 0, array, 1, nal.Length);
+                Buffer.BlockCopy(au, 0, array, 1, au.Length);
                 peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array, timestamp, markerBit, payloadTypeID);
             }
             else
             {
-                for (int i = 0; i * max_len < nal.Length; i++)
+                for (int i = 0; i * maxRtpPayloadLength < au.Length; i++)
                 {
-                    int srcOffset = i * max_len;
-                    int num = (((i + 1) * max_len < nal.Length) ? max_len : (nal.Length - i * max_len));
-                    //bool isFirstPacket = i == 0;
-                    bool flag = (i + 1) * max_len >= nal.Length;
-                    int markerBit2 = ((isLastNal && flag) ? 1 : 0);
-                    Tuple<byte, int> h265RtpHeader = GetH265RtpHeader(nal2, start);
+                    int srcOffset = i * maxRtpPayloadLength;
+                    int num = ((i + 1) * maxRtpPayloadLength < au.Length) ? maxRtpPayloadLength : (au.Length - i * maxRtpPayloadLength);
+                    bool flag = (i + 1) * maxRtpPayloadLength >= au.Length;
+                    int markerBit2 = flag ? 1 : 0;
+                    Tuple<byte, int> h265RtpHeader = GetSafariH265RtpHeader(auType, start);
                     start = h265RtpHeader.Item2;
                     byte[] array2 = new byte[num + 1];
                     array2[0] = h265RtpHeader.Item1;
-                    Buffer.BlockCopy(nal, srcOffset, array2, 1, num);
+                    Buffer.BlockCopy(au, srcOffset, array2, 1, num);
                     peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array2, timestamp, markerBit2, payloadTypeID);
                 }
             }
         }
 
-        public Tuple<byte, int> GetH265RtpHeader(byte nal0, int start)
+        private static Tuple<byte, int> GetSafariH265RtpHeader(byte au0, int start)
         {
+            // algorithm from here: https://github.com/AlexxIT/Blog/issues/5
             if (start == -1)
             {
-                var nut = (nal0 >> 1) & 0b111111;
+                var nut = (au0 >> 1) & 0b111111;
 
                 switch (nut)
                 {
@@ -144,6 +206,10 @@ namespace CameraAPI
                 return new Tuple<byte, int>((byte)start, start);
             }
         }
+
+        #endregion // H265 WebRTC for Safari
+
+        #region AAC to Opus transcoding
 
         private void Client_Received_AAC(string format, List<byte[]> aac, uint objectType, uint frequencyIndex, uint channelConfiguration, uint timestamp, int payloadType)
         {
@@ -223,53 +289,9 @@ namespace CameraAPI
             }
         }
 
-        private void Client_RtpMessageReceived(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip)
-        {
-            // forward RTP to WebRTC "as is", just without the RTP header
-            byte[] msg = rtp.Skip(skip).ToArray();
+        #endregion //  AAC to Opus transcoding
 
-            if (payloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
-            {
-                foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
-                {
-                    // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
-                    //  we have to keep sending it in between the NALs
-                    if (_lastVideoMarkerBit == 1 && markerBit == 0)
-                    {
-                        if (_sps != null)
-                        {
-                            if (_vps == null) // h264
-                            {
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, timestamp, 0, payloadType);
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, timestamp, 0, payloadType);
-                            }
-                        }
-                    }
-
-                    if (_vps == null) // h264
-                    {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, timestamp, markerBit, payloadType);
-                    }
-                }
-
-                _lastVideoMarkerBit = markerBit;
-            }
-            else if (payloadType == AudioType && AudioCodecEnum != AudioCodecsEnum.Unknown) // avoid sending RTP for unsupported codecs (AAC)
-            {
-                if (AudioCodecEnum == AudioCodecsEnum.PCMU || AudioCodecEnum == AudioCodecsEnum.PCMA)
-                {
-                    // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
-                    foreach (var peerConnection in _peerConnections)
-                    {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, timestamp, markerBit, payloadType);
-                    }
-                }
-                else if(AudioCodecEnum != AudioCodecsEnum.OPUS)
-                {
-                    Debug.WriteLine($"Unsupported audio codec {AudioCodecEnum}");
-                }
-            }
-        }
+        #region Codecs
 
         private AudioCodecsEnum GetAudioCodec(string codec)
         {
@@ -320,6 +342,10 @@ namespace CameraAPI
             return ret;
         }
 
+        #endregion // Codecs
+
+        #region WebRTC
+
         public void AddPeerConnection(string id, RTCPeerConnection peerConnection)
         {
             _peerConnections.TryAdd(id, peerConnection);
@@ -335,6 +361,8 @@ namespace CameraAPI
         {
             _client.Stop();
         }
+
+        #endregion // WebRTC
 
         /*
         // only useful for debugging to dump the raw PCM into a file
