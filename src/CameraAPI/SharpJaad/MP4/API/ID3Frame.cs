@@ -92,94 +92,94 @@ namespace SharpJaad.MP4.API
         private static string[] TEXT_ENCODINGS = {"ISO-8859-1", "UTF-16"/*BOM*/, "UTF-16", "UTF-8"};
 	    private static string[] VALID_TIMESTAMPS = {"yyyy, yyyy-MM", "yyyy-MM-dd", "yyyy-MM-ddTHH", "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"};
 	    private static string UNKNOWN_LANGUAGE = "xxx";
-	    private long size;
-        private int id, flags, groupID, encryptionMethod;
-        private byte[] data;
+	    private long _size;
+        private int _id, _flags, _groupID, _encryptionMethod;
+        private byte[] _data;
 
         public ID3Frame(DataInputStream input)
         {
-            id = input.ReadInt();
-		    size = ID3Tag.ReadSynch(input);
-		    flags = input.ReadShort();
+            _id = input.ReadInt();
+		    _size = ID3Tag.ReadSynch(input);
+		    _flags = input.ReadShort();
 
-		    if(isInGroup()) groupID = input.ReadByte();
-		    if(isEncrypted()) encryptionMethod = input.ReadByte();
+		    if(IsInGroup()) _groupID = input.ReadByte();
+		    if(IsEncrypted()) _encryptionMethod = input.ReadByte();
             //TODO: data length indicator, unsync
 
-            data = new byte[(int)size];
-            input.ReadFully(data);
+            _data = new byte[(int)_size];
+            input.ReadFully(_data);
         }
 
         //header data
-        public int getID()
+        public int GetID()
         {
-            return id;
+            return _id;
         }
 
-        public long getSize()
+        public long GetSize()
         {
-            return size;
+            return _size;
         }
 
-        public bool isInGroup()
+        public bool IsInGroup()
         {
-            return (flags & 0x40) == 0x40;
+            return (_flags & 0x40) == 0x40;
         }
 
-        public int getGroupID()
+        public int GetGroupID()
         {
-            return groupID;
+            return _groupID;
         }
 
-        public bool isCompressed()
+        public bool IsCompressed()
         {
-            return (flags & 8) == 8;
+            return (_flags & 8) == 8;
         }
 
-        public bool isEncrypted()
+        public bool IsEncrypted()
         {
-            return (flags & 4) == 4;
+            return (_flags & 4) == 4;
         }
 
-        public int getEncryptionMethod()
+        public int GetEncryptionMethod()
         {
-            return encryptionMethod;
+            return _encryptionMethod;
         }
 
         //content data
-        public byte[] getData()
+        public byte[] GetData()
         {
-            return data;
+            return _data;
         }
 
-        public string getText()
+        public string GetText()
         {
-            return Encoding.GetEncoding(TEXT_ENCODINGS[0]).GetString(data);
+            return Encoding.GetEncoding(TEXT_ENCODINGS[0]).GetString(_data);
         }
 
-        public string getEncodedText()
+        public string GetEncodedText()
         {
             //first byte indicates encoding
-            int enc = data[0];
+            int enc = _data[0];
 
             //charsets 0,3 end with '0'; 1,2 end with '00'
             int t = -1;
-            for (int i = 1; i < data.Length && t < 0; i++)
+            for (int i = 1; i < _data.Length && t < 0; i++)
             {
-                if (data[i] == 0 && (enc == 0 || enc == 3 || data[i + 1] == 0)) t = i;
+                if (_data[i] == 0 && (enc == 0 || enc == 3 || _data[i + 1] == 0)) t = i;
             }
-            return Encoding.GetEncoding(TEXT_ENCODINGS[enc]).GetString(data).Substring(1, t - 1);
+            return Encoding.GetEncoding(TEXT_ENCODINGS[enc]).GetString(_data).Substring(1, t - 1);
         }
 
-        public int getNumber()
+        public int GetNumber()
         {
-            return int.Parse(Encoding.ASCII.GetString(data));
+            return int.Parse(Encoding.UTF8.GetString(_data));
         }
 
-        public int[] getNumbers()
+        public int[] GetNumbers()
         {
             //multiple numbers separated by '/'
-            string x = Encoding.GetEncoding(TEXT_ENCODINGS[0]).GetString(data);
+            string x = Encoding.GetEncoding(TEXT_ENCODINGS[0]).GetString(_data);
             int i = x.IndexOf('/');
             int[] y;
             if (i > 0) y = new int[] { int.Parse(x.Substring(0, i)), int.Parse(x.Substring(i + 1)) };
@@ -187,25 +187,25 @@ namespace SharpJaad.MP4.API
             return y;
         }
 
-        public DateTime getDate()
+        public DateTime GetDate()
         {
             //timestamp lengths: 4,7,10,13,16,19
-            int i = (int)Math.Floor((float)(data.Length / 3)) - 1;
+            int i = (int)Math.Floor((float)(_data.Length / 3)) - 1;
             DateTime date;
             if (i >= 0 && i < VALID_TIMESTAMPS.Length)
             {
-                date = DateTime.ParseExact(Encoding.ASCII.GetString(data), VALID_TIMESTAMPS[i], CultureInfo.InvariantCulture);
+                date = DateTime.ParseExact(Encoding.UTF8.GetString(_data), VALID_TIMESTAMPS[i], CultureInfo.InvariantCulture);
             }
             else date = DateTime.MinValue; // invalid
             return date;
         }
 
-        public Locale getLocale()
+        public CultureInfo GetLocale()
         {
-            string s = Encoding.ASCII.GetString(data).ToLowerInvariant();
-            Locale l;
+            string s = Encoding.UTF8.GetString(_data).ToLowerInvariant();
+            CultureInfo l;
             if (s.Equals(UNKNOWN_LANGUAGE)) l = null;
-            else l = new Locale(s);
+            else l = new CultureInfo(s);
             return l;
         }
     }

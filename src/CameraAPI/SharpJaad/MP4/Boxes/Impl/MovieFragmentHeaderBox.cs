@@ -14,11 +14,11 @@
         public MovieFragmentHeaderBox() : base("Movie Fragment Header Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _sequenceNumber = input.readBytes(4);
+            _sequenceNumber = input.ReadBytes(4);
         }
 
         /**

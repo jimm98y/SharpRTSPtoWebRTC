@@ -7,17 +7,17 @@
         public ChunkOffsetBox() : base("Chunk Offset Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (type == BoxTypes.CHUNK_LARGE_OFFSET_BOX) ? 8 : 4;
-            int entryCount = (int)input.readBytes(4);
+            int len = (_type == BoxTypes.CHUNK_LARGE_OFFSET_BOX) ? 8 : 4;
+            int entryCount = (int)input.ReadBytes(4);
             _chunks = new long[entryCount];
 
             for (int i = 0; i < entryCount; i++)
             {
-                _chunks[i] = input.readBytes(len);
+                _chunks[i] = input.ReadBytes(len);
             }
         }
 

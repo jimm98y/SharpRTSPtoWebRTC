@@ -9,14 +9,14 @@
         public ColorParameterBox() : base("Color Parameter Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _colorParameterType = input.readBytes(4);
-            _primariesIndex = (int)input.readBytes(2);
-            _transferFunctionIndex = (int)input.readBytes(2);
-            _matrixIndex = (int)input.readBytes(2);
+            _colorParameterType = input.ReadBytes(4);
+            _primariesIndex = (int)input.ReadBytes(2);
+            _transferFunctionIndex = (int)input.ReadBytes(2);
+            _matrixIndex = (int)input.ReadBytes(2);
         }
     }
 }

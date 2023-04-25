@@ -2,15 +2,15 @@
 {
     public class FullBox : BoxImpl
     {
-        protected int version, flags;
+        protected int _version, _flags;
 
         public FullBox(string name) : base(name)
         { }
 
         public override void Decode(MP4InputStream input)
         {
-            version = input.read();
-            flags = (int)input.readBytes(3);
+            _version = input.Read();
+            _flags = (int)input.ReadBytes(3);
         }
     }
 }

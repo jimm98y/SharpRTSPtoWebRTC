@@ -5,6 +5,6 @@
         protected SampleGroupDescriptionEntry(string name) : base(name)
         { }
 
-        public override abstract void decode(MP4InputStream input);
+        public override abstract void Decode(MP4InputStream input);
     }
 }

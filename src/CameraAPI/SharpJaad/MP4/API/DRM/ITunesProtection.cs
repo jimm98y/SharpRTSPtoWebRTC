@@ -8,26 +8,26 @@ namespace SharpJaad.MP4.API.DRM
 {
     public class ITunesProtection : Protection
     {
-        private readonly string userID, userName, userKey;
-	    private readonly byte[] privateKey, initializationVector;
+        private readonly string _userID, _userName, _userKey;
+	    private readonly byte[] _privateKey, _initializationVector;
 
         public ITunesProtection(Box sinf): base(sinf)
         {
             Box schi = sinf.GetChild(BoxTypes.SCHEME_INFORMATION_BOX);
-            userID = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_ID_BOX)).getData();
+            _userID = Encoding.UTF8.GetString(((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_ID_BOX)).GetData());
 
             //user name box is filled with 0
-            byte[] b = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_NAME_BOX)).getData();
+            byte[] b = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_NAME_BOX)).GetData();
             int i = 0;
             while (b[i] != 0)
             {
                 i++;
             }
-            userName = Encoding.ASCII.GetString(b.Take(i - 1).ToArray());
+            _userName = Encoding.UTF8.GetString(b.Take(i - 1).ToArray());
 
-            userKey = new String(((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_KEY_BOX)).getData());
-            privateKey = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_PRIVATE_KEY_BOX)).getData();
-            initializationVector = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_IV_BOX)).getData();
+            _userKey = Encoding.UTF8.GetString(((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_USER_KEY_BOX)).GetData());
+            _privateKey = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_PRIVATE_KEY_BOX)).GetData();
+            _initializationVector = ((FairPlayDataBox)schi.GetChild(BoxTypes.FAIRPLAY_IV_BOX)).GetData();
         }
 
         public override Scheme GetScheme()
@@ -37,27 +37,27 @@ namespace SharpJaad.MP4.API.DRM
 
         public string GetUserID()
         {
-            return userID;
+            return _userID;
         }
 
         public string GetUserName()
         {
-            return userName;
+            return _userName;
         }
 
         public string GetUserKey()
         {
-            return userKey;
+            return _userKey;
         }
 
         public byte[] GetPrivateKey()
         {
-            return privateKey;
+            return _privateKey;
         }
 
         public byte[] GetInitializationVector()
         {
-            return initializationVector;
+            return _initializationVector;
         }
     }
 }

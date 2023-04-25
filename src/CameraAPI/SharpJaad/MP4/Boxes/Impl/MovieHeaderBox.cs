@@ -17,30 +17,30 @@
             _matrix = new double[9];
         }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
-            int len = (version == 1) ? 8 : 4;
-            _creationTime = input.readBytes(len);
-            _modificationTime = input.readBytes(len);
-            _timeScale = input.readBytes(4);
-            _duration = Utils.detectUndetermined(input.readBytes(len));
+            base.Decode(input);
+            int len = (_version == 1) ? 8 : 4;
+            _creationTime = input.ReadBytes(len);
+            _modificationTime = input.ReadBytes(len);
+            _timeScale = input.ReadBytes(4);
+            _duration = Utils.DetectUndetermined(input.ReadBytes(len));
 
-            _rate = input.readFixedPoint(16, 16);
-            _volume = input.readFixedPoint(8, 8);
+            _rate = input.ReadFixedPoint(16, 16);
+            _volume = input.ReadFixedPoint(8, 8);
 
-            input.skipBytes(10); //reserved
+            input.SkipBytes(10); //reserved
 
             for (int i = 0; i < 9; i++)
             {
-                if (i < 6) _matrix[i] = input.readFixedPoint(16, 16);
+                if (i < 6) _matrix[i] = input.ReadFixedPoint(16, 16);
 
-                else _matrix[i] = input.readFixedPoint(2, 30);
+                else _matrix[i] = input.ReadFixedPoint(2, 30);
             }
 
-            input.skipBytes(24); //reserved
+            input.SkipBytes(24); //reserved
 
-            _nextTrackID = input.readBytes(4);
+            _nextTrackID = input.ReadBytes(4);
         }
 
         /**

@@ -4,7 +4,7 @@
     {
         private const long UNDETERMINED = 4294967295;
 
-        public static string getLanguageCode(long l)
+        public static string GetLanguageCode(long l)
         {
             //1 bit padding, 5*3 bits language code (ISO-639-2/T)
             char[] c = new char[3];
@@ -14,7 +14,7 @@
             return new string(c);
         }
 
-        public static long detectUndetermined(long l)
+        public static long DetectUndetermined(long l)
         {
             long x;
             if (l == UNDETERMINED) x = -1;

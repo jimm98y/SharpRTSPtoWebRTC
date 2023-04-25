@@ -19,7 +19,7 @@
  */
     public class FDSessionGroupBox : FullBox
     {
-        private long[][] groupIDs, hintTrackIDs;
+        private long[][] _groupIDs, _hintTrackIDs;
 
         public FDSessionGroupBox() : base("FD Session Group Box")
         { }
@@ -28,25 +28,25 @@
         {
             base.Decode(input);
 
-            int sessionGroups = (int)input.readBytes(2);
-            groupIDs = new long[sessionGroups][];
-            hintTrackIDs = new long[sessionGroups][];
+            int sessionGroups = (int)input.ReadBytes(2);
+            _groupIDs = new long[sessionGroups][];
+            _hintTrackIDs = new long[sessionGroups][];
 
             int j, entryCount, channelsInSessionGroup;
             for (int i = 0; i < sessionGroups; i++)
             {
-                entryCount = input.read();
-                groupIDs[i] = new long[entryCount];
+                entryCount = input.Read();
+                _groupIDs[i] = new long[entryCount];
                 for (j = 0; j < entryCount; j++)
                 {
-                    groupIDs[i][j] = input.readBytes(4);
+                    _groupIDs[i][j] = input.ReadBytes(4);
                 }
 
-                channelsInSessionGroup = (int)input.readBytes(2);
-                hintTrackIDs[i] = new long[channelsInSessionGroup];
+                channelsInSessionGroup = (int)input.ReadBytes(2);
+                _hintTrackIDs[i] = new long[channelsInSessionGroup];
                 for (j = 0; j < channelsInSessionGroup; j++)
                 {
-                    hintTrackIDs[i][j] = input.readBytes(4);
+                    _hintTrackIDs[i][j] = input.ReadBytes(4);
                 }
             }
         }
@@ -56,9 +56,9 @@
          *
          * @return all group IDs for all session groups
          */
-        public long[][] getGroupIDs()
+        public long[][] GetGroupIDs()
         {
-            return groupIDs;
+            return _groupIDs;
         }
 
         /**
@@ -68,9 +68,9 @@
          *
          * @return all hint track IDs for all session groups
          */
-        public long[][] getHintTrackIDs()
+        public long[][] GetHintTrackIDs()
         {
-            return hintTrackIDs;
+            return _hintTrackIDs;
         }
     }
 }

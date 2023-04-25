@@ -34,13 +34,13 @@ namespace SharpJaad.MP4.API
             return type;
         }
 
-        private ArtworkType type;
-        private byte[] data;
+        private ArtworkType _type;
+        private byte[] _data;
 
         public Artwork(ArtworkType type, byte[] data)
         {
-            this.type = type;
-            this.data = data;
+            this._type = type;
+            this._data = data;
         }
 
         /**
@@ -51,7 +51,7 @@ namespace SharpJaad.MP4.API
 	     */
         public ArtworkType GetArtworkType()
         {
-            return type;
+            return _type;
         }
 
         /**
@@ -61,7 +61,7 @@ namespace SharpJaad.MP4.API
 	     */
         public byte[] GetData()
         {
-            return data;
+            return _data;
         }
 
         // TODO: This would require ImageSharp dependency

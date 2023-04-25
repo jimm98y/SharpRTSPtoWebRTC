@@ -16,11 +16,11 @@
         public XMLBox() : base("XML Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _content = input.readUTFString((int)GetLeft(input));
+            _content = input.ReadUTFString((int)GetLeft(input));
         }
 
         /**

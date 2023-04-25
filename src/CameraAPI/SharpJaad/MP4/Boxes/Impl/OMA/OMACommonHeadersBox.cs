@@ -15,28 +15,28 @@ namespace SharpJaad.MP4.Boxes.Impl.OMA
 		public OMACommonHeadersBox() : base("OMA DRM Common Header Box")
 		{  }
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			base.decode(input);
+			base.Decode(input);
 
-			_encryptionMethod = input.read();
-			_paddingScheme = input.read();
-			_plaintextLength = input.readBytes(8);
-			int contentIDLength = (int)input.readBytes(2);
-			int rightsIssuerURLLength = (int)input.readBytes(2);
-			int textualHeadersLength = (int)input.readBytes(2);
+			_encryptionMethod = input.Read();
+			_paddingScheme = input.Read();
+			_plaintextLength = input.ReadBytes(8);
+			int contentIDLength = (int)input.ReadBytes(2);
+			int rightsIssuerURLLength = (int)input.ReadBytes(2);
+			int textualHeadersLength = (int)input.ReadBytes(2);
 
 			_contentID = new byte[contentIDLength];
-			input.readBytes(_contentID);
+			input.ReadBytes(_contentID);
 			_rightsIssuerURL = new byte[rightsIssuerURLLength];
-			input.readBytes(_rightsIssuerURL);
+			input.ReadBytes(_rightsIssuerURL);
 
 			_textualHeaders = new Dictionary<string, string>();
 			string key, value;
 			while (textualHeadersLength > 0)
 			{
-				key = Encoding.ASCII.GetString(input.readTerminated((int)GetLeft(input), ':'));
-				value = Encoding.ASCII.GetString(input.readTerminated((int)GetLeft(input), 0));
+				key = Encoding.UTF8.GetString(input.ReadTerminated((int)GetLeft(input), ':'));
+				value = Encoding.UTF8.GetString(input.ReadTerminated((int)GetLeft(input), 0));
 				_textualHeaders.Add(key, value);
 
 				textualHeadersLength -= key.Count() + value.Count() + 2;

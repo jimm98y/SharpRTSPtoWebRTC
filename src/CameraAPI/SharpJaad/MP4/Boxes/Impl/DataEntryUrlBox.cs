@@ -8,12 +8,12 @@
         public DataEntryUrlBox() : base("Data Entry Url Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _inFile = (flags & 1) == 1;
-            if (!_inFile) _location = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+            _inFile = (_flags & 1) == 1;
+            if (!_inFile) _location = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
         }
 
         public bool IsInFile()

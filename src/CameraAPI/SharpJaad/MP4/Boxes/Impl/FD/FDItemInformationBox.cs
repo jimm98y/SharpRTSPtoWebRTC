@@ -21,7 +21,7 @@
         {
             base.Decode(input);
 
-            int entryCount = (int)input.readBytes(2);
+            int entryCount = (int)input.ReadBytes(2);
             ReadChildren(input, entryCount); //partition entries
 
             ReadChildren(input); //FDSessionGroupBox and GroupIDToNameBox

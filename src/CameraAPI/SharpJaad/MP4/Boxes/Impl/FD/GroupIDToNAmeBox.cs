@@ -1,29 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace SharpJaad.MP4.Boxes.Impl.FD
 {
     public class GroupIDToNameBox : FullBox
     {
-        private readonly Dictionary<long, String> map;
+        private readonly Dictionary<long, string> _map;
 
         public GroupIDToNameBox() : base("Group ID To Name Box")
         {
-            map = new Dictionary<long, string>();
+            _map = new Dictionary<long, string>();
         }
 
         public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(2);
+            int entryCount = (int)input.ReadBytes(2);
             long id;
             string name;
             for (int i = 0; i < entryCount; i++)
             {
-                id = input.readBytes(4);
-                name = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
-                map.Add(id, name);
+                id = input.ReadBytes(4);
+                name = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+                _map.Add(id, name);
             }
         }
 
@@ -32,9 +31,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the ID to name map
          */
-        public Dictionary<long, string> getMap()
+        public Dictionary<long, string> GetMap()
         {
-            return map;
+            return _map;
         }
     }
 }

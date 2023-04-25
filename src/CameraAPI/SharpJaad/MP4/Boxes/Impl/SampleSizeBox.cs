@@ -10,20 +10,20 @@ namespace SharpJaad.MP4.Boxes.Impl
         public SampleSizeBox() : base("Sample Size Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            bool compact = type == BoxTypes.COMPACT_SAMPLE_SIZE_BOX;
+            bool compact = _type == BoxTypes.COMPACT_SAMPLE_SIZE_BOX;
 
             int sampleSize;
             if (compact) {
-                input.skipBytes(3);
-                sampleSize = input.read();
+                input.SkipBytes(3);
+                sampleSize = input.Read();
             }
-            else sampleSize = (int)input.readBytes(4);
+            else sampleSize = (int)input.ReadBytes(4);
 
-            _sampleCount = input.readBytes(4);
+            _sampleCount = input.ReadBytes(4);
             _sampleSizes = new long[(int)_sampleCount];
 
             if (compact)
@@ -34,7 +34,7 @@ namespace SharpJaad.MP4.Boxes.Impl
                     int x;
                     for (int i = 0; i < _sampleCount; i += 2)
                     {
-                        x = input.read();
+                        x = input.Read();
                         _sampleSizes[i] = (x >> 4) & 0xF;
                         _sampleSizes[i + 1] = x & 0xF;
                     }
@@ -58,7 +58,7 @@ namespace SharpJaad.MP4.Boxes.Impl
         {
             for (int i = 0; i < _sampleCount; i++) 
             {
-                _sampleSizes[i] = input.readBytes(len);
+                _sampleSizes[i] = input.ReadBytes(len);
             }
         }
 

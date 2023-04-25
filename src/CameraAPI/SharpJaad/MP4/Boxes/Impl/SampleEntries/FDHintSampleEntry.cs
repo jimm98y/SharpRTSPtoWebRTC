@@ -8,14 +8,14 @@
         public FDHintSampleEntry() : base("FD Hint Sample Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _hintTrackVersion = (int)input.readBytes(2);
-            _highestCompatibleVersion = (int)input.readBytes(2);
-            _partitionEntryID = (int)input.readBytes(2);
-            _fecOverhead = input.readFixedPoint(8, 8);
+            _hintTrackVersion = (int)input.ReadBytes(2);
+            _highestCompatibleVersion = (int)input.ReadBytes(2);
+            _partitionEntryID = (int)input.ReadBytes(2);
+            _fecOverhead = input.ReadFixedPoint(8, 8);
 
             ReadChildren(input);
         }

@@ -14,17 +14,17 @@
         public DegradationPriorityBox() : base("Degradation Priority Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             //get number of samples from SampleSizeBox
-            int sampleCount = ((SampleSizeBox)parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).getSampleCount();
+            int sampleCount = ((SampleSizeBox)_parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).GetSampleCount();
 
             _priorities = new int[sampleCount];
             for (int i = 0; i < sampleCount; i++)
             {
-                _priorities[i] = (int)input.readBytes(2);
+                _priorities[i] = (int)input.ReadBytes(2);
             }
         }
 

@@ -7,11 +7,11 @@
         public RequirementBox() : base("Requirement Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _requirement = input.readString((int)GetLeft(input));
+            _requirement = input.ReadString((int)GetLeft(input));
         }
 
         public string GetRequirement()

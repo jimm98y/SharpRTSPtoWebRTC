@@ -3,6 +3,9 @@ using SharpJaad.MP4.Boxes.Impl;
 using SharpJaad.MP4.Boxes.Impl.Meta;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 
 namespace SharpJaad.MP4.API
 {
@@ -58,7 +61,7 @@ namespace SharpJaad.MP4.API
             public static readonly Field<string> PURCHASE_DATE = new Field<string>("Purchase Date");
             public static readonly Field<string> GAPLESS_PLAYBACK = new Field<string>("Gapless Playback");
             public static readonly Field<bool> HD_VIDEO = new Field<bool>("HD Video");
-            public static readonly Field<Locale> LANGUAGE = new Field<Locale>("Language");
+            public static readonly Field<CultureInfo> LANGUAGE = new Field<CultureInfo>("Language");
             //sorting     readonly
             public static readonly Field<string> ARTIST_SORT_TEXT = new Field<string>("Artist Sort Text");
             public static readonly Field<string> TITLE_SORT_TEXT = new Field<string>("Title Sort Text");
@@ -242,7 +245,7 @@ namespace SharpJaad.MP4.API
             if (meta.HasChild(BoxTypes.COPYRIGHT_BOX))
             {
                 CopyrightBox cprt = (CopyrightBox)meta.GetChild(BoxTypes.COPYRIGHT_BOX);
-                Put(Field.LANGUAGE, new Locale(cprt.GetLanguageCode()));
+                Put(Field.LANGUAGE, new CultureInfo(cprt.GetLanguageCode()));
                 Put(Field.COPYRIGHT, cprt.GetNotice());
             }
             //3gpp user data
@@ -278,8 +281,9 @@ namespace SharpJaad.MP4.API
                 {
                     Put(Field.RELEASE_DATE, new DateTime(int.Parse(value)));
                 }
-                catch (FormatException e)
+                catch (FormatException)
                 {
+                    Debug.WriteLine("unable to parse 3GPP metadata: recording year value: {0}", value);
                     //Logger.getLogger("MP4 API").log(Level.INFO, "unable to parse 3GPP metadata: recording year value: {0}", value);
                 }
             }
@@ -330,7 +334,10 @@ namespace SharpJaad.MP4.API
                 else if (l == BoxTypes.COVER_BOX)
                 {
                     Artwork aw = new Artwork(Artwork.ForDataType(data.GetDataType()), data.GetData());
-                    if (_contents.ContainsKey(Field.COVER_ARTWORKS)) Get(Field.COVER_ARTWORKS).add(aw);
+                    if (_contents.ContainsKey(Field.COVER_ARTWORKS))
+                    {
+                        Get<List<Artwork>>(Field.COVER_ARTWORKS).Add(aw);
+                    }
                     else
                     {
                         List<Artwork> list = new List<Artwork>();
@@ -366,71 +373,72 @@ namespace SharpJaad.MP4.API
         {
             try
             {
-                DataInputStream input = new DataInputStream(new ByteArrayInputStream(box.GetID3Data()));
+                DataInputStream input = new DataInputStream(new MemoryStream(box.GetID3Data()));
                 ID3Tag tag = new ID3Tag(input);
                 int[] num;
                 foreach (ID3Frame frame in tag.GetFrames())
                 {
-                    switch (frame.getID())
+                    switch (frame.GetID())
                     {
                         case ID3Frame.TITLE:
-                            Put(Field.TITLE, frame.getEncodedText());
+                            Put(Field.TITLE, frame.GetEncodedText());
                             break;
                         case ID3Frame.ALBUM_TITLE:
-                            Put(Field.ALBUM, frame.getEncodedText());
+                            Put(Field.ALBUM, frame.GetEncodedText());
                             break;
                         case ID3Frame.TRACK_NUMBER:
-                            num = frame.getNumbers();
+                            num = frame.GetNumbers();
                             Put(Field.TRACK_NUMBER, num[0]);
                             if (num.Length > 1) Put(Field.TOTAL_TRACKS, num[1]);
                             break;
                         case ID3Frame.ARTIST:
-                            Put(Field.ARTIST, frame.getEncodedText());
+                            Put(Field.ARTIST, frame.GetEncodedText());
                             break;
                         case ID3Frame.COMPOSER:
-                            Put(Field.COMPOSER, frame.getEncodedText());
+                            Put(Field.COMPOSER, frame.GetEncodedText());
                             break;
                         case ID3Frame.BEATS_PER_MINUTE:
-                            Put(Field.TEMPO, frame.getNumber());
+                            Put(Field.TEMPO, frame.GetNumber());
                             break;
                         case ID3Frame.LENGTH:
-                            Put(Field.LENGTH_IN_MILLISECONDS, frame.getNumber());
+                            Put(Field.LENGTH_IN_MILLISECONDS, frame.GetNumber());
                             break;
                         case ID3Frame.LANGUAGES:
-                            Put(Field.LANGUAGE, frame.getLocale());
+                            Put(Field.LANGUAGE, frame.GetLocale());
                             break;
                         case ID3Frame.COPYRIGHT_MESSAGE:
-                            Put(Field.COPYRIGHT, frame.getEncodedText());
+                            Put(Field.COPYRIGHT, frame.GetEncodedText());
                             break;
                         case ID3Frame.PUBLISHER:
-                            Put(Field.PUBLISHER, frame.getEncodedText());
+                            Put(Field.PUBLISHER, frame.GetEncodedText());
                             break;
                         case ID3Frame.INTERNET_RADIO_STATION_NAME:
-                            Put(Field.INTERNET_RADIO_STATION, frame.getEncodedText());
+                            Put(Field.INTERNET_RADIO_STATION, frame.GetEncodedText());
                             break;
                         case ID3Frame.ENCODING_TIME:
-                            Put(Field.ENCODING_DATE, frame.getDate());
+                            Put(Field.ENCODING_DATE, frame.GetDate());
                             break;
                         case ID3Frame.RELEASE_TIME:
-                            Put(Field.RELEASE_DATE, frame.getDate());
+                            Put(Field.RELEASE_DATE, frame.GetDate());
                             break;
                         case ID3Frame.ENCODING_TOOLS_AND_SETTINGS:
-                            Put(Field.ENCODER_TOOL, frame.getEncodedText());
+                            Put(Field.ENCODER_TOOL, frame.GetEncodedText());
                             break;
                         case ID3Frame.PERFORMER_SORT_ORDER:
-                            Put(Field.ARTIST_SORT_TEXT, frame.getEncodedText());
+                            Put(Field.ARTIST_SORT_TEXT, frame.GetEncodedText());
                             break;
                         case ID3Frame.TITLE_SORT_ORDER:
-                            Put(Field.TITLE_SORT_TEXT, frame.getEncodedText());
+                            Put(Field.TITLE_SORT_TEXT, frame.GetEncodedText());
                             break;
                         case ID3Frame.ALBUM_SORT_ORDER:
-                            Put(Field.ALBUM_SORT_TEXT, frame.getEncodedText());
+                            Put(Field.ALBUM_SORT_TEXT, frame.GetEncodedText());
                             break;
                     }
                 }
             }
             catch (Exception e)
             {
+                Debug.WriteLine("Exception in MetaData.parseID3: {0}", e.ToString());
                 //Logger.getLogger("MP4 API").log(Level.SEVERE, "Exception in MetaData.parseID3: {0}", e.toString());
             }
         }
@@ -452,27 +460,26 @@ namespace SharpJaad.MP4.API
                     if (key.Equals(NERO_TAGS[4])) Put(Field.TOTAL_TRACKS, int.Parse(val));
                     if (key.Equals(NERO_TAGS[5]))
                     {
-                        Calendar c = Calendar.getInstance();
-                        c.set(Calendar.YEAR, int.Parse(val));
-                        Put(Field.RELEASE_DATE, c.getTime());
+                        Put(Field.RELEASE_DATE, new DateTime(int.Parse(val), 1, 1));
                     }
                     if (key.Equals(NERO_TAGS[6])) Put(Field.GENRE, val);
                     if (key.Equals(NERO_TAGS[7])) Put(Field.DISK_NUMBER, int.Parse(val));
                     if (key.Equals(NERO_TAGS[8])) Put(Field.TOTAL_DISKS, int.Parse(val));
-                    if (key.Equals(NERO_TAGS[9])) ; //url
+                    //if (key.Equals(NERO_TAGS[9])) ; //url
                     if (key.Equals(NERO_TAGS[10])) Put(Field.COPYRIGHT, val);
                     if (key.Equals(NERO_TAGS[11])) Put(Field.COMMENTS, val);
                     if (key.Equals(NERO_TAGS[12])) Put(Field.LYRICS, val);
-                    if (key.Equals(NERO_TAGS[13])) ; //credits
+                    //if (key.Equals(NERO_TAGS[13])) ; //credits
                     if (key.Equals(NERO_TAGS[14])) Put(Field.RATING, int.Parse(val));
                     if (key.Equals(NERO_TAGS[15])) Put(Field.PUBLISHER, val);
                     if (key.Equals(NERO_TAGS[16])) Put(Field.COMPOSER, val);
-                    if (key.Equals(NERO_TAGS[17])) ; //isrc
-                    if (key.Equals(NERO_TAGS[18])) ; //mood
+                    //if (key.Equals(NERO_TAGS[17])) ; //isrc
+                    //if (key.Equals(NERO_TAGS[18])) ; //mood
                     if (key.Equals(NERO_TAGS[19])) Put(Field.TEMPO, int.Parse(val));
                 }
                 catch (FormatException e)
                 {
+                    Debug.WriteLine("Exception in MetaData.parseNeroTags: {0}", e.ToString());
                     //Logger.getLogger("MP4 API").log(Level.SEVERE, "Exception in MetaData.parseNeroTags: {0}", e.toString());
                 }
             }

@@ -8,21 +8,21 @@
         public AppleLosslessBox() : base("Apple Lossless Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _maxSamplePerFrame = input.readBytes(4);
-            input.skipBytes(1); //?
-            _sampleSize = input.read();
-            _historyMult = input.read();
-            _initialHistory = input.read();
-            _kModifier = input.read();
-            _channels = input.read();
-            input.skipBytes(2); //?
-            _maxCodedFrameSize = input.readBytes(4);
-            _bitRate = input.readBytes(4);
-            _sampleRate = input.readBytes(4);
+            _maxSamplePerFrame = input.ReadBytes(4);
+            input.SkipBytes(1); //?
+            _sampleSize = input.Read();
+            _historyMult = input.Read();
+            _initialHistory = input.Read();
+            _kModifier = input.Read();
+            _channels = input.Read();
+            input.SkipBytes(2); //?
+            _maxCodedFrameSize = input.ReadBytes(4);
+            _bitRate = input.ReadBytes(4);
+            _sampleRate = input.ReadBytes(4);
         }
 
         public long GetMaxSamplePerFrame()

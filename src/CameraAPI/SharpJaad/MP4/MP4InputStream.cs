@@ -11,10 +11,10 @@ namespace SharpJaad.MP4
 		public const string UTF8 = "UTF-8";
 		public const string UTF16 = "UTF-16";
 		private const int BYTE_ORDER_MASK = 0xFEFF;
-		private readonly Stream input;
+		private readonly Stream _input;
 		//private readonly RandomAccessFile fin;
-		private int peeked;
-		private long offset; //only used with InputStream
+		private int _peeked;
+		private long _offset; //only used with InputStream
 
 		/**
          * Constructs an <code>MP4InputStream</code> that reads from an 
@@ -25,10 +25,10 @@ namespace SharpJaad.MP4
          */
 		public MP4InputStream(Stream input)
 		{
-			this.input = input;
+			this._input = input;
 			//fin = null;
-			peeked = -1;
-			offset = 0;
+			_peeked = -1;
+			_offset = 0;
 		}
 
 		/**
@@ -55,18 +55,18 @@ namespace SharpJaad.MP4
          * @return the next byte of data
          * @throws IOException If the end of the stream is detected or any I/O error occurs.
          */
-		public int read()
+		public int Read()
 		{
 			int i = 0;
-			if (peeked >= 0) {
-				i = peeked;
-				peeked = -1;
+			if (_peeked >= 0) {
+				i = _peeked;
+				_peeked = -1;
 			}
-			else if (input != null) i = input.ReadByte();
+			else if (_input != null) i = _input.ReadByte();
 			//else if (fin != null) i = fin.read();
 
 			if (i == -1) throw new EndOfStreamException();
-			else if (input != null) offset++;
+			else if (_input != null) _offset++;
 			return i;
 		}
 
@@ -86,26 +86,26 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public void read(byte[] b, int off, int len)
+		public void Read(byte[] b, int off, int len)
 		{
 			int read = 0;
 			int i = 0;
 
-			if (peeked >= 0 && len > 0) {
-				b[off] = (byte)peeked;
-				peeked = -1;
+			if (_peeked >= 0 && len > 0) {
+				b[off] = (byte)_peeked;
+				_peeked = -1;
 				read++;
 			}
 
 			while (read < len) {
-				if (input != null) i = input.Read(b, off + read, len - read);
+				if (_input != null) i = _input.Read(b, off + read, len - read);
 
 				//else if (fin != null) i = fin.read(b, off + read, len - read);
 				if (i < 0) throw new EndOfStreamException();
 				else read += i;
 			}
 
-			offset += read;
+			_offset += read;
 		}
 
 		/**
@@ -120,16 +120,16 @@ namespace SharpJaad.MP4
 		 * @throws IndexOutOfBoundsException if <code>n</code> is not in the range 
 		 * [1...8] inclusive.
 		 */
-		public long readBytes(int n)
+		public long ReadBytes(int n)
 		{
 			if (n < 1 || n > 8) throw new IndexOutOfRangeException("invalid number of bytes to read: " + n);
 			byte[] b = new byte[n];
-			read(b, 0, n);
+			Read(b, 0, n);
 
 			long result = 0;
 			for (int i = 0; i < n; i++)
 			{
-				result = (result << 8) | (b[i] & 0xFF);
+				result = ((int)result << 8) | (b[i] & 0xFF);
 			}
 			return result;
 		}
@@ -144,9 +144,9 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public void readBytes(byte[] b)
+		public void ReadBytes(byte[] b)
 		{
-			read(b, 0, b.Length);
+			Read(b, 0, b.Length);
 		}
 
 		/**
@@ -161,19 +161,19 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public String readString(int n)
+		public string ReadString(int n)
 		{
 			int i = -1;
 			int pos = 0;
 			char[]
-		c = new char[n];
+			c = new char[n];
 			while (pos < n)
 			{
-				i = read();
+				i = Read();
 				c[pos] = (char)i;
 				pos++;
 			}
-			return new String(c, 0, pos);
+			return new string(c, 0, pos);
 		}
 
 		/**
@@ -193,9 +193,9 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public string readUTFString(int max, string encoding)
+		public string ReadUTFString(int max, string encoding)
 		{
-			return Encoding.GetEncoding(encoding).GetString(readTerminated(max, 0));
+			return Encoding.GetEncoding(encoding).GetString(ReadTerminated(max, 0));
 		}
 
 		/**
@@ -214,17 +214,17 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public String readUTFString(int max)
+		public string ReadUTFString(int max)
 		{
 			//read byte order mask
 			byte[]
 			bom = new byte[2];
-			read(bom, 0, 2);
+			Read(bom, 0, 2);
 			if (bom[0] == 0 || bom[1] == 0) return "";
 			int i = (bom[0] << 8) | bom[1];
 
 			//read null-terminated
-			byte[] b = readTerminated(max - 2, 0);
+			byte[] b = ReadTerminated(max - 2, 0);
 			//copy bom
 			byte[] b2 = new byte[b.Length + bom.Length];
 			System.Array.Copy(bom, 0, b2, 0, bom.Length);
@@ -250,7 +250,7 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public byte[] readTerminated(int max, int terminator)
+		public byte[] ReadTerminated(int max, int terminator)
 		{
 			byte[]
 			b = new byte[max];
@@ -258,7 +258,7 @@ namespace SharpJaad.MP4
 			int i = 0;
 			while (pos < max && i != -1)
 			{
-				i = read();
+				i = Read();
 				if (i != -1) b[pos++] = (byte)i;
 			}
 
@@ -280,11 +280,11 @@ namespace SharpJaad.MP4
 		 * @throws IllegalArgumentException if the total number of bits (m+n) is not
 		 * a multiple of eight
 		 */
-		public double readFixedPoint(int m, int n)
+		public double ReadFixedPoint(int m, int n)
 		{
 			int bits = m + n;
 			if ((bits % 8) != 0) throw new ArgumentException("number of bits is not a multiple of 8: " + (m + n));
-			long l = readBytes(bits / 8);
+			long l = ReadBytes(bits / 8);
 			double x = Math.Pow(2, n);
 			double d = ((double)l) / x;
 			return d;
@@ -299,28 +299,30 @@ namespace SharpJaad.MP4
 		 * @throws IOException If the end of the stream is detected, the input 
 		 * stream has been closed, or if some other I/O error occurs.
 		 */
-		public void skipBytes(long n)
+		public void SkipBytes(long n)
 		{
 			long l = 0;
-			if (peeked >= 0 && n > 0) {
-				peeked = -1;
+			if (_peeked >= 0 && n > 0) 
+			{
+				_peeked = -1;
 				l++;
 			}
 
-			while (l < n) {
+			while (l < n) 
+			{
 				int skipped = 0;
 				for (int i = 0; i < n - l; i++)
 				{
-					if(input.ReadByte() != -1)
+					if(_input.ReadByte() != -1)
 						skipped++;
 				}
 
-				if (input != null) l += skipped;
+				if (_input != null) l += skipped;
 
 				//else if (fin != null) l += fin.skipBytes((int)(n - l));
 			}
 
-			offset += l;
+			_offset += l;
 		}
 
 		/**
@@ -329,10 +331,11 @@ namespace SharpJaad.MP4
 		 * @return the current offset
 		 * @throws IOException if an I/O error occurs (only when using a RandomAccessFile)
 		 */
-		public long getOffset()
+		public long GetOffset()
 		{
 			long l = -1;
-			if (input != null) l = offset;
+			if (_input != null) 
+				l = _offset;
 			//else if (fin != null) l = fin.getFilePointer();
 			return l;
 		}
@@ -347,16 +350,18 @@ namespace SharpJaad.MP4
 		 * @throws IOException if an InputStream is used, pos is less than 0 or an 
 		 * I/O error occurs
 		 */
-		public void seek(long pos)
+		public void Seek(long pos)
 		{
 			//if (fin != null) fin.seek(pos);
 			//else throw new IOException("could not seek: no random access");
-			if (input.CanSeek)
+			if (_input.CanSeek)
 			{
-				input.Seek(pos, SeekOrigin.Begin);
+				_input.Seek(pos, SeekOrigin.Begin);
 			}
-		    else 
+			else
+			{
 				throw new IOException("could not seek: no random access");
+			}
         }
 
 		/**
@@ -366,10 +371,10 @@ namespace SharpJaad.MP4
 		 * 
 		 * @return true if random access is available
 		 */
-		public bool hasRandomAccess()
+		public bool HasRandomAccess()
 		{
 			//return fin != null;
-			return input.CanSeek;
+			return _input.CanSeek;
 		}
 
 		/**
@@ -378,16 +383,20 @@ namespace SharpJaad.MP4
 		 * @return true if there is at least one byte left
 		 * @throws IOException if an I/O error occurs
 		 */
-		public bool hasLeft()
+		public bool HasLeft()
 		{
 			bool b;
 			/*if (fin != null) b = fin.getFilePointer() < (fin.length() - 1);
-			else*/ 
-			if (peeked >= 0) b = true;
-			else {
-				int i = input.ReadByte();
+			else*/
+			if (_peeked >= 0)
+			{
+				b = true;
+			}
+			else
+			{
+				int i = _input.ReadByte();
 				b = (i != -1);
-				if (b) peeked = i;
+				if (b) _peeked = i;
 			}
 			return b;
 		}
@@ -399,10 +408,10 @@ namespace SharpJaad.MP4
 		 * 
 		 * @throws IOException if an I/O error occurs
 		 */
-		void close()
+		public void Close()
 		{
-			peeked = -1;
-			if (input != null) input.Close();
+			_peeked = -1;
+			if (_input != null) _input.Close();
 			//else if (fin != null) fin.close();
 		}
 	}

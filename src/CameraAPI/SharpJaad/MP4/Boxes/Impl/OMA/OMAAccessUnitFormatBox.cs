@@ -8,14 +8,14 @@
         public OMAAccessUnitFormatBox() : base("OMA DRM Access Unit Format Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             //1 bit selective encryption, 7 bits reserved
-            _selectiveEncrypted = ((input.read() >> 7) & 1) == 1;
-            _keyIndicatorLength = input.read(); //always zero?
-            _initialVectorLength = input.read();
+            _selectiveEncrypted = ((input.Read() >> 7) & 1) == 1;
+            _keyIndicatorLength = input.Read(); //always zero?
+            _initialVectorLength = input.Read();
         }
 
         public bool IsSelectiveEncrypted()

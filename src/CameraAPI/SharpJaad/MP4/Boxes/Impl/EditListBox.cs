@@ -28,12 +28,12 @@
         public EditListBox() : base("Edit List Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
-            int len = (version == 1) ? 8 : 4;
+            int entryCount = (int)input.ReadBytes(4);
+            int len = (_version == 1) ? 8 : 4;
 
             _segmentDuration = new long[entryCount];
             _mediaTime = new long[entryCount];
@@ -41,12 +41,12 @@
 
             for (int i = 0; i < entryCount; i++)
             {
-                _segmentDuration[i] = input.readBytes(len);
-                _mediaTime[i] = input.readBytes(len);
+                _segmentDuration[i] = input.ReadBytes(len);
+                _mediaTime[i] = input.ReadBytes(len);
 
                 //int(16) mediaRate_integer;
                 //int(16) media_rate_fraction = 0;
-                _mediaRate[i] = input.readFixedPoint(16, 16);
+                _mediaRate[i] = input.ReadFixedPoint(16, 16);
             }
         }
 

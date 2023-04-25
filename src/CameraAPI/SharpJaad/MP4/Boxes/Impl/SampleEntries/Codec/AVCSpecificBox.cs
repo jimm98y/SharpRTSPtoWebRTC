@@ -10,35 +10,35 @@
         public AVCSpecificBox() : base("AVC Specific Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _configurationVersion = input.read();
-            _profile = input.read();
-            _profileCompatibility = (byte)input.read();
-            _level = input.read();
+            _configurationVersion = input.Read();
+            _profile = input.Read();
+            _profileCompatibility = (byte)input.Read();
+            _level = input.Read();
             //6 bits reserved, 2 bits 'length size minus one'
-            _lengthSize = (input.read() & 3) + 1;
+            _lengthSize = (input.Read() & 3) + 1;
 
             int len;
             //3 bits reserved, 5 bits number of sequence parameter sets
-            int sequenceParameterSets = input.read() & 31;
+            int sequenceParameterSets = input.Read() & 31;
 
             _sequenceParameterSetNALUnit = new byte[sequenceParameterSets][];
             for (int i = 0; i < sequenceParameterSets; i++)
             {
-                len = (int)input.readBytes(2);
+                len = (int)input.ReadBytes(2);
                 _sequenceParameterSetNALUnit[i] = new byte[len];
-                input.readBytes(_sequenceParameterSetNALUnit[i]);
+                input.ReadBytes(_sequenceParameterSetNALUnit[i]);
             }
 
-            int pictureParameterSets = input.read();
+            int pictureParameterSets = input.Read();
 
             _pictureParameterSetNALUnit = new byte[pictureParameterSets][];
             for (int i = 0; i < pictureParameterSets; i++)
             {
-                len = (int)input.readBytes(2);
+                len = (int)input.ReadBytes(2);
                 _pictureParameterSetNALUnit[i] = new byte[len];
-                input.readBytes(_pictureParameterSetNALUnit[i]);
+                input.ReadBytes(_pictureParameterSetNALUnit[i]);
             }
         }
 

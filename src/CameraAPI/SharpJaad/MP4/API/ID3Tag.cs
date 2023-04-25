@@ -7,23 +7,23 @@ namespace SharpJaad.MP4.API
     {
         private const int ID3_TAG = 4801587; //'ID3'
         private const int SUPPORTED_VERSION = 4; //id3v2.4
-        private readonly List<ID3Frame> frames;
-        private readonly int tag, flags, len;
+        private readonly List<ID3Frame> _frames;
+        private readonly int _tag, _flags, _len;
 
         public ID3Tag(DataInputStream input)
         {
-            frames = new List<ID3Frame>();
+            _frames = new List<ID3Frame>();
 
 		    //id3v2 header
-		    tag = (input.ReadByte()<<16)|(input.ReadByte()<<8)| input.ReadByte(); //'ID3'
+		    _tag = (input.ReadByte()<<16)|(input.ReadByte()<<8)| input.ReadByte(); //'ID3'
             int majorVersion = input.ReadByte();
             input.ReadByte(); //revision
-            flags = input.ReadByte();
-            len = ReadSynch(input);
+            _flags = input.ReadByte();
+            _len = ReadSynch(input);
 
-		    if(tag==ID3_TAG&&majorVersion<=SUPPORTED_VERSION) 
+		    if(_tag==ID3_TAG&&majorVersion<=SUPPORTED_VERSION) 
             {
-			    if((flags&0x40)==0x40) 
+			    if((_flags&0x40)==0x40) 
                 {
 				    //extended header; TODO: parse
 				    int extSize = ReadSynch(input);
@@ -36,20 +36,20 @@ namespace SharpJaad.MP4.API
                 }
 
                 //read all id3 frames
-                int left = len;
+                int left = _len;
                 ID3Frame frame;
 			    while(left>0) 
                 {
 				    frame = new ID3Frame(input);
-                    frames.Add(frame);
-				    left -= (int)frame.getSize();
+                    _frames.Add(frame);
+				    left -= (int)frame.GetSize();
 			    }
 		    }
 	    }
 
 	    public List<ID3Frame> GetFrames()
         {
-            return frames.ToList();
+            return _frames.ToList();
         }
 
         public static int ReadSynch(DataInputStream input)

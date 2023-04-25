@@ -10,17 +10,17 @@
       */
     public class OMADiscreteMediaHeadersBox : FullBox
     {
-        private string contentType;
+        private string _contentType;
 
         public OMADiscreteMediaHeadersBox() : base("OMA DRM Discrete Media Headers Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = input.read();
-            contentType = input.readString(len);
+            int len = input.Read();
+            _contentType = input.ReadString(len);
 
             ReadChildren(input);
         }
@@ -34,7 +34,7 @@
          */
         public string GetContentType()
         {
-            return contentType;
+            return _contentType;
         }
     }
 }

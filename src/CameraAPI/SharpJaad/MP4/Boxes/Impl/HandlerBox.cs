@@ -37,19 +37,19 @@
         public HandlerBox() : base("Handler Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            input.skipBytes(4); //pre-defined: 0
+            input.SkipBytes(4); //pre-defined: 0
 
-            _handlerType = input.readBytes(4);
+            _handlerType = input.ReadBytes(4);
 
-            input.readBytes(4); //reserved
-            input.readBytes(4); //reserved
-            input.readBytes(4); //reserved
+            input.ReadBytes(4); //reserved
+            input.ReadBytes(4); //reserved
+            input.ReadBytes(4); //reserved
 
-            _handlerName = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+            _handlerName = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
         }
 
         /**

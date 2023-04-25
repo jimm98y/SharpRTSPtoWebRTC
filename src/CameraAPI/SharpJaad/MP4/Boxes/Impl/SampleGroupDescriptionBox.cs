@@ -24,20 +24,20 @@ namespace SharpJaad.MP4.Boxes.Impl
 	 */
 	public class SampleGroupDescriptionBox : FullBox
 	{
-		private long _groupingType, _defaultLength, _descriptionLength;
-		private SampleGroupDescriptionEntry[] _entries;
+		private long _groupingType, _defaultLength /*, _descriptionLength */;
+		// private SampleGroupDescriptionEntry[] _entries;
 
 		public SampleGroupDescriptionBox() : base("Sample Group Description Box")
 		{ }
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			base.decode(input);
+			base.Decode(input);
 
-			_groupingType = input.readBytes(4);
-			_defaultLength = (version == 1) ? input.readBytes(4) : 0;
+			_groupingType = input.ReadBytes(4);
+			_defaultLength = (_version == 1) ? input.ReadBytes(4) : 0;
 
-			int entryCount = (int)input.readBytes(4);
+			int entryCount = (int)input.ReadBytes(4);
 
 			//TODO!
 			/*final HandlerBox hdlr = (HandlerBox) parent.getParent().getParent().getChild(BoxTypes.HANDLER_BOX);
@@ -94,7 +94,7 @@ namespace SharpJaad.MP4.Boxes.Impl
 		 */
 		public long GetDescriptionLength()
 		{
-			return _descriptionLength;
+			return /* _descriptionLength; */ 0;
 		}
 	}
 }

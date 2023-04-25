@@ -21,14 +21,14 @@
 		public FileTypeBox() : base("File Type Box")
 		{ }
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			_majorBrand = input.readString(4);
-			_minorVersion = input.readString(4);
+			_majorBrand = input.ReadString(4);
+			_minorVersion = input.ReadString(4);
 			_compatibleBrands = new string[(int)GetLeft(input) / 4];
 			for (int i = 0; i < _compatibleBrands.Length; i++)
 			{
-				_compatibleBrands[i] = input.readString(4);
+				_compatibleBrands[i] = input.ReadString(4);
 			}
 		}
 

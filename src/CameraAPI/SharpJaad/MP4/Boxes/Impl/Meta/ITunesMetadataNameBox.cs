@@ -17,12 +17,12 @@
 
         public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _metaName = input.readString((int)GetLeft(input));
+            _metaName = input.ReadString((int)GetLeft(input));
         }
 
-        public string getMetaName()
+        public string GetMetaName()
         {
             return _metaName;
         }

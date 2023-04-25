@@ -16,8 +16,8 @@
 
         protected void DecodeCommon(MP4InputStream input)
         {
-            _vendor = input.readBytes(4);
-            _decoderVersion = input.read();
+            _vendor = input.ReadBytes(4);
+            _decoderVersion = input.Read();
         }
 
         public long GetVendor()

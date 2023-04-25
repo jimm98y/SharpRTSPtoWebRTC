@@ -9,11 +9,11 @@
 
         public override void Decode(MP4InputStream input)
         {
-            if (parent.GetBoxType() == BoxTypes.ITUNES_META_LIST_BOX) ReadChildren(input);
+            if (_parent.GetBoxType() == BoxTypes.ITUNES_META_LIST_BOX) ReadChildren(input);
             else
             {
-                base.decode(input);
-                _data = input.readString((int)GetLeft(input));
+                base.Decode(input);
+                _data = input.ReadString((int)GetLeft(input));
             }
         }
 

@@ -7,18 +7,18 @@
         public ThreeGPPMetadataBox(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            _data = input.readUTFString((int)GetLeft(input));
+            _data = input.ReadUTFString((int)GetLeft(input));
         }
 
         //called directly by subboxes that don't contain the 'data' string
         protected void DecodeCommon(MP4InputStream input)
         {
-            base.decode(input);
-            _languageCode = Utils.getLanguageCode(input.readBytes(2));
+            base.Decode(input);
+            _languageCode = Utils.GetLanguageCode(input.ReadBytes(2));
         }
 
         /**

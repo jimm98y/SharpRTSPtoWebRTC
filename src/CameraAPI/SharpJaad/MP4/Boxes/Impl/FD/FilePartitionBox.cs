@@ -1,14 +1,14 @@
-﻿using System;
+﻿using System.Text;
 
 namespace SharpJaad.MP4.Boxes.Impl.FD
 {
     public class FilePartitionBox : FullBox
     {
-        private int itemID, packetPayloadSize, fecEncodingID, fecInstanceID,
-                maxSourceBlockLength, encodingSymbolLength, maxNumberOfEncodingSymbols;
-        private String schemeSpecificInfo;
-        private int[] blockCounts;
-        private long[] blockSizes;
+        private int _itemID, _packetPayloadSize, _fecEncodingID, _fecInstanceID,
+                _maxSourceBlockLength, _encodingSymbolLength, _maxNumberOfEncodingSymbols;
+        private string _schemeSpecificInfo;
+        private int[] _blockCounts;
+        private long[] _blockSizes;
 
         public FilePartitionBox() : base("File Partition Box")
         { }
@@ -17,23 +17,23 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
         {
             base.Decode(input);
 
-            itemID = (int)input.readBytes(2);
-            packetPayloadSize = (int)input.readBytes(2);
-            input.skipBytes(1); //reserved
-            fecEncodingID = input.read();
-            fecInstanceID = (int)input.readBytes(2);
-            maxSourceBlockLength = (int)input.readBytes(2);
-            encodingSymbolLength = (int)input.readBytes(2);
-            maxNumberOfEncodingSymbols = (int)input.readBytes(2);
-            schemeSpecificInfo = Base64Decoder.Decode(input.readTerminated((int)GetLeft(input), 0));
+            _itemID = (int)input.ReadBytes(2);
+            _packetPayloadSize = (int)input.ReadBytes(2);
+            input.SkipBytes(1); //reserved
+            _fecEncodingID = input.Read();
+            _fecInstanceID = (int)input.ReadBytes(2);
+            _maxSourceBlockLength = (int)input.ReadBytes(2);
+            _encodingSymbolLength = (int)input.ReadBytes(2);
+            _maxNumberOfEncodingSymbols = (int)input.ReadBytes(2);
+            _schemeSpecificInfo = Encoding.UTF8.GetString(Base64Decoder.Decode(input.ReadTerminated((int)GetLeft(input), 0)));
 
-            int entryCount = (int)input.readBytes(2);
-            blockCounts = new int[entryCount];
-            blockSizes = new long[entryCount];
+            int entryCount = (int)input.ReadBytes(2);
+            _blockCounts = new int[entryCount];
+            _blockSizes = new long[entryCount];
             for (int i = 0; i < entryCount; i++)
             {
-                blockCounts[i] = (int)input.readBytes(2);
-                blockSizes[i] = (int)input.readBytes(4);
+                _blockCounts[i] = (int)input.ReadBytes(2);
+                _blockSizes[i] = (int)input.ReadBytes(4);
             }
         }
 
@@ -43,9 +43,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the item ID
          */
-        public int getItemID()
+        public int GetItemID()
         {
-            return itemID;
+            return _itemID;
         }
 
         /**
@@ -55,9 +55,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          * 
          * @return the packet payload size
          */
-        public int getPacketPayloadSize()
+        public int GetPacketPayloadSize()
         {
-            return packetPayloadSize;
+            return _packetPayloadSize;
         }
 
         /**
@@ -72,9 +72,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the FEC encoding ID
          */
-        public int getFECEncodingID()
+        public int GetFECEncodingID()
         {
-            return fecEncodingID;
+            return _fecEncodingID;
         }
 
         /**
@@ -87,9 +87,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the FEC instance ID
          */
-        public int getFECInstanceID()
+        public int GetFECInstanceID()
         {
-            return fecInstanceID;
+            return _fecInstanceID;
         }
 
         /**
@@ -98,9 +98,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the maximum source block length
          */
-        public int getMaxSourceBlockLength()
+        public int GetMaxSourceBlockLength()
         {
-            return maxSourceBlockLength;
+            return _maxSourceBlockLength;
         }
 
         /**
@@ -110,9 +110,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the encoding symbol length
          */
-        public int getEncodingSymbolLength()
+        public int GetEncodingSymbolLength()
         {
-            return encodingSymbolLength;
+            return _encodingSymbolLength;
         }
 
         /**
@@ -124,9 +124,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return the maximum number of encoding symbols
          */
-        public int getMaxNumberOfEncodingSymbols()
+        public int GetMaxNumberOfEncodingSymbols()
         {
-            return maxNumberOfEncodingSymbols;
+            return _maxNumberOfEncodingSymbols;
         }
 
         /**
@@ -136,9 +136,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          * 
          * @return the scheme specific info
          */
-        public string getSchemeSpecificInfo()
+        public string GetSchemeSpecificInfo()
         {
-            return schemeSpecificInfo;
+            return _schemeSpecificInfo;
         }
 
         /**
@@ -147,9 +147,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return all block counts
          */
-        public int[] getBlockCounts()
+        public int[] GetBlockCounts()
         {
-            return blockCounts;
+            return _blockCounts;
         }
 
         /**
@@ -162,9 +162,9 @@ namespace SharpJaad.MP4.Boxes.Impl.FD
          *
          * @return all block sizes
          */
-        public long[] getBlockSizes()
+        public long[] GetBlockSizes()
         {
-            return blockSizes;
+            return _blockSizes;
         }
     }
 }

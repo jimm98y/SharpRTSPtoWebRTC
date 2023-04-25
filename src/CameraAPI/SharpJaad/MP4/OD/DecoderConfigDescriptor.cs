@@ -17,19 +17,19 @@
 		private bool _upstream;
 		private long _maxBitRate, _averageBitRate;
 
-		void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			_objectProfile = input.read();
+			_objectProfile = input.Read();
 			//6 bits stream type, 1 bit upstream flag, 1 bit reserved
-			int x = input.read();
+			int x = input.Read();
 			_streamType = (x >> 2) & 0x3F;
 			_upstream = ((x >> 1) & 1) == 1;
 
-			_decodingBufferSize = (int)input.readBytes(3);
-			_maxBitRate = input.readBytes(4);
-			_averageBitRate = input.readBytes(4);
+			_decodingBufferSize = (int)input.ReadBytes(3);
+			_maxBitRate = input.ReadBytes(4);
+			_averageBitRate = input.ReadBytes(4);
 
-			readChildren(input);
+			ReadChildren(input);
 		}
 
 		/**

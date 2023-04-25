@@ -26,13 +26,13 @@ namespace SharpJaad.MP4.Boxes.Impl
         public IPMPControlBox() : base("IPMP Control Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             _toolList = /*(IPMPToolListDescriptor)*/ Descriptor.CreateDescriptor(input);
 
-            int count = input.read();
+            int count = input.Read();
 
             _ipmpDescriptors = new Descriptor[count];
             for (int i = 0; i < count; i++)

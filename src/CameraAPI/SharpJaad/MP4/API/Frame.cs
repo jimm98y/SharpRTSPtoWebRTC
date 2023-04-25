@@ -4,52 +4,52 @@ namespace SharpJaad.MP4.API
 {
     public class Frame : IComparable<Frame>
     {
-        private readonly Type type;
-	    private readonly long offset, size;
-        private readonly double time;
-        private byte[] data;
+        private readonly Type _type;
+	    private readonly long _offset, _size;
+        private readonly double _time;
+        private byte[] _data;
 
         public Frame(Type type, long offset, long size, double time)
         {
-            this.type = type;
-            this.offset = offset;
-            this.size = size;
-            this.time = time;
+            this._type = type;
+            this._offset = offset;
+            this._size = size;
+            this._time = time;
         }
 
-        public Type GetType()
+        public Type GetFrameType()
         {
-            return type;
+            return _type;
         }
 
         public long GetOffset()
         {
-            return offset;
+            return _offset;
         }
 
         public long GetSize()
         {
-            return size;
+            return _size;
         }
 
         public double GetTime()
         {
-            return time;
+            return _time;
         }
 
         public void SetData(byte[] data)
         {
-            this.data = data;
+            this._data = data;
         }
 
         public byte[] GetData()
         {
-            return data;
+            return _data;
         }
 
         public int CompareTo(Frame f)
         {
-            double d = time - f.time;
+            double d = _time - f._time;
             //0 should not happen, since frames don't have the same timestamps
             return (d < 0) ? -1 : ((d > 0) ? 1 : 0);
         }

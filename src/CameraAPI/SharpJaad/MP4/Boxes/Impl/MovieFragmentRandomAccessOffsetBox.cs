@@ -18,11 +18,11 @@
         public MovieFragmentRandomAccessOffsetBox() : base("Movie Fragment Random Access Offset Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _byteSize = input.readBytes(4);
+            _byteSize = input.ReadBytes(4);
         }
 
         public long GetByteSize()

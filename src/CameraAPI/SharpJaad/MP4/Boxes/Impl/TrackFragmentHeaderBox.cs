@@ -20,29 +20,29 @@
         public TrackFragmentHeaderBox() : base("Track Fragment Header Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _trackID = input.readBytes(4);
+            _trackID = input.ReadBytes(4);
 
             //optional fields
-            _baseDataOffsetPresent = ((flags & 1) == 1);
-            _baseDataOffset = _baseDataOffsetPresent ? input.readBytes(8) : 0;
+            _baseDataOffsetPresent = ((_flags & 1) == 1);
+            _baseDataOffset = _baseDataOffsetPresent ? input.ReadBytes(8) : 0;
 
-            _sampleDescriptionIndexPresent = ((flags & 2) == 2);
-            _sampleDescriptionIndex = _sampleDescriptionIndexPresent ? input.readBytes(4) : 0;
+            _sampleDescriptionIndexPresent = ((_flags & 2) == 2);
+            _sampleDescriptionIndex = _sampleDescriptionIndexPresent ? input.ReadBytes(4) : 0;
 
-            _defaultSampleDurationPresent = ((flags & 8) == 8);
-            _defaultSampleDuration = _defaultSampleDurationPresent ? input.readBytes(4) : 0;
+            _defaultSampleDurationPresent = ((_flags & 8) == 8);
+            _defaultSampleDuration = _defaultSampleDurationPresent ? input.ReadBytes(4) : 0;
 
-            _defaultSampleSizePresent = ((flags & 16) == 16);
-            _defaultSampleSize = _defaultSampleSizePresent ? input.readBytes(4) : 0;
+            _defaultSampleSizePresent = ((_flags & 16) == 16);
+            _defaultSampleSize = _defaultSampleSizePresent ? input.ReadBytes(4) : 0;
 
-            _defaultSampleFlagsPresent = ((flags & 32) == 32);
-            _defaultSampleFlags = _defaultSampleFlagsPresent ? input.readBytes(4) : 0;
+            _defaultSampleFlagsPresent = ((_flags & 32) == 32);
+            _defaultSampleFlags = _defaultSampleFlagsPresent ? input.ReadBytes(4) : 0;
 
-            _durationIsEmpty = ((flags & 0x10000) == 0x10000);
+            _durationIsEmpty = ((_flags & 0x10000) == 0x10000);
         }
 
         public long GetTrackID()

@@ -14,10 +14,10 @@
     {
         private byte[] _data;
 
-        public override void decode(MP4InputStream input) 
+        public override void Decode(MP4InputStream input) 
         {
             _data = new byte[_size];
-            input.readBytes(_data);
+            input.ReadBytes(_data);
         }
 
         /**

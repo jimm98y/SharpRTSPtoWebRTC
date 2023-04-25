@@ -15,17 +15,17 @@ namespace SharpJaad.MP4.Boxes.Impl
         public VideoMediaHeaderBox() : base("Video Media Header Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _graphicsMode = input.readBytes(2);
+            _graphicsMode = input.ReadBytes(2);
             //6 byte RGB color
             int[]
             c = new int[3];
             for (int i = 0; i < 3; i++)
             {
-                c[i] = (input.read() & 0xFF) | ((input.read() << 8) & 0xFF);
+                c[i] = (input.Read() & 0xFF) | ((input.Read() << 8) & 0xFF);
             }
             _color = Color.FromArgb(c[0], c[1], c[2]);
         }

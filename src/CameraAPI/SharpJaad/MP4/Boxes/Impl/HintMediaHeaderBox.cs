@@ -13,17 +13,17 @@
         public HintMediaHeaderBox() : base("Hint Media Header Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _maxPDUsize = input.readBytes(2);
-            _avgPDUsize = input.readBytes(2);
+            _maxPDUsize = input.ReadBytes(2);
+            _avgPDUsize = input.ReadBytes(2);
 
-            _maxBitrate = input.readBytes(4);
-            _avgBitrate = input.readBytes(4);
+            _maxBitrate = input.ReadBytes(4);
+            _avgBitrate = input.ReadBytes(4);
 
-            input.skipBytes(4); //reserved
+            input.SkipBytes(4); //reserved
         }
 
         /**

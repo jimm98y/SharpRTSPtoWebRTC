@@ -14,23 +14,23 @@
 		private string _url;
 		private int _odProfile, _sceneProfile, _audioProfile, _visualProfile, _graphicsProfile;
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
 			//10 bits objectDescriptorID, 1 bit url flag, 1 bit
 			//includeInlineProfiles flag, 4 bits reserved
-			int x = (int)input.readBytes(2);
+			int x = (int)input.ReadBytes(2);
 			_objectDescriptorID = (x >> 6) & 0x3FF;
 			_urlPresent = ((x >> 5) & 1) == 1;
 			_includeInlineProfiles = ((x >> 4) & 1) == 1;
 
-			if (_urlPresent) _url = input.readString(_size - 2);
+			if (_urlPresent) _url = input.ReadString(_size - 2);
 			else
 			{
-				_odProfile = input.read();
-				_sceneProfile = input.read();
-				_audioProfile = input.read();
-				_visualProfile = input.read();
-				_graphicsProfile = input.read();
+				_odProfile = input.Read();
+				_sceneProfile = input.Read();
+				_audioProfile = input.Read();
+				_visualProfile = input.Read();
+				_graphicsProfile = input.Read();
 			}
 
 			ReadChildren(input);

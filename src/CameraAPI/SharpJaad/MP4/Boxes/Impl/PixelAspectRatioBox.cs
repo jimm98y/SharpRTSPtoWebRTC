@@ -8,10 +8,10 @@
         public PixelAspectRatioBox() : base("Pixel Aspect Ratio Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _hSpacing = input.readBytes(4);
-            _vSpacing = input.readBytes(4);
+            _hSpacing = input.ReadBytes(4);
+            _vSpacing = input.ReadBytes(4);
         }
 
         public long GetHorizontalSpacing()

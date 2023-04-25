@@ -13,17 +13,17 @@
         public CopyrightBox() : base("Copyright Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            if (parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
+            if (_parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
             {
-                base.decode(input);
+                base.Decode(input);
                 //1 bit padding, 5*3 bits language code (ISO-639-2/T)
-                _languageCode = Utils.getLanguageCode(input.readBytes(2));
+                _languageCode = Utils.GetLanguageCode(input.ReadBytes(2));
 
-                _notice = input.readUTFString((int)GetLeft(input));
+                _notice = input.ReadUTFString((int)GetLeft(input));
             }
-            else if (parent.GetBoxType() == BoxTypes.ITUNES_META_LIST_BOX) ReadChildren(input);
+            else if (_parent.GetBoxType() == BoxTypes.ITUNES_META_LIST_BOX) ReadChildren(input);
         }
 
         /**

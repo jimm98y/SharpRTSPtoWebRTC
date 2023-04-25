@@ -5,7 +5,7 @@
         public AudioSampleGroupEntry() : base("Audio Sample Group Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
         }
     }

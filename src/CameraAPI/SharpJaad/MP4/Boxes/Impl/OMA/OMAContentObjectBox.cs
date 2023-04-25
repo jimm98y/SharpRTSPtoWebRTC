@@ -7,13 +7,13 @@
         public OMAContentObjectBox() : base("OMA Content Object Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (int)input.readBytes(4);
+            int len = (int)input.ReadBytes(4);
             _data = new byte[len];
-            input.readBytes(_data);
+            input.ReadBytes(_data);
         }
 
         /**

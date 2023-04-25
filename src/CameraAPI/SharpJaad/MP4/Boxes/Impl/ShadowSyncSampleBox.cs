@@ -39,17 +39,17 @@
         public ShadowSyncSampleBox() : base("Shadow Sync Sample Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
             _sampleNumbers = new long[entryCount, 2];
 
             for (int i = 0; i < entryCount; i++)
             {
-                _sampleNumbers[i, 0] = input.readBytes(4); //shadowedSampleNumber;
-                _sampleNumbers[i, 1] = input.readBytes(4); //syncSampleNumber;
+                _sampleNumbers[i, 0] = input.ReadBytes(4); //shadowedSampleNumber;
+                _sampleNumbers[i, 1] = input.ReadBytes(4); //syncSampleNumber;
             }
         }
 

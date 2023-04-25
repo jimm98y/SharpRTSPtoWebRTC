@@ -7,12 +7,12 @@
         public H263SpecificBox() : base("H.263 Specific Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            _level = input.read();
-            _profile = input.read();
+            _level = input.Read();
+            _profile = input.Read();
         }
 
         public int GetLevel()

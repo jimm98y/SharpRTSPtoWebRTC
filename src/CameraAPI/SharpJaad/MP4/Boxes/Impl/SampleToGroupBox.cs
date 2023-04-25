@@ -23,19 +23,19 @@
         public SampleToGroupBox() : base("Sample To Group Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _groupingType = input.readBytes(4);
-            int entryCount = (int)input.readBytes(4);
+            _groupingType = input.ReadBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
             _sampleCount = new long[entryCount];
             _groupDescriptionIndex = new long[entryCount];
 
             for (int i = 0; i < entryCount; i++)
             {
-                _sampleCount[i] = input.readBytes(4);
-                _groupDescriptionIndex[i] = input.readBytes(4);
+                _sampleCount[i] = input.ReadBytes(4);
+                _groupDescriptionIndex[i] = input.ReadBytes(4);
             }
         }
 

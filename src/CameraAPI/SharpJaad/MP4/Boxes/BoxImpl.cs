@@ -3,31 +3,31 @@ using System.Linq;
 
 namespace SharpJaad.MP4.Boxes
 {
-    public class BoxImpl : Box
+    public abstract class BoxImpl : Box
     {
-        private readonly string name;
-        protected long size, type, offset;
-        protected Box parent;
-        protected readonly List<Box> children;
+        private readonly string _name;
+        protected long _size, _type, _offset;
+        protected Box _parent;
+        protected readonly List<Box> _children;
 
         public BoxImpl(string name)
         {
-            this.name = name;
+            this._name = name;
 
-            children = new List<Box>(4);
+            _children = new List<Box>(4);
         }
 
         public void SetParams(Box parent, long size, long type, long offset)
         {
-            this.size = size;
-            this.type = type;
-            this.parent = parent;
-            this.offset = offset;
+            this._size = size;
+            this._type = type;
+            this._parent = parent;
+            this._offset = offset;
         }
 
         protected long GetLeft(MP4InputStream input)
         {
-            return (offset + size) - input.getOffset();
+            return (_offset + _size) - input.GetOffset();
         }
 
         /**
@@ -37,51 +37,49 @@ namespace SharpJaad.MP4.Boxes
          * @param in an input stream
          * @throws IOException if an error occurs while reading
          */
-        public virtual void decode(MP4InputStream input)
-        {
-        }
+        public abstract void Decode(MP4InputStream input);
 
         // formerly GetType
         public long GetBoxType()
         {
-            return type;
+            return _type;
         }
 
         public long GetSize()
         {
-            return size;
+            return _size;
         }
 
         public long GetOffset()
         {
-            return offset;
+            return _offset;
         }
 
         public Box GetParent()
         {
-            return parent;
+            return _parent;
         }
 
         public string GetName()
         {
-            return name;
+            return _name;
         }
 
         public override string ToString()
         {
-            return name + " [" + BoxFactory.TypeToString(type) + "]";
+            return _name + " [" + BoxFactory.TypeToString(_type) + "]";
         }
 
         //container methods
         public bool HasChildren()
         {
-            return children.Count > 0;
+            return _children.Count > 0;
         }
 
         public bool HasChild(long type)
         {
             bool b = false;
-            foreach (Box box in children)
+            foreach (Box box in _children)
             {
                 if (box.GetBoxType() == type)
                 {
@@ -96,9 +94,9 @@ namespace SharpJaad.MP4.Boxes
         {
             Box box = null, b = null;
             int i = 0;
-            while (box == null && i < children.Count)
+            while (box == null && i < _children.Count)
             {
-                b = children[i];
+                b = _children[i];
                 if (b.GetBoxType() == type) box = b;
                 i++;
             }
@@ -107,13 +105,13 @@ namespace SharpJaad.MP4.Boxes
 
         public List<Box> GetChildren()
         {
-            return children.ToList<Box>();
+            return _children.ToList<Box>();
         }
 
         public List<Box> GetChildren(long type)
         {
             List<Box> l = new List<Box>();
-            foreach (Box box in children)
+            foreach (Box box in _children)
             {
                 if (box.GetBoxType() == type) l.Add(box);
             }
@@ -123,10 +121,10 @@ namespace SharpJaad.MP4.Boxes
         public void ReadChildren(MP4InputStream input)
         {
             Box box;
-            while (input.getOffset() < (offset + size))
+            while (input.GetOffset() < (_offset + _size))
             {
                 box = BoxFactory.ParseBox(this, input);
-                children.Add(box);
+                _children.Add(box);
             }
         }
 
@@ -136,7 +134,7 @@ namespace SharpJaad.MP4.Boxes
             for (int i = 0; i < len; i++)
             {
                 box = BoxFactory.ParseBox(this, input);
-                children.Add(box);
+                _children.Add(box);
             }
         }
     }

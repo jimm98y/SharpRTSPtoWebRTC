@@ -16,12 +16,12 @@
         public OMAContentIDBox() : base("OMA DRM Content ID Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (int)input.readBytes(2);
-            _contentID = input.readString(len);
+            int len = (int)input.ReadBytes(2);
+            _contentID = input.ReadString(len);
         }
 
         /**

@@ -11,7 +11,7 @@
         public FreeSpaceBox() : base("Free Space Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             //no need to read, box will be skipped
         }

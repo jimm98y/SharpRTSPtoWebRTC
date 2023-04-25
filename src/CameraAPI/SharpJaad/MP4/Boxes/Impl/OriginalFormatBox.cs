@@ -13,9 +13,9 @@
         public OriginalFormatBox() : base("Original Format Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _originalFormat = input.readBytes(4);
+            _originalFormat = input.ReadBytes(4);
         }
 
         /**

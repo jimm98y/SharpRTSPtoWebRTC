@@ -16,9 +16,9 @@
         public AC3SpecificBox() : base("AC-3 Specific Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            long l = input.readBytes(3);
+            long l = input.ReadBytes(3);
 
             //2 bits fscod
             _fscod = (int)((l >> 22) & 0x3);

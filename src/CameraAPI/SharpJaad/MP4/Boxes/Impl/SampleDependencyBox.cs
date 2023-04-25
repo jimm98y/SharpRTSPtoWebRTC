@@ -18,17 +18,21 @@
 
         public void decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int sampleCount = ((SampleSizeBox)parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).getSampleCount();
+            int sampleCount = ((SampleSizeBox)_parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).GetSampleCount();
+
+            _dependencyCount = new int[sampleCount];
+            _relativeSampleNumber = new int[sampleCount][];
 
             int j;
             for (int i = 0; i < sampleCount; i++)
             {
-                _dependencyCount[i] = (int)input.readBytes(2);
+                _dependencyCount[i] = (int)input.ReadBytes(2);
+                _relativeSampleNumber[i] = new int[_dependencyCount[i]];
                 for (j = 0; j < _dependencyCount[i]; j++)
                 {
-                    _relativeSampleNumber[i][j] = (int)input.readBytes(2);
+                    _relativeSampleNumber[i][j] = (int)input.ReadBytes(2);
                 }
             }
         }

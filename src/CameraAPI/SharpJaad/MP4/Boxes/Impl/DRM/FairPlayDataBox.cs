@@ -2,22 +2,22 @@
 {
     public class FairPlayDataBox : BoxImpl
     {
-        private byte[] data;
+        private byte[] _data;
 
         public FairPlayDataBox() : base("iTunes FairPlay Data Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            //base.Decode(input);
 
-            data = new byte[(int)GetLeft(input)];
-            input.readBytes(data);
+            _data = new byte[(int)GetLeft(input)];
+            input.ReadBytes(_data);
         }
 
-        public byte[] getData()
+        public byte[] GetData()
         {
-            return data;
+            return _data;
         }
     }
 }

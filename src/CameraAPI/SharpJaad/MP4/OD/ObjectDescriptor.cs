@@ -24,14 +24,14 @@
         private bool _urlPresent;
         private string _url;
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             //10 bits objectDescriptorID, 1 bit url flag, 5 bits reserved
-            int x = (int)input.readBytes(2);
+            int x = (int)input.ReadBytes(2);
             _objectDescriptorID = (x >> 6) & 0x3FF;
             _urlPresent = ((x >> 5) & 1) == 1;
 
-            if (_urlPresent) _url = input.readString(_size - 2);
+            if (_urlPresent) _url = input.ReadString(_size - 2);
 
             ReadChildren(input);
         }

@@ -14,12 +14,12 @@
         public SoundMediaHeaderBox() : base("Sound Media Header Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _balance = input.readFixedPoint(8, 8);
-            input.skipBytes(2); //reserved
+            _balance = input.ReadFixedPoint(8, 8);
+            input.SkipBytes(2); //reserved
         }
 
         /**

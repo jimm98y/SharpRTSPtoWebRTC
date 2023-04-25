@@ -7,6 +7,7 @@ using SharpJaad.MP4.Boxes.Impl.SampleEntries;
 using SharpJaad.MP4.Boxes.Impl.SampleEntries.Codec;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -318,12 +319,12 @@ namespace SharpJaad.MP4.Boxes
 
         public static Box ParseBox(Box parent, MP4InputStream input)
         {
-            long offset = input.getOffset();
+            long offset = input.GetOffset();
 
-            long size = input.readBytes(4);
-            long type = input.readBytes(4);
-            if (size == 1) size = input.readBytes(8);
-            if (type == BoxTypes.EXTENDED_TYPE) input.skipBytes(16);
+            long size = input.ReadBytes(4);
+            long type = input.ReadBytes(4);
+            if (size == 1) size = input.ReadBytes(8);
+            if (type == BoxTypes.EXTENDED_TYPE) input.SkipBytes(16);
 
             //error protection
             if (parent != null)
@@ -333,16 +334,16 @@ namespace SharpJaad.MP4.Boxes
             }
 
             //Logger.getLogger("MP4 Boxes").finest(typeToString(type));
-            BoxImpl box = ForType(type, input.getOffset());
+            BoxImpl box = ForType(type, input.GetOffset());
             box.SetParams(parent, size, type, offset);
-            box.decode(input);
+            box.Decode(input);
 
             //if box doesn't contain data it only contains children
             Type cl = box.GetType();
             if (cl == typeof(BoxImpl) || cl == typeof(FullBox)) box.ReadChildren(input);
 
             //check bytes left
-            long left = (box.GetOffset() + box.GetSize()) - input.getOffset();
+            long left = (box.GetOffset() + box.GetSize()) - input.GetOffset();
             if (left > 0 && !(box is MediaDataBox)
 
                             && !(box is UnknownBox)
@@ -358,36 +359,35 @@ namespace SharpJaad.MP4.Boxes
             }
 
             //if mdat found and no random access, don't skip
-            if (box.GetBoxType() != BoxTypes.MEDIA_DATA_BOX || input.hasRandomAccess()) input.skipBytes(left);
+            if (box.GetBoxType() != BoxTypes.MEDIA_DATA_BOX || input.HasRandomAccess()) input.SkipBytes(left);
             return box;
         }
 
-#warning Review this
         //TODO: remove usages
         public static Box ParseBox(MP4InputStream input, Type boxClass)
         {
-            long offset = input.getOffset();
+            long offset = input.GetOffset();
 
-            long size = input.readBytes(4);
-            long type = input.readBytes(4);
-            if (size == 1) size = input.readBytes(8);
-            if (type == BoxTypes.EXTENDED_TYPE) input.skipBytes(16);
+            long size = input.ReadBytes(4);
+            long type = input.ReadBytes(4);
+            if (size == 1) size = input.ReadBytes(8);
+            if (type == BoxTypes.EXTENDED_TYPE) input.SkipBytes(16);
 
             BoxImpl box = null;
             try
             {
                 box = (BoxImpl)Activator.CreateInstance(boxClass);
             }
-            catch (Exception e)
+            catch (Exception)
             {
             }
 
             if (box != null)
             {
                 box.SetParams(null, size, type, offset);
-                box.decode(input);
-                long left = (box.GetOffset() + box.GetSize()) - input.getOffset();
-                input.skipBytes(left);
+                box.Decode(input);
+                long left = (box.GetOffset() + box.GetSize()) - input.GetOffset();
+                input.SkipBytes(left);
             }
             return box;
         }
@@ -409,6 +409,8 @@ namespace SharpJaad.MP4.Boxes
                     }
                     catch (Exception e)
                     {
+                        Debug.WriteLine(e.Message);
+                        Debug.WriteLine("BoxFactory: could not call constructor for " + TypeToString(type));
                         //LOGGER.log(Level.SEVERE, "BoxFactory: could not call constructor for " + typeToString(type), e);
                         box = new UnknownBox();
                     }
@@ -421,6 +423,8 @@ namespace SharpJaad.MP4.Boxes
                     }
                     catch (Exception e)
                     {
+                        Debug.WriteLine(e.Message);
+                        Debug.WriteLine("BoxFactory: could not instantiate box " + TypeToString(type));
                         //LOGGER.log(Level.SEVERE, "BoxFactory: could not instantiate box " + typeToString(type), e);
                     }
                 }
@@ -441,7 +445,7 @@ namespace SharpJaad.MP4.Boxes
             b[1] = (byte)((l >> 16) & 0xFF);
             b[2] = (byte)((l >> 8) & 0xFF);
             b[3] = (byte)(l & 0xFF);
-            return Encoding.ASCII.GetString(b);
+            return Encoding.UTF8.GetString(b);
         }
     }
 }

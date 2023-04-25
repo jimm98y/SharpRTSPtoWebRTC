@@ -36,19 +36,19 @@ namespace SharpJaad.MP4
      */
     public class MP4Container
     {
-        private readonly MP4InputStream input;
-        private readonly List<Box> boxes;
-        private Brand major, minor;
-        private Brand[] compatible;
-        private FileTypeBox ftyp;
-        private ProgressiveDownloadInformationBox pdin;
-        private Box moov;
-        private Movie movie;
+        private readonly MP4InputStream _input;
+        private readonly List<Box> _boxes;
+        private Brand _major, _minor;
+        private Brand[] _compatible;
+        private FileTypeBox _ftyp;
+        private ProgressiveDownloadInformationBox _pdin;
+        private Box _moov;
+        private Movie _movie;
 
         public MP4Container(Stream input)
         {
-            this.input = new MP4InputStream(input);
-            boxes = new List<Box>();
+            this._input = new MP4InputStream(input);
+            _boxes = new List<Box>();
 
             ReadContent();
         }
@@ -59,71 +59,71 @@ namespace SharpJaad.MP4
             Box box = null;
             long type;
             bool moovFound = false;
-            while (input.hasLeft())
+            while (_input.HasLeft())
             {
-                box = BoxFactory.ParseBox(null, input);
-                if (boxes.Count == 0 && box.GetBoxType() != BoxTypes.FILE_TYPE_BOX) throw new MP4Exception("no MP4 signature found");
-                boxes.Add(box);
+                box = BoxFactory.ParseBox(null, _input);
+                if (_boxes.Count == 0 && box.GetBoxType() != BoxTypes.FILE_TYPE_BOX) throw new MP4Exception("no MP4 signature found");
+                _boxes.Add(box);
 
                 type = box.GetBoxType();
                 if (type == BoxTypes.FILE_TYPE_BOX)
                 {
-                    if (ftyp == null) ftyp = (FileTypeBox)box;
+                    if (_ftyp == null) _ftyp = (FileTypeBox)box;
                 }
                 else if (type == BoxTypes.MOVIE_BOX)
                 {
-                    if (movie == null) moov = box;
+                    if (_movie == null) _moov = box;
                     moovFound = true;
                 }
                 else if (type == BoxTypes.PROGRESSIVE_DOWNLOAD_INFORMATION_BOX)
                 {
-                    if (pdin == null) pdin = (ProgressiveDownloadInformationBox)box;
+                    if (_pdin == null) _pdin = (ProgressiveDownloadInformationBox)box;
                 }
                 else if (type == BoxTypes.MEDIA_DATA_BOX)
                 {
                     if (moovFound) break;
-                    else if (!input.hasRandomAccess()) throw new MP4Exception("movie box at end of file, need random access");
+                    else if (!_input.HasRandomAccess()) throw new MP4Exception("movie box at end of file, need random access");
                 }
             }
         }
 
         public Brand GetMajorBrand()
         {
-            if (major == Brand.UNKNOWN_BRAND) major = BrandExtensions.ForID(ftyp.GetMajorBrand());
-            return major;
+            if (_major == Brand.UNKNOWN_BRAND) _major = BrandExtensions.ForID(_ftyp.GetMajorBrand());
+            return _major;
         }
 
         public Brand GetMinorBrand()
         {
-            if (minor == Brand.UNKNOWN_BRAND) minor = BrandExtensions.ForID(ftyp.GetMajorBrand());
-            return minor;
+            if (_minor == Brand.UNKNOWN_BRAND) _minor = BrandExtensions.ForID(_ftyp.GetMajorBrand());
+            return _minor;
         }
 
         public Brand[] GetCompatibleBrands()
         {
-            if (compatible == null)
+            if (_compatible == null)
             {
-                string[] s = ftyp.GetCompatibleBrands();
-                compatible = new Brand[s.Length];
+                string[] s = _ftyp.GetCompatibleBrands();
+                _compatible = new Brand[s.Length];
                 for (int i = 0; i < s.Length; i++)
                 {
-                    compatible[i] = BrandExtensions.ForID(s[i]);
+                    _compatible[i] = BrandExtensions.ForID(s[i]);
                 }
             }
-            return compatible;
+            return _compatible;
         }
 
         //TODO: pdin, movie fragments??
         public Movie GetMovie()
         {
-            if (moov == null) return null;
-            else if (movie == null) movie = new Movie(moov, input);
-            return movie;
+            if (_moov == null) return null;
+            else if (_movie == null) _movie = new Movie(_moov, _input);
+            return _movie;
         }
 
         public List<Box> GetBoxes()
         {
-            return boxes.ToList();
+            return _boxes.ToList();
         }
     }
 }

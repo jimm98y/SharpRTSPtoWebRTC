@@ -18,11 +18,11 @@
         public PrimaryItemBox() : base("Primary Item Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            itemID = (int)input.readBytes(2);
+            itemID = (int)input.ReadBytes(2);
         }
 
         /**

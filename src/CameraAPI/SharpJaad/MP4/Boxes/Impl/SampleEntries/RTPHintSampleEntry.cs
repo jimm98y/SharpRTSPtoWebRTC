@@ -8,13 +8,13 @@
         public RTPHintSampleEntry() : base("RTP Hint Sample Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _hintTrackVersion = (int)input.readBytes(2);
-            _highestCompatibleVersion = (int)input.readBytes(2);
-            _maxPacketSize = input.readBytes(4);
+            _hintTrackVersion = (int)input.ReadBytes(2);
+            _highestCompatibleVersion = (int)input.ReadBytes(2);
+            _maxPacketSize = input.ReadBytes(4);
         }
 
         /**

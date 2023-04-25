@@ -7,11 +7,11 @@
         public BitRateBox() : base("Bitrate Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _decodingBufferSize = input.readBytes(4);
-            _maxBitrate = input.readBytes(4);
-            _avgBitrate = input.readBytes(4);
+            _decodingBufferSize = input.ReadBytes(4);
+            _maxBitrate = input.ReadBytes(4);
+            _avgBitrate = input.ReadBytes(4);
         }
 
         /**

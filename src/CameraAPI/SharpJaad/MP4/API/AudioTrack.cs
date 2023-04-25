@@ -35,15 +35,15 @@ namespace SharpJaad.MP4.API
             return ac;
         }
 
-        private readonly SoundMediaHeaderBox smhd;
-        private readonly AudioSampleEntry sampleEntry;
-        private AudioCodec codec;
+        private readonly SoundMediaHeaderBox _smhd;
+        private readonly AudioSampleEntry _sampleEntry;
+        private AudioCodec _codec;
 
         public AudioTrack(Box trak, MP4InputStream input) : base(trak, input)
         {
             Box mdia = trak.GetChild(BoxTypes.MEDIA_BOX);
             Box minf = mdia.GetChild(BoxTypes.MEDIA_INFORMATION_BOX);
-            smhd = (SoundMediaHeaderBox)minf.GetChild(BoxTypes.SOUND_MEDIA_HEADER_BOX);
+            _smhd = (SoundMediaHeaderBox)minf.GetChild(BoxTypes.SOUND_MEDIA_HEADER_BOX);
 
             Box stbl = minf.GetChild(BoxTypes.SAMPLE_TABLE_BOX);
 
@@ -51,37 +51,37 @@ namespace SharpJaad.MP4.API
             SampleDescriptionBox stsd = (SampleDescriptionBox)stbl.GetChild(BoxTypes.SAMPLE_DESCRIPTION_BOX);
             if (stsd.GetChildren()[0] is AudioSampleEntry) 
             {
-                sampleEntry = (AudioSampleEntry)stsd.GetChildren()[0];
-                long type = sampleEntry.GetBoxType();
-                if (sampleEntry.HasChild(BoxTypes.ESD_BOX)) findDecoderSpecificInfo((ESDBox)sampleEntry.GetChild(BoxTypes.ESD_BOX));
-                else decoderInfo = DecoderInfo.Parse((CodecSpecificBox)sampleEntry.GetChildren()[0]);
+                _sampleEntry = (AudioSampleEntry)stsd.GetChildren()[0];
+                long type = _sampleEntry.GetBoxType();
+                if (_sampleEntry.HasChild(BoxTypes.ESD_BOX)) FindDecoderSpecificInfo((ESDBox)_sampleEntry.GetChild(BoxTypes.ESD_BOX));
+                else _decoderInfo = DecoderInfo.Parse((CodecSpecificBox)_sampleEntry.GetChildren()[0]);
 
                 if (type == BoxTypes.ENCRYPTED_AUDIO_SAMPLE_ENTRY || type == BoxTypes.DRMS_SAMPLE_ENTRY)
                 {
-                    findDecoderSpecificInfo((ESDBox)sampleEntry.GetChild(BoxTypes.ESD_BOX));
-                    protection = Protection.parse(sampleEntry.GetChild(BoxTypes.PROTECTION_SCHEME_INFORMATION_BOX));
-                    codec = protection.getOriginalFormat();
+                    FindDecoderSpecificInfo((ESDBox)_sampleEntry.GetChild(BoxTypes.ESD_BOX));
+                    _protection = Protection.Parse(_sampleEntry.GetChild(BoxTypes.PROTECTION_SCHEME_INFORMATION_BOX));
+                    _codec = (AudioCodec)_protection.GetOriginalFormat();
                 }
                 else
                 {
-                    codec = ForType(sampleEntry.GetBoxType());
+                    _codec = ForType(_sampleEntry.GetBoxType());
                 }
             }
             else
             {
-                sampleEntry = null;
-                codec = AudioCodec.UNKNOWN_AUDIO_CODEC;
+                _sampleEntry = null;
+                _codec = AudioCodec.UNKNOWN_AUDIO_CODEC;
             }
 	    }
         
-        public override Type getType()
+        public override Type GetTrackType()
         {
             return Type.AUDIO;
         }
 
-        public override AudioCodec GetCodec()
+        public override System.Enum GetCodec()
         {
-            return codec;
+            return _codec;
         }
 
         /**
@@ -93,7 +93,7 @@ namespace SharpJaad.MP4.API
          */
         public double GetBalance()
         {
-            return smhd.GetBalance();
+            return _smhd.GetBalance();
         }
 
         /**
@@ -102,7 +102,7 @@ namespace SharpJaad.MP4.API
          */
         public int GetChannelCount()
         {
-            return sampleEntry.getChannelCount();
+            return _sampleEntry.GetChannelCount();
         }
 
         /**
@@ -111,7 +111,7 @@ namespace SharpJaad.MP4.API
          */
         public int GetSampleRate()
         {
-            return sampleEntry.getSampleRate();
+            return _sampleEntry.GetSampleRate();
         }
 
         /**
@@ -120,12 +120,12 @@ namespace SharpJaad.MP4.API
          */
         public int GetSampleSize()
         {
-            return sampleEntry.getSampleSize();
+            return _sampleEntry.GetSampleSize();
         }
 
         public double GetVolume()
         {
-            return tkhd.getVolume();
+            return _tkhd.GetVolume();
         }
     }
 }

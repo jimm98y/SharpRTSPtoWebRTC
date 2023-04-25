@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SharpJaad.MP4.Boxes
+﻿namespace SharpJaad.MP4.Boxes
 {
     public static class BoxTypes
     {

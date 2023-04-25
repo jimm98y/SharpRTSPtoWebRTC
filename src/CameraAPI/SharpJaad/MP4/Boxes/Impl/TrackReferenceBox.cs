@@ -26,13 +26,13 @@ namespace SharpJaad.MP4.Boxes.Impl
             _trackIDs = new List<long>();
         }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _referenceType = input.readString(4);
+            _referenceType = input.ReadString(4);
 
             while (GetLeft(input) > 3)
             {
-                _trackIDs.Add(input.readBytes(4));
+                _trackIDs.Add(input.ReadBytes(4));
             }
         }
 

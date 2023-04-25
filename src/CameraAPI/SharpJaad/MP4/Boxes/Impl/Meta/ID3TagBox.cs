@@ -13,10 +13,10 @@
         {
             base.Decode(input);
 
-            _language = Utils.getLanguageCode(input.readBytes(2));
+            _language = Utils.GetLanguageCode(input.ReadBytes(2));
 
             _id3Data = new byte[(int)GetLeft(input)];
-            input.readBytes(_id3Data);
+            input.ReadBytes(_id3Data);
         }
 
         public byte[] GetID3Data()

@@ -2,29 +2,29 @@
 {
     public class ThreeGPPKeywordsBox : ThreeGPPMetadataBox
     {
-        private string[] keywords;
+        private string[] _keywords;
 
         public ThreeGPPKeywordsBox() : base("3GPP Keywords Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            int count = input.read();
-            keywords = new string[count];
+            int count = input.Read();
+            _keywords = new string[count];
 
             int len;
             for (int i = 0; i < count; i++) 
             {
-                len = input.read();
-                keywords[i] = input.readUTFString(len);
+                len = input.Read();
+                _keywords[i] = input.ReadUTFString(len);
             }
         }
 
         public string[] GetKeywords()
         {
-            return keywords;
+            return _keywords;
         }
     }
 }

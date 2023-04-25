@@ -29,38 +29,38 @@
             _matrix = new double[9];
         }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _enabled = (flags & 1) == 1;
-            _inMovie = (flags & 2) == 2;
-            _inPreview = (flags & 4) == 4;
+            _enabled = (_flags & 1) == 1;
+            _inMovie = (_flags & 2) == 2;
+            _inPreview = (_flags & 4) == 4;
 
-            int len = (version == 1) ? 8 : 4;
-            _creationTime = input.readBytes(len);
-            _modificationTime = input.readBytes(len);
-            _trackID = (int)input.readBytes(4);
-            input.skipBytes(4); //reserved
-            _duration = Utils.detectUndetermined(input.readBytes(len));
+            int len = (_version == 1) ? 8 : 4;
+            _creationTime = input.ReadBytes(len);
+            _modificationTime = input.ReadBytes(len);
+            _trackID = (int)input.ReadBytes(4);
+            input.SkipBytes(4); //reserved
+            _duration = Utils.DetectUndetermined(input.ReadBytes(len));
 
-            input.skipBytes(8); //reserved
+            input.SkipBytes(8); //reserved
 
-            _layer = (int)input.readBytes(2);
-            _alternateGroup = (int)input.readBytes(2);
-            _volume = input.readFixedPoint(8, 8);
+            _layer = (int)input.ReadBytes(2);
+            _alternateGroup = (int)input.ReadBytes(2);
+            _volume = input.ReadFixedPoint(8, 8);
 
-            input.skipBytes(2); //reserved
+            input.SkipBytes(2); //reserved
 
             for (int i = 0; i < 9; i++)
             {
-                if (i < 6) _matrix[i] = input.readFixedPoint(16, 16);
+                if (i < 6) _matrix[i] = input.ReadFixedPoint(16, 16);
 
-                else _matrix[i] = input.readFixedPoint(2, 30);
+                else _matrix[i] = input.ReadFixedPoint(2, 30);
             }
 
-            _width = input.readFixedPoint(16, 16);
-            _height = input.readFixedPoint(16, 16);
+            _width = input.ReadFixedPoint(16, 16);
+            _height = input.ReadFixedPoint(16, 16);
         }
 
         /**

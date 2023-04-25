@@ -7,11 +7,11 @@
         public MetadataSampleEntry(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _contentEncoding = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+            _contentEncoding = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
         }
 
         /**

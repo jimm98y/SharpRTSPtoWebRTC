@@ -32,16 +32,16 @@
 		public SampleScaleBox() : base("Sample Scale Box")
 		{ }
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			base.decode(input);
+			base.Decode(input);
 
 			//7 bits reserved, 1 bit flag
-			_constrained = (input.read() & 1) == 1;
+			_constrained = (input.Read() & 1) == 1;
 
-			_scaleMethod = input.read();
-			_displayCenterX = (int)input.readBytes(2);
-			_displayCenterY = (int)input.readBytes(2);
+			_scaleMethod = input.Read();
+			_displayCenterX = (int)input.ReadBytes(2);
+			_displayCenterY = (int)input.ReadBytes(2);
 		}
 
 		/**

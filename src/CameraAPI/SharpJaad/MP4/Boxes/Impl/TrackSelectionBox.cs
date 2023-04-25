@@ -47,15 +47,15 @@ namespace SharpJaad.MP4.Boxes.Impl
 			_attributes = new List<long>();
 		}
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			base.decode(input);
+			base.Decode(input);
 
-			_switchGroup = input.readBytes(4);
+			_switchGroup = input.ReadBytes(4);
 
 			while (GetLeft(input) > 3)
 			{
-				_attributes.Add(input.readBytes(4));
+				_attributes.Add(input.ReadBytes(4));
 			}
 		}
 

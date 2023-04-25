@@ -43,7 +43,8 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
 
         }
 
-        private static readonly DataType[] TYPES = {
+        private static readonly DataType[] TYPES = 
+        {
             DataType.IMPLICIT, DataType.UTF8, DataType.UTF16, DataType.UNDEFINED, DataType.UNDEFINED, DataType.UNDEFINED, DataType.HTML, DataType.XML, DataType.UUID, DataType.ISRC, DataType.MI3P, DataType.UNDEFINED,
             DataType.GIF, DataType.JPEG, DataType.PNG, DataType.URL, DataType.DURATION, DataType.DATETIME, DataType.GENRE, DataType.UNDEFINED, DataType.UNDEFINED, DataType.INTEGER,
             DataType.UNDEFINED, DataType.UNDEFINED, DataType.RIAA, DataType.UPC, DataType.UNDEFINED, DataType.BMP
@@ -66,12 +67,12 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
         {
             base.Decode(input);
 
-            _dataType = ForInt(flags);
+            _dataType = ForInt(_flags);
 
-            input.skipBytes(4); //padding?
+            input.SkipBytes(4); //padding?
 
             _data = new byte[(int)GetLeft(input)];
-            input.readBytes(_data);
+            input.ReadBytes(_data);
         }
 
         public DataType GetDataType()
@@ -111,7 +112,7 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
             for (int i = 0; i < _data.Length; i++)
             {
                 l <<= 8;
-                l |= (_data[i] & 0xFF);
+                l |= (long)(_data[i] & 0xFF);
             }
             return l;
         }
@@ -137,7 +138,7 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
             DateTime date;
             if (i >= 0 && i < TIMESTAMPS.Length)
             {
-                date = DateTime.ParseExact(Encoding.ASCII.GetString(_data), TIMESTAMPS[i], CultureInfo.InvariantCulture);
+                date = DateTime.ParseExact(Encoding.UTF8.GetString(_data), TIMESTAMPS[i], CultureInfo.InvariantCulture);
             }
             else date = DateTime.MinValue;
             return date;

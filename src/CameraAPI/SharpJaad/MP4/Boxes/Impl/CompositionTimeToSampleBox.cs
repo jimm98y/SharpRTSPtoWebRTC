@@ -21,18 +21,18 @@
         public CompositionTimeToSampleBox() : base("Time To Sample Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
             _sampleCounts = new long[entryCount];
             _sampleOffsets = new long[entryCount];
 
             for (int i = 0; i < entryCount; i++)
             {
-                _sampleCounts[i] = input.readBytes(4);
-                _sampleOffsets[i] = input.readBytes(4);
+                _sampleCounts[i] = input.ReadBytes(4);
+                _sampleOffsets[i] = input.ReadBytes(4);
             }
         }
 

@@ -21,26 +21,26 @@
     public class ESDescriptor : Descriptor
     {
         private int _esID, _streamPriority, _dependingOnES_ID;
-        private bool _streamDependency, _urlPresent, _ocrPresent;
+        private bool _streamDependency, _urlPresent /*, _ocrPresent */;
         private string _url;
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _esID = (int)input.readBytes(2);
+            _esID = (int)input.ReadBytes(2);
 
             //1 bit stream dependence flag, 1 it url flag, 1 reserved, 5 bits stream priority
-            int flags = input.read();
+            int flags = input.Read();
             _streamDependency = ((flags >> 7) & 1) == 1;
             _urlPresent = ((flags >> 6) & 1) == 1;
             _streamPriority = flags & 31;
 
-            if (_streamDependency) _dependingOnES_ID = (int)input.readBytes(2);
+            if (_streamDependency) _dependingOnES_ID = (int)input.ReadBytes(2);
             else _dependingOnES_ID = -1;
 
             if (_urlPresent)
             {
-                int len = input.read();
-                _url = input.readString(len);
+                int len = input.Read();
+                _url = input.ReadString(len);
             }
 
             ReadChildren(input);

@@ -9,27 +9,33 @@
         public TrackFragmentRandomAccessBox() : base("Track Fragment Random Access Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _trackID = input.readBytes(4);
+            _trackID = input.ReadBytes(4);
             //26 bits reserved, 2 bits trafSizeLen, 2 bits trunSizeLen, 2 bits sampleSizeLen
-            long l = input.readBytes(4);
+            long l = input.ReadBytes(4);
             int trafNumberLen = (int)((l >> 4) & 0x3) + 1;
             int trunNumberLen = (int)((l >> 2) & 0x3) + 1;
             int sampleNumberLen = (int)(l & 0x3) + 1;
-            _entryCount = (int)input.readBytes(4);
+            _entryCount = (int)input.ReadBytes(4);
 
-            int len = (version == 1) ? 8 : 4;
+            int len = (_version == 1) ? 8 : 4;
+
+            _times = new long[_entryCount];
+            _moofOffsets = new long[_entryCount];
+            _trafNumbers = new long[_entryCount];
+            _trunNumbers = new long[_entryCount];
+            _sampleNumbers = new long[_entryCount];
 
             for (int i = 0; i < _entryCount; i++)
             {
-                _times[i] = input.readBytes(len);
-                _moofOffsets[i] = input.readBytes(len);
-                _trafNumbers[i] = input.readBytes(trafNumberLen);
-                _trunNumbers[i] = input.readBytes(trunNumberLen);
-                _sampleNumbers[i] = input.readBytes(sampleNumberLen);
+                _times[i] = input.ReadBytes(len);
+                _moofOffsets[i] = input.ReadBytes(len);
+                _trafNumbers[i] = input.ReadBytes(trafNumberLen);
+                _trunNumbers[i] = input.ReadBytes(trunNumberLen);
+                _sampleNumbers[i] = input.ReadBytes(sampleNumberLen);
             }
         }
 

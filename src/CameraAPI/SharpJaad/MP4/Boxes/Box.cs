@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace SharpJaad.MP4.Boxes
 {
@@ -35,7 +34,7 @@ namespace SharpJaad.MP4.Boxes
          *
          * @return this box's name
          */
-        String GetName();
+        string GetName();
 
         /**
          * Indicates if this box has children.

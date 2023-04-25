@@ -7,11 +7,11 @@
         public ThreeGPPRecordingYearBox() : base("3GPP Recording Year Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _year = (int)input.readBytes(2);
+            _year = (int)input.ReadBytes(2);
         }
 
         public int GetYear()

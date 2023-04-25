@@ -10,30 +10,30 @@
         public VideoSampleEntry(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            input.skipBytes(2); //pre-defined: 0
-            input.skipBytes(2); //reserved
+            input.SkipBytes(2); //pre-defined: 0
+            input.SkipBytes(2); //reserved
                                 //3x32 pre_defined
-            input.skipBytes(4); //pre-defined: 0
-            input.skipBytes(4); //pre-defined: 0
-            input.skipBytes(4); //pre-defined: 0
+            input.SkipBytes(4); //pre-defined: 0
+            input.SkipBytes(4); //pre-defined: 0
+            input.SkipBytes(4); //pre-defined: 0
 
-            _width = (int)input.readBytes(2);
-            _height = (int)input.readBytes(2);
-            _horizontalResolution = input.readFixedPoint(16, 16);
-            _verticalResolution = input.readFixedPoint(16, 16);
-            input.skipBytes(4); //reserved
-            _frameCount = (int)input.readBytes(2);
+            _width = (int)input.ReadBytes(2);
+            _height = (int)input.ReadBytes(2);
+            _horizontalResolution = input.ReadFixedPoint(16, 16);
+            _verticalResolution = input.ReadFixedPoint(16, 16);
+            input.SkipBytes(4); //reserved
+            _frameCount = (int)input.ReadBytes(2);
 
-            int len = input.read();
-            _compressorName = input.readString(len);
-            input.skipBytes(31 - len);
+            int len = input.Read();
+            _compressorName = input.ReadString(len);
+            input.SkipBytes(31 - len);
 
-            _depth = (int)input.readBytes(2);
-            input.skipBytes(2); //pre-defined: -1
+            _depth = (int)input.ReadBytes(2);
+            input.SkipBytes(2); //pre-defined: -1
 
             ReadChildren(input);
         }

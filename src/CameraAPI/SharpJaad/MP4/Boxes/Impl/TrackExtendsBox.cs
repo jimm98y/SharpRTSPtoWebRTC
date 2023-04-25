@@ -16,14 +16,14 @@
         public TrackExtendsBox() : base("Track Extends Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _trackID = input.readBytes(4);
-            _defaultSampleDescriptionIndex = input.readBytes(4);
-            _defaultSampleDuration = input.readBytes(4);
-            _defaultSampleSize = input.readBytes(4);
+            _trackID = input.ReadBytes(4);
+            _defaultSampleDescriptionIndex = input.ReadBytes(4);
+            _defaultSampleDuration = input.ReadBytes(4);
+            _defaultSampleSize = input.ReadBytes(4);
             /* 6 bits reserved
              * 2 bits sampleDependsOn
              * 2 bits sampleIsDependedOn
@@ -32,7 +32,7 @@
              * 1 bit sampleIsDifferenceSample
              * 16 bits sampleDegradationPriority
              */
-            _defaultSampleFlags = input.readBytes(4);
+            _defaultSampleFlags = input.ReadBytes(4);
         }
 
         /**

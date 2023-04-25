@@ -25,35 +25,35 @@
         public TrackFragmentRunBox() : base("Track Fragment Run Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _sampleCount = (int)input.readBytes(4);
+            _sampleCount = (int)input.ReadBytes(4);
 
             //optional fields
-            _dataOffsetPresent = ((flags & 1) == 1);
-            if (_dataOffsetPresent) _dataOffset = input.readBytes(4);
+            _dataOffsetPresent = ((_flags & 1) == 1);
+            if (_dataOffsetPresent) _dataOffset = input.ReadBytes(4);
 
-            _firstSampleFlagsPresent = ((flags & 4) == 4);
-            if (_firstSampleFlagsPresent) _firstSampleFlags = input.readBytes(4);
+            _firstSampleFlagsPresent = ((_flags & 4) == 4);
+            if (_firstSampleFlagsPresent) _firstSampleFlags = input.ReadBytes(4);
 
             //all fields are optional
-            _sampleDurationPresent = ((flags & 0x100) == 0x100);
+            _sampleDurationPresent = ((_flags & 0x100) == 0x100);
             if (_sampleDurationPresent) _sampleDuration = new long[_sampleCount];
-            _sampleSizePresent = ((flags & 0x200) == 0x200);
+            _sampleSizePresent = ((_flags & 0x200) == 0x200);
             if (_sampleSizePresent) _sampleSize = new long[_sampleCount];
-            _sampleFlagsPresent = ((flags & 0x400) == 0x400);
+            _sampleFlagsPresent = ((_flags & 0x400) == 0x400);
             if (_sampleFlagsPresent) _sampleFlags = new long[_sampleCount];
-            _sampleCompositionTimeOffsetPresent = ((flags & 0x800) == 0x800);
+            _sampleCompositionTimeOffsetPresent = ((_flags & 0x800) == 0x800);
             if (_sampleCompositionTimeOffsetPresent) _sampleCompositionTimeOffset = new long[_sampleCount];
 
             for (int i = 0; i < _sampleCount && GetLeft(input) > 0; i++)
             {
-                if (_sampleDurationPresent) _sampleDuration[i] = input.readBytes(4);
-                if (_sampleSizePresent) _sampleSize[i] = input.readBytes(4);
-                if (_sampleFlagsPresent) _sampleFlags[i] = input.readBytes(4);
-                if (_sampleCompositionTimeOffsetPresent) _sampleCompositionTimeOffset[i] = input.readBytes(4);
+                if (_sampleDurationPresent) _sampleDuration[i] = input.ReadBytes(4);
+                if (_sampleSizePresent) _sampleSize[i] = input.ReadBytes(4);
+                if (_sampleFlagsPresent) _sampleFlags[i] = input.ReadBytes(4);
+                if (_sampleCompositionTimeOffsetPresent) _sampleCompositionTimeOffset[i] = input.ReadBytes(4);
             }
         }
 

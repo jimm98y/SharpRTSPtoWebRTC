@@ -7,20 +7,20 @@
         public SampleToChunkBox() : base("Sample To Chunk Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
             _firstChunks = new long[entryCount];
             _samplesPerChunk = new long[entryCount];
             _sampleDescriptionIndex = new long[entryCount];
 
             for (int i = 0; i < entryCount; i++)
             {
-                _firstChunks[i] = input.readBytes(4);
-                _samplesPerChunk[i] = input.readBytes(4);
-                _sampleDescriptionIndex[i] = input.readBytes(4);
+                _firstChunks[i] = input.ReadBytes(4);
+                _samplesPerChunk[i] = input.ReadBytes(4);
+                _sampleDescriptionIndex[i] = input.ReadBytes(4);
             }
         }
 

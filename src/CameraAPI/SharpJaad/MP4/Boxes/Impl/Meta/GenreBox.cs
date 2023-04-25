@@ -12,11 +12,11 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
         public override void Decode(MP4InputStream input)
         {
             //3gpp or iTunes
-            if (parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
+            if (_parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
             {
                 base.Decode(input);
-                _languageCode = Utils.getLanguageCode(input.readBytes(2));
-                byte[] b = input.readTerminated((int)GetLeft(input), 0);
+                _languageCode = Utils.GetLanguageCode(input.ReadBytes(2));
+                byte[] b = input.ReadTerminated((int)GetLeft(input), 0);
                 _genre = Encoding.UTF8.GetString(b);
             }
             else ReadChildren(input);

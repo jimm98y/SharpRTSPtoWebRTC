@@ -10,22 +10,22 @@
         public ItemInformationEntry() : base("Item Information Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            if ((version == 0) || (version == 1))
+            if ((_version == 0) || (_version == 1))
             {
-                _itemID = (int)input.readBytes(2);
-                _itemProtectionIndex = (int)input.readBytes(2);
-                _itemName = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
-                _contentType = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
-                _contentEncoding = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8); //optional
+                _itemID = (int)input.ReadBytes(2);
+                _itemProtectionIndex = (int)input.ReadBytes(2);
+                _itemName = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+                _contentType = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+                _contentEncoding = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8); //optional
             }
-            if (version == 1 && GetLeft(input) > 0)
+            if (_version == 1 && GetLeft(input) > 0)
             {
                 //optional
-                _extensionType = input.readBytes(4);
+                _extensionType = input.ReadBytes(4);
                 if (GetLeft(input) > 0)
                 {
                     _extension = Extension.ForType((int)_extensionType);
@@ -147,17 +147,17 @@
 
             public override void decode(MP4InputStream input)
             {
-                _contentLocation = input.readUTFString(100, MP4InputStream.UTF8);
-                _contentMD5 = input.readUTFString(100, MP4InputStream.UTF8);
+                _contentLocation = input.ReadUTFString(100, MP4InputStream.UTF8);
+                _contentMD5 = input.ReadUTFString(100, MP4InputStream.UTF8);
 
-                _contentLength = input.readBytes(8);
-                _transferLength = input.readBytes(8);
+                _contentLength = input.ReadBytes(8);
+                _transferLength = input.ReadBytes(8);
 
-                int entryCount = input.read();
+                int entryCount = input.Read();
                 _groupID = new long[entryCount];
                 for (int i = 0; i < entryCount; i++)
                 {
-                    _groupID[i] = input.readBytes(4);
+                    _groupID[i] = input.ReadBytes(4);
                 }
             }
 

@@ -27,18 +27,18 @@
         public ThreeGPPLocationBox() : base("3GPP Location Information Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            _placeName = input.readUTFString((int)GetLeft(input));
-            _role = input.read();
-            _longitude = input.readFixedPoint(16, 16);
-            _latitude = input.readFixedPoint(16, 16);
-            _altitude = input.readFixedPoint(16, 16);
+            _placeName = input.ReadUTFString((int)GetLeft(input));
+            _role = input.Read();
+            _longitude = input.ReadFixedPoint(16, 16);
+            _latitude = input.ReadFixedPoint(16, 16);
+            _altitude = input.ReadFixedPoint(16, 16);
 
-            _astronomicalBody = input.readUTFString((int)GetLeft(input));
-            _additionalNotes = input.readUTFString((int)GetLeft(input));
+            _astronomicalBody = input.ReadUTFString((int)GetLeft(input));
+            _additionalNotes = input.ReadUTFString((int)GetLeft(input));
         }
 
         /**

@@ -7,11 +7,11 @@
         public TextMetadataSampleEntry() : base("Text Metadata Sample Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _mimeType = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+            _mimeType = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
         }
 
         /**

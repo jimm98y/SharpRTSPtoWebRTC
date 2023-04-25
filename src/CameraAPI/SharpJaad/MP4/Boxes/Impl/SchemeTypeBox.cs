@@ -14,13 +14,13 @@
         public SchemeTypeBox() : base("Scheme Type Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _schemeType = input.readBytes(4);
-            _schemeVersion = input.readBytes(4);
-            _schemeURI = ((flags & 1) == 1) ? input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8) : null;
+            _schemeType = input.ReadBytes(4);
+            _schemeVersion = input.ReadBytes(4);
+            _schemeURI = ((_flags & 1) == 1) ? input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8) : null;
         }
 
         /**

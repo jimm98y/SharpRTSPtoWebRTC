@@ -11,10 +11,10 @@
         {
             base.Decode(input);
 
-            _domain = input.readString((int)GetLeft(input));
+            _domain = input.ReadString((int)GetLeft(input));
         }
 
-        public string getDomain()
+        public string GetDomain()
         {
             return _domain;
         }

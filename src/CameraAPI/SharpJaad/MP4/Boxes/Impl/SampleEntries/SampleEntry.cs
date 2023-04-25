@@ -7,10 +7,10 @@
         protected SampleEntry(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            input.skipBytes(6); //reserved
-            _dataReferenceIndex = input.readBytes(2);
+            input.SkipBytes(6); //reserved
+            _dataReferenceIndex = input.ReadBytes(2);
         }
 
         /**

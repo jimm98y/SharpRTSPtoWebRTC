@@ -7,7 +7,7 @@ namespace SharpJaad.MP4.API
 {
     public class VideoTrack : Track
     {
-        public enum VideoCodec : Codec
+        public enum VideoCodec
         {
             AVC,
             H263,
@@ -15,7 +15,7 @@ namespace SharpJaad.MP4.API
             UNKNOWN_VIDEO_CODEC
         }
 
-        public static VideoCodec forType(long type)
+        public static VideoCodec ForType(long type)
         {
             VideoCodec ac;
             if (type == BoxTypes.AVC_SAMPLE_ENTRY) ac = VideoCodec.AVC;
@@ -25,14 +25,14 @@ namespace SharpJaad.MP4.API
             return ac;
         }
 
-        private readonly VideoMediaHeaderBox vmhd;
-        private readonly VideoSampleEntry sampleEntry;
-        private readonly Codec codec;
+        private readonly VideoMediaHeaderBox _vmhd;
+        private readonly VideoSampleEntry _sampleEntry;
+        private readonly VideoCodec _codec;
 
         public VideoTrack(Box trak, MP4InputStream input) : base(trak, input)
         {
             Box minf = trak.GetChild(BoxTypes.MEDIA_BOX).GetChild(BoxTypes.MEDIA_INFORMATION_BOX);
-            vmhd = (VideoMediaHeaderBox)minf.GetChild(BoxTypes.VIDEO_MEDIA_HEADER_BOX);
+            _vmhd = (VideoMediaHeaderBox)minf.GetChild(BoxTypes.VIDEO_MEDIA_HEADER_BOX);
 
             Box stbl = minf.GetChild(BoxTypes.SAMPLE_TABLE_BOX);
 
@@ -40,73 +40,73 @@ namespace SharpJaad.MP4.API
             SampleDescriptionBox stsd = (SampleDescriptionBox)stbl.GetChild(BoxTypes.SAMPLE_DESCRIPTION_BOX);
             if (stsd.GetChildren()[0] is VideoSampleEntry) 
             {
-                sampleEntry = (VideoSampleEntry)stsd.GetChildren()[0];
-                long type = sampleEntry.getType();
-                if (type == BoxTypes.MP4V_SAMPLE_ENTRY) findDecoderSpecificInfo((ESDBox)sampleEntry.GetChild(BoxTypes.ESD_BOX));
+                _sampleEntry = (VideoSampleEntry)stsd.GetChildren()[0];
+                long type = _sampleEntry.GetBoxType();
+                if (type == BoxTypes.MP4V_SAMPLE_ENTRY) FindDecoderSpecificInfo((ESDBox)_sampleEntry.GetChild(BoxTypes.ESD_BOX));
                 else if (type == BoxTypes.ENCRYPTED_VIDEO_SAMPLE_ENTRY || type == BoxTypes.DRMS_SAMPLE_ENTRY)
                 {
-                    findDecoderSpecificInfo((ESDBox)sampleEntry.GetChild(BoxTypes.ESD_BOX));
-                    protection = Protection.parse(sampleEntry.GetChild(BoxTypes.PROTECTION_SCHEME_INFORMATION_BOX));
+                    FindDecoderSpecificInfo((ESDBox)_sampleEntry.GetChild(BoxTypes.ESD_BOX));
+                    _protection = Protection.Parse(_sampleEntry.GetChild(BoxTypes.PROTECTION_SCHEME_INFORMATION_BOX));
                 }
-                else decoderInfo = DecoderInfo.Parse((CodecSpecificBox)sampleEntry.GetChildren().get(0));
+                else _decoderInfo = DecoderInfo.Parse((CodecSpecificBox)_sampleEntry.GetChildren()[0]);
 
-                codec = forType(sampleEntry.getType());
+                _codec = ForType(_sampleEntry.GetBoxType());
             }
             else
             {
-                sampleEntry = null;
-                codec = VideoCodec.UNKNOWN_VIDEO_CODEC;
+                _sampleEntry = null;
+                _codec = VideoCodec.UNKNOWN_VIDEO_CODEC;
             }
         }
 
-        public override Type getType()
+        public override Type GetTrackType()
         {
             return Type.VIDEO;
         }
 
-        public override Codec GetCodec()
+        public override System.Enum GetCodec()
         {
-            return codec;
+            return _codec;
         }
 
         public int GetWidth()
         {
-            return (sampleEntry != null) ? sampleEntry.GetWidth() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetWidth() : 0;
         }
 
         public int GetHeight()
         {
-            return (sampleEntry != null) ? sampleEntry.GetHeight() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetHeight() : 0;
         }
 
         public double GetHorizontalResolution()
         {
-            return (sampleEntry != null) ? sampleEntry.GetHorizontalResolution() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetHorizontalResolution() : 0;
         }
 
         public double GetVerticalResolution()
         {
-            return (sampleEntry != null) ? sampleEntry.GetVerticalResolution() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetVerticalResolution() : 0;
         }
 
         public int GetFrameCount()
         {
-            return (sampleEntry != null) ? sampleEntry.GetFrameCount() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetFrameCount() : 0;
         }
 
         public string GetCompressorName()
         {
-            return (sampleEntry != null) ? sampleEntry.GetCompressorName() : "";
+            return (_sampleEntry != null) ? _sampleEntry.GetCompressorName() : "";
         }
 
         public int GetDepth()
         {
-            return (sampleEntry != null) ? sampleEntry.GetDepth() : 0;
+            return (_sampleEntry != null) ? _sampleEntry.GetDepth() : 0;
         }
 
         public int GetLayer()
         {
-            return tkhd.getLayer();
+            return _tkhd.GetLayer();
         }
     }
 }

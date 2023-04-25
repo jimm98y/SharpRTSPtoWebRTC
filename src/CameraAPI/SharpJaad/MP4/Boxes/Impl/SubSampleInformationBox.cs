@@ -24,12 +24,12 @@
         public SubSampleInformationBox() : base("Sub Sample Information Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (version == 1) ? 4 : 2;
-            int entryCount = (int)input.readBytes(4);
+            int len = (_version == 1) ? 4 : 2;
+            int entryCount = (int)input.ReadBytes(4);
             _sampleDelta = new long[entryCount];
             _subsampleSize = new long[entryCount][];
             _subsamplePriority = new int[entryCount][];
@@ -38,18 +38,18 @@
             int j, subsampleCount;
             for (int i = 0; i < entryCount; i++)
             {
-                _sampleDelta[i] = input.readBytes(4);
-                subsampleCount = (int)input.readBytes(2);
+                _sampleDelta[i] = input.ReadBytes(4);
+                subsampleCount = (int)input.ReadBytes(2);
                 _subsampleSize[i] = new long[subsampleCount];
                 _subsamplePriority[i] = new int[subsampleCount];
                 _discardable[i] = new bool[subsampleCount];
 
                 for (j = 0; j < subsampleCount; j++)
                 {
-                    _subsampleSize[i][j] = input.readBytes(len);
-                    _subsamplePriority[i][j] = input.read();
-                    _discardable[i][j] = (input.read() & 1) == 1;
-                    input.skipBytes(4); //reserved
+                    _subsampleSize[i][j] = input.ReadBytes(len);
+                    _subsamplePriority[i][j] = input.Read();
+                    _discardable[i][j] = (input.Read() & 1) == 1;
+                    input.SkipBytes(4); //reserved
                 }
             }
         }

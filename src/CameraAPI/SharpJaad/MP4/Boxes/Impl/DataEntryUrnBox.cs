@@ -8,15 +8,15 @@
         public DataEntryUrnBox() : base("Data Entry Urn Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _inFile = (flags & 1) == 1;
+            _inFile = (_flags & 1) == 1;
             if (!_inFile)
             {
-                _referenceName = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
-                if (GetLeft(input) > 0) _location = input.readUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+                _referenceName = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
+                if (GetLeft(input) > 0) _location = input.ReadUTFString((int)GetLeft(input), MP4InputStream.UTF8);
             }
         }
 

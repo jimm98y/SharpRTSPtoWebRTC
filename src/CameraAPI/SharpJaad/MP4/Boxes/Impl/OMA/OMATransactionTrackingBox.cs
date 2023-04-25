@@ -14,10 +14,10 @@
         public OMATransactionTrackingBox() : base("OMA DRM Transaction Tracking Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
-            _transactionID = input.readString(16);
+            base.Decode(input);
+            _transactionID = input.ReadString(16);
         }
 
         /**

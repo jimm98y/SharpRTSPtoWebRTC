@@ -9,16 +9,16 @@
      */
     public class OMARightsObjectBox : FullBox
     {
-        private byte[] data;
+        private byte[] _data;
 
         public OMARightsObjectBox() : base("OMA DRM Rights Object Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
-            data = new byte[(int)GetLeft(input)];
-            input.readBytes(data);
+            base.Decode(input);
+            _data = new byte[(int)GetLeft(input)];
+            input.ReadBytes(_data);
         }
 
         /**
@@ -28,7 +28,7 @@
          */
         public byte[] GetData()
         {
-            return data;
+            return _data;
         }
     }
 }

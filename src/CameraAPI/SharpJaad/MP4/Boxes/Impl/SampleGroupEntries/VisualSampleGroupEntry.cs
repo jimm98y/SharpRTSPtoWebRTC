@@ -5,7 +5,7 @@
         public VisualSampleGroupEntry() : base("Video Sample Group Entry")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
         }
     }

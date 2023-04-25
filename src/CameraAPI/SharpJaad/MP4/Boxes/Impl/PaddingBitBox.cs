@@ -15,18 +15,18 @@
         public PaddingBitBox() : base("Padding Bit Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int sampleCount = (int)(input.readBytes(4) + 1) / 2;
+            int sampleCount = (int)(input.ReadBytes(4) + 1) / 2;
             _pad1 = new int[sampleCount];
             _pad2 = new int[sampleCount];
 
             byte b;
             for (int i = 0; i < sampleCount; i++)
             {
-                b = (byte)input.read();
+                b = (byte)input.Read();
                 //1 bit reserved
                 //3 bits pad1
                 _pad1[i] = (b >> 4) & 7;

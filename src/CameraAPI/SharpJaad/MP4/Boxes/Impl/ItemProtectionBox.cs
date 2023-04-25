@@ -11,11 +11,11 @@
         public ItemProtectionBox() : base("Item Protection Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int protectionCount = (int)input.readBytes(2);
+            int protectionCount = (int)input.ReadBytes(2);
 
             ReadChildren(input, protectionCount);
         }

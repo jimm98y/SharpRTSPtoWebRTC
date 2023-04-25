@@ -132,7 +132,6 @@ namespace SharpJaad.AAC.Tools
             state._r0 = Trunc(A * e0);
         }
 
-#warning Review this
         private float Round(float pf)
         {
             return IntBitsToFloat((int)(FloatToIntBits(pf) + 0x00008000 & 0xFFFF0000));

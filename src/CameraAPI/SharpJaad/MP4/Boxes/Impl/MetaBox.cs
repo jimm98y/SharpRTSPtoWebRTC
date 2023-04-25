@@ -8,9 +8,9 @@
         public MetaBox() : base("Meta Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
             ReadChildren(input);
         }
     }

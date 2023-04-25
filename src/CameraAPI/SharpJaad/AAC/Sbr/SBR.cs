@@ -218,7 +218,6 @@ namespace SharpJaad.AAC.Sbr
             if (_qmfs[0] != null) _qmfs[0].Reset();
             if (_qmfs[1] != null) _qmfs[1].Reset();
 
-#warning Review this
             Array.Clear(_G_temp_prev, 0, _G_temp_prev.Length);
             Array.Clear(_Q_temp_prev, 0, _Q_temp_prev.Length);
 
@@ -650,7 +649,6 @@ namespace SharpJaad.AAC.Sbr
                 SbrEnvelope(ld, 1);
                 SbrNoise(ld, 1);
 
-#warning Review this
                 Array.Clear(_bs_add_harmonic, 0, _bs_add_harmonic.Length);
 
                 _bs_add_harmonic_flag[0] = ld.ReadBool();

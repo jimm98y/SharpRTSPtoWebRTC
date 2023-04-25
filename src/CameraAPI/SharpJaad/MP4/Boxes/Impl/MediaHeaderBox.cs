@@ -12,19 +12,19 @@
         public MediaHeaderBox() : base("Media Header Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (version == 1) ? 8 : 4;
-            _creationTime = input.readBytes(len);
-            _modificationTime = input.readBytes(len);
-            _timeScale = input.readBytes(4);
-            _duration = Utils.detectUndetermined(input.readBytes(len));
+            int len = (_version == 1) ? 8 : 4;
+            _creationTime = input.ReadBytes(len);
+            _modificationTime = input.ReadBytes(len);
+            _timeScale = input.ReadBytes(4);
+            _duration = Utils.DetectUndetermined(input.ReadBytes(len));
 
-            _language = Utils.getLanguageCode(input.readBytes(2));
+            _language = Utils.GetLanguageCode(input.ReadBytes(2));
 
-            input.skipBytes(2); //pre-defined: 0
+            input.SkipBytes(2); //pre-defined: 0
         }
 
         /**

@@ -11,27 +11,23 @@
  */
     public class FECReservoirBox : FullBox
     {
-
-
-        private int[] itemIDs;
-        private long[] symbolCounts;
+        private int[] _itemIDs;
+        private long[] _symbolCounts;
 
         public FECReservoirBox() : base("FEC Reservoir Box")
-        {
-
-        }
+        { }
 
         public override void Decode(MP4InputStream input)
         {
             base.Decode(input);
 
-            int entryCount = (int)input.readBytes(2);
-            itemIDs = new int[entryCount];
-            symbolCounts = new long[entryCount];
+            int entryCount = (int)input.ReadBytes(2);
+            _itemIDs = new int[entryCount];
+            _symbolCounts = new long[entryCount];
             for (int i = 0; i < entryCount; i++)
             {
-                itemIDs[i] = (int)input.readBytes(2);
-                symbolCounts[i] = input.readBytes(4);
+                _itemIDs[i] = (int)input.ReadBytes(2);
+                _symbolCounts[i] = input.ReadBytes(4);
             }
         }
 
@@ -41,9 +37,9 @@
          *
          * @return all item IDs
          */
-        public int[] getItemIDs()
+        public int[] GetItemIDs()
         {
-            return itemIDs;
+            return _itemIDs;
         }
 
         /**
@@ -52,9 +48,9 @@
          *
          * @return all symbol counts
          */
-        public long[] getSymbolCounts()
+        public long[] GetSymbolCounts()
         {
-            return symbolCounts;
+            return _symbolCounts;
         }
     }
 }

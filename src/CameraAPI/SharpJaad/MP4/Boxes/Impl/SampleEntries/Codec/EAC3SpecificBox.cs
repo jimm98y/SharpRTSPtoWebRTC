@@ -17,17 +17,25 @@
         public EAC3SpecificBox() : base("EAC-3 Specific Box")
         { }
 
-        public void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            long l = input.readBytes(2);
+            long l = input.ReadBytes(2);
             //13 bits dataRate
             _dataRate = (int)((l >> 3) & 0x1FFF);
             //3 bits number of independent substreams
             _independentSubstreamCount = (int)(l & 0x7);
 
+            _fscods = new int[_independentSubstreamCount];
+            _bsids = new int[_independentSubstreamCount];
+            _bsmods = new int[_independentSubstreamCount];
+            _acmods = new int[_independentSubstreamCount];
+            _dependentSubstreamCount = new int[_independentSubstreamCount];
+            _dependentSubstreamLocation = new int[_independentSubstreamCount];
+            _lfeons = new bool[_independentSubstreamCount];
+
             for (int i = 0; i < _independentSubstreamCount; i++)
             {
-                l = input.readBytes(3);
+                l = input.ReadBytes(3);
                 //2 bits fscod
                 _fscods[i] = (int)((l >> 22) & 0x3);
                 //5 bits bsid
@@ -44,7 +52,7 @@
                 if (_dependentSubstreamCount[i] > 0)
                 {
                     //9 bits dependent substream location
-                    l = (l << 8) | input.read();
+                    l = (l << 8) | (long)input.Read();
                     _dependentSubstreamLocation[i] = (int)(l & 0x1FF);
                 }
                 //else: 1 bit reserved

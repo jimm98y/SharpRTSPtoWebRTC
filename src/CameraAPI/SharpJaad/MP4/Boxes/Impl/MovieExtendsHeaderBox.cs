@@ -14,12 +14,12 @@
         public MovieExtendsHeaderBox() : base("Movie Extends Header Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int len = (version == 1) ? 8 : 4;
-            _fragmentDuration = input.readBytes(len);
+            int len = (_version == 1) ? 8 : 4;
+            _fragmentDuration = input.ReadBytes(len);
         }
 
         /**

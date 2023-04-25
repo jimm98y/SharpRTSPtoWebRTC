@@ -7,17 +7,17 @@
         public AudioSampleEntry(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            input.skipBytes(8); //reserved
-            _channelCount = (int)input.readBytes(2);
-            _sampleSize = (int)input.readBytes(2);
-            input.skipBytes(2); //pre-defined: 0
-            input.skipBytes(2); //reserved
-            _sampleRate = (int)input.readBytes(2);
-            input.skipBytes(2); //not used by samplerate
+            input.SkipBytes(8); //reserved
+            _channelCount = (int)input.ReadBytes(2);
+            _sampleSize = (int)input.ReadBytes(2);
+            input.SkipBytes(2); //pre-defined: 0
+            input.SkipBytes(2); //reserved
+            _sampleRate = (int)input.ReadBytes(2);
+            input.SkipBytes(2); //not used by samplerate
 
             ReadChildren(input);
         }

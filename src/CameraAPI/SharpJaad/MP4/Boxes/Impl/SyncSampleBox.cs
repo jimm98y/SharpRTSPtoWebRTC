@@ -15,15 +15,15 @@
         public SyncSampleBox() : base("Sync Sample Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
             _sampleNumbers = new long[entryCount];
             for (int i = 0; i < entryCount; i++)
             {
-                _sampleNumbers[i] = input.readBytes(4);
+                _sampleNumbers[i] = input.ReadBytes(4);
             }
         }
 

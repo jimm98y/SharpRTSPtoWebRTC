@@ -8,44 +8,44 @@ namespace SharpJaad.MP4.API
 {
     public class Movie
     {
-        private readonly MP4InputStream input;
-        private readonly MovieHeaderBox mvhd;
-	    private readonly List<Track> tracks;
-        private readonly MetaData metaData;
-	    private readonly List<Protection> protections;
+        private readonly MP4InputStream _input;
+        private readonly MovieHeaderBox _mvhd;
+	    private readonly List<Track> _tracks;
+        private readonly MetaData _metaData;
+	    private readonly List<Protection> _protections;
 
         public Movie(Box moov, MP4InputStream input)
         {
-            this.input = input;
+            this._input = input;
 
             //create tracks
-            mvhd = (MovieHeaderBox)moov.GetChild(BoxTypes.MOVIE_HEADER_BOX);
+            _mvhd = (MovieHeaderBox)moov.GetChild(BoxTypes.MOVIE_HEADER_BOX);
             List<Box> trackBoxes = moov.GetChildren(BoxTypes.TRACK_BOX);
-            tracks = new List<Track>(trackBoxes.Count);
+            _tracks = new List<Track>(trackBoxes.Count);
             Track track;
             for (int i = 0; i < trackBoxes.Count; i++)
             {
                 track = CreateTrack(trackBoxes[i]);
-                if (track != null) tracks.Add(track);
+                if (track != null) _tracks.Add(track);
             }
 
             //read metadata: moov.meta/moov.udta.meta
-            metaData = new MetaData();
-            if (moov.HasChild(BoxTypes.META_BOX)) metaData.Parse(null, moov.GetChild(BoxTypes.META_BOX));
+            _metaData = new MetaData();
+            if (moov.HasChild(BoxTypes.META_BOX)) _metaData.Parse(null, moov.GetChild(BoxTypes.META_BOX));
             else if (moov.HasChild(BoxTypes.USER_DATA_BOX))
             {
                 Box udta = moov.GetChild(BoxTypes.USER_DATA_BOX);
-                if (udta.HasChild(BoxTypes.META_BOX)) metaData.Parse(udta, udta.GetChild(BoxTypes.META_BOX));
+                if (udta.HasChild(BoxTypes.META_BOX)) _metaData.Parse(udta, udta.GetChild(BoxTypes.META_BOX));
             }
 
             //detect DRM
-            protections = new List<Protection>();
+            _protections = new List<Protection>();
             if (moov.HasChild(BoxTypes.ITEM_PROTECTION_BOX))
             {
                 Box ipro = moov.GetChild(BoxTypes.ITEM_PROTECTION_BOX);
                 foreach (Box sinf in ipro.GetChildren(BoxTypes.PROTECTION_SCHEME_INFORMATION_BOX))
                 {
-                    protections.Add(Protection.parse(sinf));
+                    _protections.Add(Protection.Parse(sinf));
                 }
             }
         }
@@ -58,10 +58,10 @@ namespace SharpJaad.MP4.API
             switch ((int)hdlr.GetHandlerType())
             {
                 case HandlerBox.TYPE_VIDEO:
-                    track = new VideoTrack(trak, input);
+                    track = new VideoTrack(trak, _input);
                     break;
                 case HandlerBox.TYPE_SOUND:
-                    track = new AudioTrack(trak, input);
+                    track = new AudioTrack(trak, _input);
                     break;
                 default:
                     track = null;
@@ -78,7 +78,7 @@ namespace SharpJaad.MP4.API
          */
         public List<Track> GetTracks()
         {
-            return tracks.ToList();
+            return _tracks.ToList();
         }
 
         /**
@@ -91,9 +91,9 @@ namespace SharpJaad.MP4.API
         public List<Track> GetTracks(Type type)
         {
             List<Track> l = new List<Track>();
-            foreach (Track t in tracks)
+            foreach (Track t in _tracks)
             {
-                if (t.getType().Equals(type)) l.Add(t);
+                if (t.GetTrackType().Equals(type)) l.Add(t);
             }
             return l.ToList();
         }
@@ -105,10 +105,10 @@ namespace SharpJaad.MP4.API
          *
          * @return the tracks contained by this movie with the passed type
          */
-        public List<Track> GetTracks(Track.Codec codec)
+        public List<Track> GetTracks(System.Enum codec)
         {
             List<Track> l = new List<Track>();
-            foreach (Track t in tracks)
+            foreach (Track t in _tracks)
             {
                 if (t.GetCodec().Equals(codec)) l.Add(t);
             }
@@ -123,7 +123,7 @@ namespace SharpJaad.MP4.API
          */
         public bool ContainsMetaData()
         {
-            return metaData.ContainsMetaData();
+            return _metaData.ContainsMetaData();
         }
 
         /**
@@ -133,7 +133,7 @@ namespace SharpJaad.MP4.API
          */
         public MetaData GetMetaData()
         {
-            return metaData;
+            return _metaData;
         }
 
         /**
@@ -145,7 +145,7 @@ namespace SharpJaad.MP4.API
          */
         public List<Protection> GetProtections()
         {
-            return protections.ToList();
+            return _protections.ToList();
         }
 
         //mvhd
@@ -155,7 +155,7 @@ namespace SharpJaad.MP4.API
          */
         public DateTime GetCreationTime()
         {
-            return Utils.getDate(mvhd.GetCreationTime());
+            return Utils.GetDate(_mvhd.GetCreationTime());
         }
 
         /**
@@ -164,7 +164,7 @@ namespace SharpJaad.MP4.API
          */
         public DateTime GetModificationTime()
         {
-            return Utils.getDate(mvhd.GetModificationTime());
+            return Utils.GetDate(_mvhd.GetModificationTime());
         }
 
         /**
@@ -173,7 +173,7 @@ namespace SharpJaad.MP4.API
          */
         public double GetDuration()
         {
-            return (double)mvhd.GetDuration() / (double)mvhd.GetTimeScale();
+            return (double)_mvhd.GetDuration() / (double)_mvhd.GetTimeScale();
         }
 
         /**
@@ -183,9 +183,9 @@ namespace SharpJaad.MP4.API
          */
         public bool HasMoreFrames()
         {
-            foreach (Track track in tracks)
+            foreach (Track track in _tracks)
             {
-                if (track.hasMoreFrames()) return true;
+                if (track.HasMoreFrames()) return true;
             }
             return false;
         }
@@ -201,11 +201,11 @@ namespace SharpJaad.MP4.API
         public Frame ReadNextFrame()
         {
             Track track = null;
-		    foreach(Track t in tracks) {
-			    if(t.hasMoreFrames()&&(track==null||t.getNextTimeStamp()<track.getNextTimeStamp())) track = t;
+		    foreach(Track t in _tracks) {
+			    if(t.HasMoreFrames()&&(track==null||t.GetNextTimeStamp()<track.GetNextTimeStamp())) track = t;
 		    }
 
-		    return (track==null) ? null : track.readNextFrame();
+		    return (track==null) ? null : track.ReadNextFrame();
 	    }
     }
 }

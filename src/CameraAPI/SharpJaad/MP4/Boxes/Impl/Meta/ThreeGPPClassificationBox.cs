@@ -2,28 +2,28 @@
 {
     public class ThreeGPPClassificationBox : ThreeGPPMetadataBox
     {
-        private long entity;
-        private int table;
+        private long _entity;
+        private int _table;
 
         public ThreeGPPClassificationBox() : base("3GPP Classification Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            entity = input.readBytes(4);
-            table = (int)input.readBytes(2);
+            _entity = input.ReadBytes(4);
+            _table = (int)input.ReadBytes(2);
         }
 
         public long GetEntity()
         {
-            return entity;
+            return _entity;
         }
 
         public int GetTable()
         {
-            return table;
+            return _table;
         }
     }
 }

@@ -17,13 +17,13 @@
         public MetaBoxRelationBox() : base("Meta Box Relation Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            _firstMetaboxHandlerType = input.readBytes(4);
-            _secondMetaboxHandlerType = input.readBytes(4);
-            _metaboxRelation = input.read();
+            _firstMetaboxHandlerType = input.ReadBytes(4);
+            _secondMetaboxHandlerType = input.ReadBytes(4);
+            _metaboxRelation = input.Read();
         }
 
         /**

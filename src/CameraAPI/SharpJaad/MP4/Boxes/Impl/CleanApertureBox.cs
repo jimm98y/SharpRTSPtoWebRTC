@@ -14,16 +14,16 @@
         public CleanApertureBox() : base("Clean Aperture Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            _cleanApertureWidthN = input.readBytes(4);
-            _cleanApertureWidthD = input.readBytes(4);
-            _cleanApertureHeightN = input.readBytes(4);
-            _cleanApertureHeightD = input.readBytes(4);
-            _horizOffN = input.readBytes(4);
-            _horizOffD = input.readBytes(4);
-            _vertOffN = input.readBytes(4);
-            _vertOffD = input.readBytes(4);
+            _cleanApertureWidthN = input.ReadBytes(4);
+            _cleanApertureWidthD = input.ReadBytes(4);
+            _cleanApertureHeightN = input.ReadBytes(4);
+            _cleanApertureHeightD = input.ReadBytes(4);
+            _horizOffN = input.ReadBytes(4);
+            _horizOffD = input.ReadBytes(4);
+            _vertOffN = input.ReadBytes(4);
+            _vertOffD = input.ReadBytes(4);
         }
 
         public long GetCleanApertureWidthN()

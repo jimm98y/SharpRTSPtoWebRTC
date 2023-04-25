@@ -18,22 +18,22 @@ namespace SharpJaad.MP4.Boxes.Impl
             _chapters = new Dictionary<long, string>();
         }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            input.skipBytes(4); //??
+            input.SkipBytes(4); //??
 
-            int count = input.read();
+            int count = input.Read();
 
             long timestamp;
             int len;
             string name;
             for (int i = 0; i < count; i++)
             {
-                timestamp = input.readBytes(8);
-                len = input.read();
-                name = input.readString(len);
+                timestamp = input.ReadBytes(8);
+                len = input.Read();
+                name = input.ReadString(len);
                 _chapters.Add(timestamp, name);
             }
         }

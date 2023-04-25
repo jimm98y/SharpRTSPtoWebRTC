@@ -7,13 +7,13 @@
         public AMRSpecificBox() : base("AMR Specific Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            modeSet = (int)input.readBytes(2);
-            modeChangePeriod = input.read();
-            framesPerSample = input.read();
+            modeSet = (int)input.ReadBytes(2);
+            modeChangePeriod = input.Read();
+            framesPerSample = input.Read();
         }
 
         public int GetModeSet()

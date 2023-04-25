@@ -47,41 +47,42 @@
         public ItemLocationBox() : base("Item Location Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             /*4 bits offsetSize
             4 bits lengthSize
             4 bits baseOffsetSize
             4 bits reserved
              */
-            long l = input.readBytes(2);
+            long l = input.ReadBytes(2);
             int offsetSize = (int)(l >> 12) & 0xF;
             int lengthSize = (int)(l >> 8) & 0xF;
             int baseOffsetSize = (int)(l >> 4) & 0xF;
 
-            int itemCount = (int)input.readBytes(2);
+            int itemCount = (int)input.ReadBytes(2);
             _dataReferenceIndex = new int[itemCount];
             _baseOffset = new long[itemCount];
             _extentOffset = new long[itemCount][];
             _extentLength = new long[itemCount][];
+            _itemID = new int[itemCount];
 
             int j, extentCount;
             for (int i = 0; i < itemCount; i++)
             {
-                _itemID[i] = (int)input.readBytes(2);
-                _dataReferenceIndex[i] = (int)input.readBytes(2);
-                _baseOffset[i] = input.readBytes(baseOffsetSize);
+                _itemID[i] = (int)input.ReadBytes(2);
+                _dataReferenceIndex[i] = (int)input.ReadBytes(2);
+                _baseOffset[i] = input.ReadBytes(baseOffsetSize);
 
-                extentCount = (int)input.readBytes(2);
+                extentCount = (int)input.ReadBytes(2);
                 _extentOffset[i] = new long[extentCount];
                 _extentLength[i] = new long[extentCount];
 
                 for (j = 0; j < extentCount; j++)
                 {
-                    _extentOffset[i][j] = input.readBytes(offsetSize);
-                    _extentLength[i][j] = input.readBytes(lengthSize);
+                    _extentOffset[i][j] = input.ReadBytes(offsetSize);
+                    _extentLength[i][j] = input.ReadBytes(lengthSize);
                 }
             }
         }

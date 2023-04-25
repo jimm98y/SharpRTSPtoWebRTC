@@ -15,13 +15,13 @@ namespace SharpJaad.MP4.Boxes.Impl.OMA
         public OMAURLBox(string name) : base(name)
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             byte[]
             b = new byte[(int)GetLeft(input)];
-            input.readBytes(b);
+            input.ReadBytes(b);
             content = Encoding.UTF8.GetString(b);
         }
 

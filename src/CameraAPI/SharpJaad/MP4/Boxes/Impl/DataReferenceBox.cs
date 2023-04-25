@@ -15,11 +15,11 @@
         public DataReferenceBox() : base("Data Reference Box")
         {  }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
-            int entryCount = (int)input.readBytes(4);
+            int entryCount = (int)input.ReadBytes(4);
 
             ReadChildren(input, entryCount); //DataEntryUrlBox, DataEntryUrnBox
         }

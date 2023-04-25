@@ -16,9 +16,9 @@ namespace SharpJaad.MP4.Boxes.Impl
         public ESDBox() : base("ESD Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             _esd = (ESDescriptor)ObjectDescriptor.CreateDescriptor(input);
         }

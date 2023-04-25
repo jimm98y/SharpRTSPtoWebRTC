@@ -40,13 +40,13 @@
 		public SampleDependencyTypeBox() : base("Sample Dependency Type Box")
 		{ }
 
-		public override void decode(MP4InputStream input)
+		public override void Decode(MP4InputStream input)
 		{
-			base.decode(input);
+			base.Decode(input);
 
 			//get number of samples from SampleSizeBox
 			long sampleCount = -1;
-			if (parent.HasChild(BoxTypes.SAMPLE_SIZE_BOX)) sampleCount = ((SampleSizeBox)parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).GetSampleCount();
+			if (_parent.HasChild(BoxTypes.SAMPLE_SIZE_BOX)) sampleCount = ((SampleSizeBox)_parent.GetChild(BoxTypes.SAMPLE_SIZE_BOX)).GetSampleCount();
 			//TODO: uncomment when CompactSampleSizeBox is implemented
 			//else if(parent.containsChild(BoxTypes.COMPACT_SAMPLE_SIZE_BOX)) sampleCount = ((CompactSampleSizeBox)parent.getChild(BoxTypes.SAMPLE_SIZE_BOX)).getSampleSize();
 			_sampleHasRedundancy = new int[(int)sampleCount];
@@ -56,7 +56,7 @@
 			byte b;
 			for (int i = 0; i < sampleCount; i++)
 			{
-				b = (byte)input.read();
+				b = (byte)input.Read();
 				/* 2 bits reserved
 				 * 2 bits sampleDependsOn
 				 * 2 bits sampleIsDependedOn

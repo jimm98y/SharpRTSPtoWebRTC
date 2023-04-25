@@ -16,12 +16,12 @@
         public BinaryXMLBox() : base("Binary XML Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             _data = new byte[(int)GetLeft(input)];
-            input.readBytes(_data);
+            input.ReadBytes(_data);
         }
 
         /**

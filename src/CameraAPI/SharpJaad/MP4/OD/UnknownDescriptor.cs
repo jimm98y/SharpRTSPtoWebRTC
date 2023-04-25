@@ -8,7 +8,7 @@
       */
     public class UnknownDescriptor : Descriptor
     {
-	    public override void decode(MP4InputStream input)
+	    public override void Decode(MP4InputStream input)
         {
             //content will be skipped
         }

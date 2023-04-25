@@ -10,18 +10,18 @@ namespace SharpJaad.MP4.Boxes.Impl.Meta
         public RatingBox() : base("Rating Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             //3gpp or iTunes
-            if (parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
+            if (_parent.GetBoxType() == BoxTypes.USER_DATA_BOX)
             {
-                base.decode(input);
+                base.Decode(input);
 
                 //TODO: what to do with both?
-                long entity = input.readBytes(4);
-                long criteria = input.readBytes(4);
-                _languageCode = Utils.getLanguageCode(input.readBytes(2));
-                byte[] b = input.readTerminated((int)GetLeft(input), 0);
+                long entity = input.ReadBytes(4);
+                long criteria = input.ReadBytes(4);
+                _languageCode = Utils.GetLanguageCode(input.ReadBytes(2));
+                byte[] b = input.ReadTerminated((int)GetLeft(input), 0);
                 _rating = Encoding.UTF8.GetString(b);
             }
             else ReadChildren(input);

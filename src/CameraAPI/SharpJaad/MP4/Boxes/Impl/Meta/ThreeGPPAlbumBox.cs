@@ -2,18 +2,16 @@
 {
     public class ThreeGPPAlbumBox : ThreeGPPMetadataBox
     {
-        private int trackNumber;
+        private int _trackNumber;
 
         public ThreeGPPAlbumBox() : base("3GPP Album Box")
+        {  }
+
+        public override void Decode(MP4InputStream input)
         {
+            base.Decode(input);
 
-        }
-
-        public override void decode(MP4InputStream input)
-        {
-            base.decode(input);
-
-            trackNumber = (GetLeft(input) > 0) ? input.read() : -1;
+            _trackNumber = (GetLeft(input) > 0) ? input.Read() : -1;
         }
 
         /**
@@ -24,7 +22,7 @@
          */
         public int GetTrackNumber()
         {
-            return trackNumber;
+            return _trackNumber;
         }
     }
 }

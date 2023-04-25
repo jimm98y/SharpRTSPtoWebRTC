@@ -23,13 +23,13 @@ namespace SharpJaad.MP4.OD
         public static Descriptor CreateDescriptor(MP4InputStream input)
         {
             //read tag and size
-            int type = input.read();
+            int type = input.Read();
             int read = 1;
             int size = 0;
             int b = 0;
             do
             {
-                b = input.read();
+                b = input.Read();
                 size <<= 7;
                 size |= b & 0x7f;
                 read++;
@@ -40,16 +40,16 @@ namespace SharpJaad.MP4.OD
             Descriptor desc = ForTag(type);
             desc._type = type;
             desc._size = size;
-            desc._start = input.getOffset();
+            desc._start = input.GetOffset();
 
             //decode
-            desc.decode(input);
+            desc.Decode(input);
             //skip remaining bytes
-            long remaining = size - (input.getOffset() - desc._start);
+            long remaining = size - (input.GetOffset() - desc._start);
             if (remaining > 0)
             {
                 //Logger.getLogger("MP4 Boxes").log(Level.INFO, "Descriptor: bytes left: {0}, offset: {1}", new long[]{remaining, input.getOffset()});
-                input.skipBytes(remaining);
+                input.SkipBytes(remaining);
             }
             desc._size += read; //include type and size fields
 
@@ -96,13 +96,13 @@ namespace SharpJaad.MP4.OD
             _children = new List<Descriptor>();
         }
 
-        public abstract void decode(MP4InputStream input);
+        public abstract void Decode(MP4InputStream input);
 
         //children
         protected void ReadChildren(MP4InputStream input)
         {
             Descriptor desc;
-            while ((_size - (input.getOffset() - _start)) > 0)
+            while ((_size - (input.GetOffset() - _start)) > 0)
             {
                 desc = CreateDescriptor(input);
                 _children.Add(desc);
@@ -115,7 +115,7 @@ namespace SharpJaad.MP4.OD
         }
 
         //getter
-        public int getType()
+        public int GetDescriptorType()
         {
             return _type;
         }

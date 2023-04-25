@@ -15,7 +15,7 @@
         public MediaDataBox() : base("Media Data Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             //if random access: skip, else: do nothing
         }

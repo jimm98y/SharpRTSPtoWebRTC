@@ -15,36 +15,36 @@ namespace SharpJaad.MP4.API
             UNKNOWN = -1
         }
 
-        public static Protection parse(Box sinf)
+        public static Protection Parse(Box sinf)
         {
             Protection p = null;
             if (sinf.HasChild(BoxTypes.SCHEME_TYPE_BOX))
             {
                 SchemeTypeBox schm = (SchemeTypeBox)sinf.GetChild(BoxTypes.SCHEME_TYPE_BOX);
                 long l = schm.GetSchemeType();
-                if (l == Scheme.ITUNES_FAIR_PLAY.type) p = new ITunesProtection(sinf);
+                if (l == (long)Scheme.ITUNES_FAIR_PLAY) p = new ITunesProtection(sinf);
             }
 
             if (p == null) p = new UnknownProtection(sinf);
             return p;
         }
 
-        private Codec originalFormat;
+        private System.Enum _originalFormat;
 
         protected Protection(Box sinf)
         {
             //original format
             long type = ((OriginalFormatBox)sinf.GetChild(BoxTypes.ORIGINAL_FORMAT_BOX)).GetOriginalFormat();
-            Codec c;
+            System.Enum c;
             //TODO: currently it tests for audio and video codec, can do this any other way?
-            if (!(c = AudioTrack.ForType(type)).equals(AudioTrack.AudioCodec.UNKNOWN_AUDIO_CODEC)) originalFormat = c;
-            else if (!(c = VideoTrack.forType(type)).equals(VideoTrack.VideoCodec.UNKNOWN_VIDEO_CODEC)) originalFormat = c;
-            else originalFormat = null;
+            if (!(c = AudioTrack.ForType(type)).Equals(AudioTrack.AudioCodec.UNKNOWN_AUDIO_CODEC)) _originalFormat = c;
+            else if (!(c = VideoTrack.ForType(type)).Equals(VideoTrack.VideoCodec.UNKNOWN_VIDEO_CODEC)) _originalFormat = c;
+            else _originalFormat = null;
         }
 
-        public Codec getOriginalFormat()
+        public System.Enum GetOriginalFormat()
         {
-            return originalFormat;
+            return _originalFormat;
         }
 
         public abstract Scheme GetScheme();

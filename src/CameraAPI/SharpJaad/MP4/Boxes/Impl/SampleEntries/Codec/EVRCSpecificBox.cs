@@ -7,11 +7,11 @@
         public EVRCSpecificBox() : base("EVCR Specific Box")
         { }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
             DecodeCommon(input);
 
-            _framesPerSample = input.read();
+            _framesPerSample = input.Read();
         }
 
         public int GetFramesPerSample()

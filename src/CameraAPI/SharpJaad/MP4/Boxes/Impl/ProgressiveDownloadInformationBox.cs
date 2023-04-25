@@ -22,15 +22,15 @@ namespace SharpJaad.MP4.Boxes.Impl
             _pairs = new Dictionary<long, long>();
         }
 
-        public override void decode(MP4InputStream input)
+        public override void Decode(MP4InputStream input)
         {
-            base.decode(input);
+            base.Decode(input);
 
             long rate, initialDelay;
             while (GetLeft(input) > 0)
             {
-                rate = input.readBytes(4);
-                initialDelay = input.readBytes(4);
+                rate = input.ReadBytes(4);
+                initialDelay = input.ReadBytes(4);
                 _pairs.Add(rate, initialDelay);
             }
         }
