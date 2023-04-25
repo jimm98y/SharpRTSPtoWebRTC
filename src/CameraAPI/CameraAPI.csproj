@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\SharpJaad\src\SharpJaad\SharpJaad.csproj" />
+    <ProjectReference Include="..\..\..\SharpJaad\src\SharpJaad.AAC\SharpJaad.AAC.csproj" />
   </ItemGroup>
 
 </Project>
