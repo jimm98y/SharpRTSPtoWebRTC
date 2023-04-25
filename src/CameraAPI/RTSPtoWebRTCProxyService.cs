@@ -205,4 +205,73 @@ namespace CameraAPI
             }
         }
     }
+
+    /*
+     * Sample ASP.NET Core Controller to call this class.
+    /*
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services
+        .AddControllersWithViews()
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        });
+    builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
+    builder.Services.AddSingleton(typeof(RTSPtoWebRTCProxyService));
+    builder.Services.AddHostedService<RTSPtoWebRTCProxyService>();
+    var app = builder.Build();
+    app.UseStaticFiles();
+    app.UseRouting();
+    app.MapControllerRoute(
+        name: "default",
+        pattern: "{controller}/{action=Index}/{id?}");
+    app.MapFallbackToFile("index.html");
+    app.Run();
+
+    [ApiController]
+    [Route("api/[controller]")]
+    public class WebRTCController : ControllerBase
+    {
+        private readonly ILogger<WebRTCController> _logger;
+        private readonly IList<CameraConfiguration> _cameras;
+        private readonly RTSPtoWebRTCProxyService _webRTCServer;
+
+        public WebRTCController(ILogger<WebRTCController> logger, IOptions<List<CameraConfiguration>> cameras, RTSPtoWebRTCProxyService webRTCServer)
+        {
+            _logger = logger;
+            _cameras = cameras.Value;
+            _webRTCServer = webRTCServer;
+        }
+
+        [HttpGet]
+        [Route("getcameras")]
+        public IActionResult GetCameras()
+        {
+            return Ok(_cameras.Select(x => x.Name).ToList());
+        }
+
+        [HttpGet]
+        [Route("getoffer")]
+        public async Task<IActionResult> GetOffer(string id, string name)
+        {
+            return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password));
+        }
+
+        [HttpPost]
+        [Route("setanswer")]
+        public IActionResult SetAnswer(string id, [FromBody] RTCSessionDescriptionInit answer)
+        {
+            _webRTCServer.SetAnswer(id, answer);
+            return Ok();
+        }
+
+        [HttpPost]
+        [Route("addicecandidate")]
+        public IActionResult AddIceCandidate(string id, [FromBody] RTCIceCandidateInit iceCandidate)
+        {
+            _webRTCServer.AddIceCandidate(id, iceCandidate);
+            return Ok();
+        }
+    }
+    */
 }
