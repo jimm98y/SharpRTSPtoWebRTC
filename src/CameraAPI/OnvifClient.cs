@@ -7,10 +7,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Xml.XPath;
+using System.IO;
+using System.Net.Http;
+using System.Security.Cryptography;
 
 namespace CameraAPI
 {
-    public class OnvifClient
+    public class OnvifClient : IDisposable
     {
         private class UdpState
         {
@@ -19,12 +23,153 @@ namespace CameraAPI
             public IList<string> Result { get; set; }
         }
 
-        public const int ONVIF_BROADCAST_TIMEOUT = 10000;
+        public const int ONVIF_BROADCAST_TIMEOUT = 4000; // 4s timeout
         private const int ONVIF_BROADCAST_PORT = 54567;
         public const string WS_DISCOVERY_ADDRESS_IPv4 = "239.255.255.250";
         public const int WS_DISCOVERY_PORT = 3702;
 
         private static SemaphoreSlim _discoverySlim = new SemaphoreSlim(1);
+        private bool disposedValue;
+        private readonly string _userName;
+        private readonly string _password;
+        private readonly string _onvifUrl;
+        private readonly HttpClient _client;
+
+        private TimeSpan _cameraTimeOffset = TimeSpan.Zero;
+
+        public OnvifClient(string onvifUrl, string userName = null, string password = null)
+        {
+            this._onvifUrl = onvifUrl ?? throw new ArgumentNullException(nameof(onvifUrl));
+            this._userName = userName;
+            this._password = password;
+            this._client = new HttpClient();
+        }
+
+        public async Task GetCapabilitiesAsync()
+        {
+            const string ONVIF_GETCAPABILITIES_MESSAGE =
+                @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
+                    <s:Header>
+                        <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
+                            <UsernameToken>
+                                <Username></Username>
+                                <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest""></Password>
+                                <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary""></Nonce>
+                                <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""></Created>
+                            </UsernameToken>
+                        </Security>
+                    </s:Header>
+                    <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+                        <GetCapabilities xmlns=""http://www.onvif.org/ver10/device/wsdl"">
+                            <Category>All</Category>
+                        </GetCapabilities>
+                    </s:Body>
+                </s:Envelope>";
+
+            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
+
+            string message = ONVIF_GETCAPABILITIES_MESSAGE
+                .Replace("<Username></Username>", $"<Username>{this._userName}</Username>")
+                .Replace("<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\"></Password>", $"<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\">{digest}</Password>")
+                .Replace("<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\"></Nonce>", $"<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\">{nonce}</Nonce>")
+                .Replace("<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"></Created>", $"<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\">{timestamp}</Created>");
+
+            string response = await PostOnvifMessage(message);
+
+
+        }
+
+        /// <summary>
+        /// Get date and time from the camera.
+        /// </summary>
+        /// <returns><see cref="DateTime"/> in UTC.</returns>
+        public async Task<DateTime> GetDateAndTimeAsync()
+        {
+            const string ONVIF_GETDATEANDTIME_MESSAGE =
+                @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
+                    <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+                        <GetSystemDateAndTime xmlns=""http://www.onvif.org/ver10/device/wsdl""/>
+                    </s:Body>
+                </s:Envelope>";
+
+            string response = await PostOnvifMessage(ONVIF_GETDATEANDTIME_MESSAGE);
+
+            using (var textReader = new StringReader(response))
+            {
+                var document = new XPathDocument(textReader);
+                var navigator = document.CreateNavigator();
+
+                // TODO: use local time and the timezone
+
+                // UTC is optional according to the specification
+                int hour = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Time']/*[local-name()='Hour']/text()"));
+                int minute = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Time']/*[local-name()='Minute']/text()"));
+                int second = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Time']/*[local-name()='Second']/text()"));
+
+                int year = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Date']/*[local-name()='Year']/text()"));
+                int month = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Date']/*[local-name()='Month']/text()"));
+                int day = int.Parse(ReadXPathValue(navigator, "//*[local-name()='UTCDateTime']/*[local-name()='Date']/*[local-name()='Day']/text()"));
+
+                var cameraTime = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Utc);
+
+                // set the current time offset to sync time in between the camera and the client
+                this._cameraTimeOffset = DateTime.UtcNow.Subtract(cameraTime);
+
+                return cameraTime;
+            }
+        }
+
+        private async Task<string> PostOnvifMessage(string message)
+        {
+            using (var response = await _client.PostAsync(this._onvifUrl, new StringContent(message)))
+            {
+                string responseMessage = await response.Content.ReadAsStringAsync();
+                return responseMessage;
+            }
+        }
+
+        private static string ReadXPathValue(XPathNavigator navigator, string xpath)
+        {
+            var node = navigator.SelectSingleNode(xpath);
+            if (node != null)
+            {
+                return node.Value;
+            }
+            return null;
+        }
+
+        private static void GetPasswordDigest(string password, TimeSpan cameraTimeOffset, out string nonce, out string timestamp, out string digest)
+        {
+            // Get nonce
+            Random rnd = new Random();
+            byte[] nonceBytes = new byte[16];
+            rnd.NextBytes(nonceBytes);
+            string nonce64 = Convert.ToBase64String(nonceBytes);
+            nonce = nonce64;
+
+            // Get timestamp
+            DateTime created = DateTime.UtcNow - cameraTimeOffset;
+            string creationtime = created.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            byte[] creationtimeBytes = Encoding.UTF8.GetBytes(creationtime);
+            timestamp = creationtime;
+
+            // Convert the plain password to bytes
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+
+            // Concatenate nonce + creationtime + password
+            byte[] concatenationBytes = new byte[nonceBytes.Length + creationtimeBytes.Length + passwordBytes.Length];
+            Buffer.BlockCopy(nonceBytes, 0, concatenationBytes, 0, nonceBytes.Length);
+            Buffer.BlockCopy(creationtimeBytes, 0, concatenationBytes, nonceBytes.Length, creationtimeBytes.Length);
+            Buffer.BlockCopy(passwordBytes, 0, concatenationBytes, nonceBytes.Length + creationtimeBytes.Length, passwordBytes.Length);
+
+            // Apply SHA1 on the concatenation
+            SHA1 sha = new SHA1CryptoServiceProvider();
+            byte[] pdresult = sha.ComputeHash(concatenationBytes);
+            string passwordDigest = Convert.ToBase64String(pdresult);
+            digest = passwordDigest;
+        }
+
+        #region Discovery
 
         /// <summary>
         /// Discover ONVIF devices in the local network.
@@ -66,7 +211,7 @@ namespace CameraAPI
                     s.Client = client;
                     s.Result = devices;
 
-                    client.BeginReceive(MessageReceived, s);
+                    client.BeginReceive(DiscoveryMessageReceived, s);
 
                     // Give the probe a unique urn:uuid (we must do this for each probe!)
                     string uuid = Guid.NewGuid().ToString();
@@ -89,7 +234,7 @@ namespace CameraAPI
             }
         }
 
-        private static void MessageReceived(IAsyncResult result)
+        private static void DiscoveryMessageReceived(IAsyncResult result)
         {
             try
             {
@@ -99,13 +244,63 @@ namespace CameraAPI
                 string message = Encoding.UTF8.GetString(receiveBytes);
                 string host = endpoint.Address.ToString();
                 var devices = ((UdpState)result.AsyncState).Result;
-                devices.Add(host);
-                client.BeginReceive(MessageReceived, result.AsyncState);
+                var deviceEndpoint = ReadOnvifEndpoint(message);
+                if (deviceEndpoint != null)
+                {
+                    devices.Add(deviceEndpoint);
+                }
+                client.BeginReceive(DiscoveryMessageReceived, result.AsyncState);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.Message);
             }
         }
+
+        private static string ReadOnvifEndpoint(string message)
+        {
+            using (var textReader = new StringReader(message))
+            {
+                var document = new XPathDocument(textReader);
+                var navigator = document.CreateNavigator();
+
+                // local-name is used to ignore the namespace
+                var node = navigator.SelectSingleNode("//*[local-name()='XAddrs']/text()");
+                if (node != null)
+                {
+                    string[] addresses = node.Value.Split(' ');
+                    return addresses.First();
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
+        #endregion // Discovery
+
+        #region IDisposable implementation
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    _client.Dispose();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        #endregion // IDisposable implementation
     }
 }
