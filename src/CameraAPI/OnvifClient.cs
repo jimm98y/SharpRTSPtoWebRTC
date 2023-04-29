@@ -48,17 +48,15 @@ namespace CameraAPI
 
         public async Task<Dictionary<string, string>> GetCapabilitiesAsync()
         {
-            const string ONVIF_GETCAPABILITIES =
+            const string request =
                 @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
                     <GetCapabilities xmlns=""http://www.onvif.org/ver10/device/wsdl"">
                         <Category>All</Category>
                     </GetCapabilities>
                 </s:Body>";
 
-            string message = Envelope(ONVIF_GETCAPABILITIES);
+            string message = Envelope(request);
             string response = await PostOnvifMessage(this._onvifUrl, message);
-
-            Dictionary<string, string> ret = new Dictionary<string, string>();
 
             XNamespace nsCap = "http://www.onvif.org/ver10/device/wsdl";
             XNamespace nsAddr = "http://www.onvif.org/ver10/schema";
@@ -66,45 +64,43 @@ namespace CameraAPI
             using (var textReader = new StringReader(response))
             {
                 var doc =  XDocument.Load(textReader);
-
                 var capabilities = 
                     (from node in doc.Descendants(nsCap + "Capabilities").Elements()
                     select node.Name).ToArray();
 
-                foreach(var capability in capabilities)
+                Dictionary<string, string> ret = new Dictionary<string, string>();
+                foreach (var capability in capabilities)
                 {
                     var url =
                         (from node in doc.Descendants(capability).Descendants(nsAddr + "XAddr")
                          select node.Value).FirstOrDefault();
-
                     ret.Add(capability.LocalName, url);
                 }
-            }
 
-            return ret;
+                return ret;
+            }
         }
 
         public async Task<string[]> GetProfilesAsync(Dictionary<string, string> capabilities)
         {
             string mediaEndpoint = capabilities["Media"];
 
-            const string ONVIF_GETPROFILES =
+            const string request =
                 @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
                    <GetProfiles xmlns=""http://www.onvif.org/ver10/media/wsdl""/>
                 </s:Body>";
 
-            string message = Envelope(ONVIF_GETPROFILES);
+            string message = Envelope(request);
             string response = await PostOnvifMessage(mediaEndpoint, message);
 
-            XNamespace ns = "http://www.onvif.org/ver10/media/wsdl";
+            XNamespace nsProf = "http://www.onvif.org/ver10/media/wsdl";
+
             using (var textReader = new StringReader(response))
             {
                 var doc = XDocument.Load(textReader);
-
                 var profiles =
-                    (from node in doc.Descendants(ns + "GetProfilesResponse").Elements()
+                    (from node in doc.Descendants(nsProf + "GetProfilesResponse").Elements()
                      select node.Attribute("token").Value).ToArray();
-
                 return profiles;
             }
         }
@@ -115,14 +111,14 @@ namespace CameraAPI
         /// <returns><see cref="DateTime"/> in UTC.</returns>
         public async Task<DateTime> GetDateAndTimeAsync()
         {
-            const string ONVIF_GETDATEANDTIME_MESSAGE =
+            const string request =
                 @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
                     <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
                         <GetSystemDateAndTime xmlns=""http://www.onvif.org/ver10/device/wsdl""/>
                     </s:Body>
                 </s:Envelope>";
 
-            string response = await PostOnvifMessage(this._onvifUrl, ONVIF_GETDATEANDTIME_MESSAGE);
+            string response = await PostOnvifMessage(this._onvifUrl, request);
 
             using (var textReader = new StringReader(response))
             {
@@ -153,8 +149,8 @@ namespace CameraAPI
         {
             string mediaEndpoint = capabilities["Media"];
 
-            const string ONVIF_GETSTREAMURI =
-                @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+            string request =
+                $@"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
                         <GetStreamUri xmlns=""http://www.onvif.org/ver10/media/wsdl"">
                             <StreamSetup>
                                 <Stream xmlns=""http://www.onvif.org/ver10/schema"">RTP-Unicast</Stream>
@@ -162,22 +158,18 @@ namespace CameraAPI
                                     <Protocol>RTSP</Protocol>
                                 </Transport>
                             </StreamSetup>
-                            <ProfileToken></ProfileToken>
+                            <ProfileToken>{profile}</ProfileToken>
                         </GetStreamUri>
                     </s:Body>";
 
-            string message = Envelope(ONVIF_GETSTREAMURI)
-              .Replace("<ProfileToken></ProfileToken>", $"<ProfileToken>{profile}</ProfileToken>"); // profile token
-
+            string message = Envelope(request);
             string response = await PostOnvifMessage(mediaEndpoint, message);
 
             using (var textReader = new StringReader(response))
             {
                 var document = new XPathDocument(textReader);
                 var navigator = document.CreateNavigator();
-
-                string uri = ReadXPathValue(navigator, "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()");
-                return uri;
+                return ReadXPathValue(navigator, "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()");
             }
         }
 
@@ -185,8 +177,7 @@ namespace CameraAPI
         {
             using (var response = await _client.PostAsync(url, new StringContent(message)))
             {
-                string responseMessage = await response.Content.ReadAsStringAsync();
-                return responseMessage;
+                return await response.Content.ReadAsStringAsync();
             }
         }
 
