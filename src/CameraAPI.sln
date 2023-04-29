@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CameraAPI", "CameraAPI\Came
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CameraStreamingServer", "CameraStreamingServer\CameraStreamingServer.csproj", "{AF18C8DB-184B-45C7-9EBD-CAD6F3D13213}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SIPSorcery", "..\..\sipsorcery\src\SIPSorcery.csproj", "{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{AF18C8DB-184B-45C7-9EBD-CAD6F3D13213}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AF18C8DB-184B-45C7-9EBD-CAD6F3D13213}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AF18C8DB-184B-45C7-9EBD-CAD6F3D13213}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

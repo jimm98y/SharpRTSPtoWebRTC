@@ -9,11 +9,11 @@
     <PackageReference Include="Concentus" Version="1.1.7" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
     <PackageReference Include="SharpRTSP" Version="1.0.0" />
-    <PackageReference Include="SIPSorcery" Version="6.0.12" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\SharpJaad\src\SharpJaad.AAC\SharpJaad.AAC.csproj" />
+    <ProjectReference Include="..\..\..\sipsorcery\src\SIPSorcery.csproj" />
   </ItemGroup>
 
 </Project>
