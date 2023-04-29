@@ -1,4 +1,4 @@
-using CameraAPI;
+using CameraAPI.WebRTCProxy;
 using CameraStreamingServer.Model;
 
 var builder = WebApplication.CreateBuilder(args);

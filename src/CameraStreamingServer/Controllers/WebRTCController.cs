@@ -1,4 +1,4 @@
-﻿using CameraAPI;
+﻿using CameraAPI.WebRTCProxy;
 using CameraStreamingServer.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
