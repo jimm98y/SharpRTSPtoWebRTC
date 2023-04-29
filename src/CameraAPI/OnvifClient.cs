@@ -49,32 +49,13 @@ namespace CameraAPI
         public async Task<Dictionary<string, string>> GetCapabilitiesAsync()
         {
             const string ONVIF_GETCAPABILITIES =
-                @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
-                    <s:Header>
-                        <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
-                            <UsernameToken>
-                                <Username></Username>
-                                <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest""></Password>
-                                <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary""></Nonce>
-                                <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""></Created>
-                            </UsernameToken>
-                        </Security>
-                    </s:Header>
-                    <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
-                        <GetCapabilities xmlns=""http://www.onvif.org/ver10/device/wsdl"">
-                            <Category>All</Category>
-                        </GetCapabilities>
-                    </s:Body>
-                </s:Envelope>";
+                @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+                    <GetCapabilities xmlns=""http://www.onvif.org/ver10/device/wsdl"">
+                        <Category>All</Category>
+                    </GetCapabilities>
+                </s:Body>";
 
-            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
-
-            string message = ONVIF_GETCAPABILITIES
-                .Replace("<Username></Username>", $"<Username>{this._userName}</Username>")
-                .Replace("<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\"></Password>", $"<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\">{digest}</Password>")
-                .Replace("<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\"></Nonce>", $"<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\">{nonce}</Nonce>")
-                .Replace("<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"></Created>", $"<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\">{timestamp}</Created>");
-
+            string message = Envelope(ONVIF_GETCAPABILITIES);
             string response = await PostOnvifMessage(this._onvifUrl, message);
 
             Dictionary<string, string> ret = new Dictionary<string, string>();
@@ -108,30 +89,11 @@ namespace CameraAPI
             string mediaEndpoint = capabilities["Media"];
 
             const string ONVIF_GETPROFILES =
-                @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
-                    <s:Header>
-                       <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
-                            <UsernameToken>
-                                <Username></Username>
-                                <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest""></Password>
-                                <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary""></Nonce>
-                                <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""></Created>
-                            </UsernameToken>
-                        </Security>
-                    </s:Header>
-                    <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
-                        <GetProfiles xmlns=""http://www.onvif.org/ver10/media/wsdl""/>
-                    </s:Body>
-                </s:Envelope>";
+                @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+                   <GetProfiles xmlns=""http://www.onvif.org/ver10/media/wsdl""/>
+                </s:Body>";
 
-            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
-
-            string message = ONVIF_GETPROFILES
-              .Replace("<Username></Username>", $"<Username>{this._userName}</Username>")
-              .Replace("<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\"></Password>", $"<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\">{digest}</Password>")
-              .Replace("<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\"></Nonce>", $"<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\">{nonce}</Nonce>")
-              .Replace("<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"></Created>", $"<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\">{timestamp}</Created>");
-
+            string message = Envelope(ONVIF_GETPROFILES);
             string response = await PostOnvifMessage(mediaEndpoint, message);
 
             XNamespace ns = "http://www.onvif.org/ver10/media/wsdl";
@@ -192,18 +154,7 @@ namespace CameraAPI
             string mediaEndpoint = capabilities["Media"];
 
             const string ONVIF_GETSTREAMURI =
-                @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
-                    <s:Header>
-                       <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
-                            <UsernameToken>
-                                <Username></Username>
-                                <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest""></Password>
-                                <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary""></Nonce>
-                                <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""></Created>
-                            </UsernameToken>
-                        </Security>
-                    </s:Header>
-                    <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+                @"<s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
                         <GetStreamUri xmlns=""http://www.onvif.org/ver10/media/wsdl"">
                             <StreamSetup>
                                 <Stream xmlns=""http://www.onvif.org/ver10/schema"">RTP-Unicast</Stream>
@@ -213,16 +164,9 @@ namespace CameraAPI
                             </StreamSetup>
                             <ProfileToken></ProfileToken>
                         </GetStreamUri>
-                    </s:Body>
-                </s:Envelope>";
+                    </s:Body>";
 
-            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
-
-            string message = ONVIF_GETSTREAMURI
-              .Replace("<Username></Username>", $"<Username>{this._userName}</Username>")
-              .Replace("<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\"></Password>", $"<Password Type=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest\">{digest}</Password>")
-              .Replace("<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\"></Nonce>", $"<Nonce EncodingType=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary\">{nonce}</Nonce>")
-              .Replace("<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"></Created>", $"<Created xmlns=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\">{timestamp}</Created>")
+            string message = Envelope(ONVIF_GETSTREAMURI)
               .Replace("<ProfileToken></ProfileToken>", $"<ProfileToken>{profile}</ProfileToken>"); // profile token
 
             string response = await PostOnvifMessage(mediaEndpoint, message);
@@ -254,6 +198,25 @@ namespace CameraAPI
                 return node.Value;
             }
             return null;
+        }
+
+        private string Envelope(string body)
+        {
+            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
+            return
+                $@"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
+                    <s:Header>
+                        <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
+                            <UsernameToken>
+                                <Username>{this._userName}</Username>
+                                <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest"">{digest}</Password>
+                                <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"">{nonce}</Nonce>
+                                <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"">{timestamp}</Created>
+                            </UsernameToken>
+                        </Security>
+                    </s:Header>
+                    {body}
+                </s:Envelope>";
         }
 
         private static void GetPasswordDigest(string password, TimeSpan cameraTimeOffset, out string nonce, out string timestamp, out string digest)
