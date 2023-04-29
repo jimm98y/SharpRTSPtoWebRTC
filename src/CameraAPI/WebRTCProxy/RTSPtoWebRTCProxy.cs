@@ -18,21 +18,10 @@ namespace CameraAPI.WebRTCProxy
     /// </summary>
     public class RTSPtoWebRTCProxy
     {
-        /// <summary>
-        /// Annex-B prefix to separate the NAL units.
-        /// </summary>
-        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
-
         private readonly ILogger _logger;
 
         private ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private RTSPClient _client = null;
-
-        private Decoder _aacDecoder = null;
-        private OpusAudioEncoder _opusEncoder = null;
-        private SpeexResampler _pcmResampler = null;
-        private List<short> _samples = new List<short>();
-        private short[] _resampledBuffer = null;
 
         private int _lastVideoMarkerBit = 1; // initial value 1 to make sure the first connection will send sps/pps
         private byte[] _sps = null;
@@ -52,7 +41,7 @@ namespace CameraAPI.WebRTCProxy
             {
                 if (_opusEncoder != null)
                 {
-                    return _opusEncoder.MEDIA_FORMAT_OPUS;
+                    return _opusEncoder.OpusAudioFormat;
                 }
 
                 return new AudioFormat(AudioCodecEnum, AudioType);
@@ -182,7 +171,7 @@ namespace CameraAPI.WebRTCProxy
 
             if (payloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
-                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only, H265 requires re-packetization
+                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only, H265 requires re-packetization of the NALs
                 {
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
@@ -226,6 +215,35 @@ namespace CameraAPI.WebRTCProxy
 
         #region H265 WebRTC for Safari
 
+        /// <summary>
+        /// Annex-B prefix to separate the NAL units.
+        /// </summary>
+        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
+
+        private const byte NALU_VPS = 32;
+        private const byte NALU_SPS = 33;
+        private const byte NALU_PPS = 34;
+        private const byte NALU_IDR = 19;
+
+        private struct SafariH265Header
+        {
+            /// <summary>
+            /// Current RTP header.
+            /// </summary>
+            public byte Current;
+
+            /// <summary>
+            /// Next RTP header for this AU.
+            /// </summary>
+            public int Next;
+
+            public SafariH265Header(byte current, int next)
+            {
+                this.Current = current;
+                this.Next = next;
+            }
+        }
+
         private void Client_Received_NALs(List<byte[]> nalUnits, uint rtpTimestamp)
         {
             if (VideoCodecEnum == VideoCodecsEnum.H265)
@@ -268,9 +286,9 @@ namespace CameraAPI.WebRTCProxy
             if (au.Length <= maxRtpPayloadLength)
             {
                 int markerBit = 1;
-                Tuple<byte, int> h265RtpHeader = GetSafariH265RtpHeader(auType, start);
+                SafariH265Header h265RtpHeader = GetSafariH265RtpHeader(auType);
                 byte[] array = new byte[au.Length + 1];
-                array[0] = h265RtpHeader.Item1;
+                array[0] = h265RtpHeader.Current;
                 Buffer.BlockCopy(au, 0, array, 1, au.Length);
                 peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array, timestamp, markerBit, payloadTypeID);
             }
@@ -282,17 +300,17 @@ namespace CameraAPI.WebRTCProxy
                     int num = (i + 1) * maxRtpPayloadLength < au.Length ? maxRtpPayloadLength : au.Length - i * maxRtpPayloadLength;
                     bool flag = (i + 1) * maxRtpPayloadLength >= au.Length;
                     int markerBit2 = flag ? 1 : 0;
-                    Tuple<byte, int> h265RtpHeader = GetSafariH265RtpHeader(auType, start);
-                    start = h265RtpHeader.Item2;
+                    SafariH265Header h265RtpHeader = GetSafariH265RtpHeader(auType, start);
+                    start = h265RtpHeader.Next;
                     byte[] array2 = new byte[num + 1];
-                    array2[0] = h265RtpHeader.Item1;
+                    array2[0] = h265RtpHeader.Current;
                     Buffer.BlockCopy(au, srcOffset, array2, 1, num);
                     peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array2, timestamp, markerBit2, payloadTypeID);
                 }
             }
         }
 
-        private static Tuple<byte, int> GetSafariH265RtpHeader(byte au0, int start)
+        private static SafariH265Header GetSafariH265RtpHeader(byte au0, int start = -1)
         {
             // algorithm from here: https://github.com/AlexxIT/Blog/issues/5
             if (start == -1)
@@ -301,25 +319,31 @@ namespace CameraAPI.WebRTCProxy
 
                 switch (nut)
                 {
-                    case 32:    // VPS
-                    case 33:    // SPS
-                    case 34:    // PPS
-                    case 19:    // NAL_UNIT_CODED_SLICE_IDR_W_RADL
-                        return new Tuple<byte, int>(3, 1);
+                    case NALU_VPS:
+                    case NALU_SPS:
+                    case NALU_PPS:
+                    case NALU_IDR:
+                        return new SafariH265Header(3, 1);
 
                     default:
-                        return new Tuple<byte, int>(2, 0);
+                        return new SafariH265Header(2, 0);
                 }
             }
             else
             {
-                return new Tuple<byte, int>((byte)start, start);
+                return new SafariH265Header((byte)start, start);
             }
         }
 
         #endregion // H265 WebRTC for Safari
 
         #region AAC to Opus transcoding
+
+        private Decoder _aacDecoder = null;
+        private OpusAudioEncoder _opusEncoder = null;
+        private SpeexResampler _pcmResampler = null;
+        private List<short> _samples = new List<short>();
+        private short[] _resampledBuffer = null;
 
         private void Client_Received_AAC(
             string format, 
@@ -346,9 +370,11 @@ namespace CameraAPI.WebRTCProxy
                 if ((SampleFrequency)frequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
                     const int MAX_DECODED_FRAME_SIZE_MULT = 6;
-                    const int MAX_AAC_FRAME_SIZE = 1024;
+                    const int MAX_AAC_FRAME_SIZE = 1024; // for AAC-LC only
                     _resampledBuffer = new short[MAX_AAC_FRAME_SIZE * MAX_DECODED_FRAME_SIZE_MULT * channels];
-                    _pcmResampler = new SpeexResampler(channels, ((SampleFrequency)frequencyIndex).GetFrequency(), 48000, 10); // 10 fot the best quality
+
+                    const int OPUS_QUALITY = 10; // 0-10, 10 is for maximum quality
+                    _pcmResampler = new SpeexResampler(channels, ((SampleFrequency)frequencyIndex).GetFrequency(), SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), OPUS_QUALITY);
                 }
 
                 _opusEncoder = new OpusAudioEncoder(channels);
@@ -394,12 +420,12 @@ namespace CameraAPI.WebRTCProxy
                     _samples.RemoveRange(0, opusFrameSize);
 
                     // encode it using OPUS
-                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, _opusEncoder.MEDIA_FORMAT_OPUS);
+                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, _opusEncoder.OpusAudioFormat);
 
                     // send it to all peers
                     foreach (var peerConnection in _peerConnections)
                     {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.MEDIA_FORMAT_OPUS.FormatID);
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.OpusAudioFormat.FormatID);
                     }
 
                     // increment the RTP timestamp by the frame size

@@ -26,7 +26,7 @@ namespace CameraAPI.Codecs
         private const int SAMPLE_RATE = 48000;
 
         // Chrome uses in SDP two audio channels, but if the audio itself contains only one channel, we must pass it as 2 channels in SDP but create a decoder/encoder with only one channel
-        public AudioFormat MEDIA_FORMAT_OPUS { get { return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, _channels), "a=fmtp:111 minptime=10;useinbandfec=1"); } }
+        public AudioFormat OpusAudioFormat { get { return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, _channels), "a=fmtp:111 minptime=10;useinbandfec=1"); } }
         public List<AudioFormat> SupportedFormats => _supportedFormats;
 
         private AudioEncoder _audioEncoder; // the AudioEncoder available in SIPSorcery
@@ -47,7 +47,7 @@ namespace CameraAPI.Codecs
             // Add OPUS in the list of AudioFormat
             _supportedFormats = new List<AudioFormat>
             {
-                MEDIA_FORMAT_OPUS
+                OpusAudioFormat
             };
 
             // Add also list available in the AudioEncoder available in SIPSorcery
