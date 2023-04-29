@@ -15,6 +15,14 @@ using System.Xml.Linq;
 
 namespace CameraAPI
 {
+    /// <summary>
+    /// ONVIF client.
+    /// </summary>
+    /// <remarks>
+    /// This ONVIF client is implemented by hand instead of relying upon the WSDL service reference, because the auto-generated
+    ///  clients tend to have compatibility issues due to the way they implement the contract. These issues are difficult to
+    ///  solve and require elaborate preprocessing/postprocessing of the incoming/outgoing messages. 
+    /// </remarks>
     public class OnvifClient : IDisposable
     {
         private class UdpState
@@ -24,10 +32,11 @@ namespace CameraAPI
             public IList<string> Result { get; set; }
         }
 
+        private const int ONVIF_BROADCAST_PORT = 54567; // any free port
         public const int ONVIF_BROADCAST_TIMEOUT = 4000; // 4s timeout
-        private const int ONVIF_BROADCAST_PORT = 54567;
-        public const string WS_DISCOVERY_ADDRESS_IPv4 = "239.255.255.250";
-        public const int WS_DISCOVERY_PORT = 3702;
+
+        public const string ONVIF_DISCOVERY_ADDRESS_IPv4 = "239.255.255.250"; // only IPv4 networks are currently supported
+        public const int ONVIF_DISCOVERY_PORT = 3702;
 
         private static SemaphoreSlim _discoverySlim = new SemaphoreSlim(1);
         private bool disposedValue;
@@ -38,6 +47,13 @@ namespace CameraAPI
 
         private TimeSpan _cameraTimeOffset = TimeSpan.Zero;
 
+        /// <summary>
+        /// Ctor.
+        /// </summary>
+        /// <param name="onvifUrl">ONVIF URI.</param>
+        /// <param name="userName">User name.</param>
+        /// <param name="password">Password.</param>
+        /// <exception cref="ArgumentNullException">Thrown when ONVIF URI is null. Call <see cref="DiscoverAsync(string, int, int)"/> to get the URI, or get the correct URI from the camera documentation.</exception>
         public OnvifClient(string onvifUrl, string userName = null, string password = null)
         {
             this._onvifUrl = onvifUrl ?? throw new ArgumentNullException(nameof(onvifUrl));
@@ -46,6 +62,10 @@ namespace CameraAPI
             this._client = new HttpClient();
         }
 
+        /// <summary>
+        /// Get a list of all capabilities and their corresponding URI endpoints supported by the camwra.
+        /// </summary>
+        /// <returns>A dictionary of Capability/URI.</returns>
         public async Task<Dictionary<string, string>> GetCapabilitiesAsync()
         {
             const string request =
@@ -81,6 +101,11 @@ namespace CameraAPI
             }
         }
 
+        /// <summary>
+        /// Get all media profiles from the camera.
+        /// </summary>
+        /// <param name="capabilities">A list of camera capabilities retrieved by <see cref="GetCapabilitiesAsync"/>.</param>
+        /// <returns>A list of media profiles.</returns>
         public async Task<string[]> GetProfilesAsync(Dictionary<string, string> capabilities)
         {
             string mediaEndpoint = capabilities["Media"];
@@ -109,7 +134,7 @@ namespace CameraAPI
         /// Get date and time from the camera.
         /// </summary>
         /// <returns><see cref="DateTime"/> in UTC.</returns>
-        public async Task<DateTime> GetDateAndTimeAsync()
+        public async Task<DateTime> GetSystemDateAndTimeAsync()
         {
             const string request =
                 @"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
@@ -145,6 +170,12 @@ namespace CameraAPI
             }
         }
 
+        /// <summary>
+        /// Get RTSP stream URI for the given profile.
+        /// </summary>
+        /// <param name="capabilities">A list of camera capabilities retrieved by <see cref="GetCapabilitiesAsync"/>.</param>
+        /// <param name="profile">Profile retrieved by <see cref="GetProfilesAsync(Dictionary{string, string})"/>.</param>
+        /// <returns>Stream URI.</returns>
         public async Task<string> GetStreamUriAsync(Dictionary<string, string> capabilities, string profile)
         {
             string mediaEndpoint = capabilities["Media"];
@@ -177,6 +208,7 @@ namespace CameraAPI
         {
             using (var response = await _client.PostAsync(url, new StringContent(message)))
             {
+                response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync();
             }
         }
@@ -248,8 +280,9 @@ namespace CameraAPI
         /// </summary>
         /// <param name="ipAddress">IP address of the network interface to use (IP of the host computer).</param>
         /// <param name="broadcastTimeout"><see cref="ONVIF_BROADCAST_TIMEOUT"/>.</param>
+        /// <param name="broadcastPort">Broadcast port - <see cref="ONVIF_BROADCAST_PORT"/>.</param>
         /// <returns>A list of discovered devices.</returns>
-        public static async Task<IList<string>> DiscoverAsync(string ipAddress, int broadcastTimeout = ONVIF_BROADCAST_TIMEOUT)
+        public static async Task<IList<string>> DiscoverAsync(string ipAddress, int broadcastTimeout = ONVIF_BROADCAST_TIMEOUT, int broadcastPort = ONVIF_BROADCAST_PORT)
         {
             await _discoverySlim.WaitAsync();
 
@@ -271,8 +304,8 @@ namespace CameraAPI
             "</s:Envelope>\r\n";
 
             IList<string> devices = new List<string>();
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(ipAddress), ONVIF_BROADCAST_PORT + 1);
-            IPEndPoint multicastEndpoint = new IPEndPoint(IPAddress.Parse(WS_DISCOVERY_ADDRESS_IPv4), WS_DISCOVERY_PORT);
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(ipAddress), broadcastPort);
+            IPEndPoint multicastEndpoint = new IPEndPoint(IPAddress.Parse(ONVIF_DISCOVERY_ADDRESS_IPv4), ONVIF_DISCOVERY_PORT);
 
             try
             {
@@ -287,8 +320,6 @@ namespace CameraAPI
 
                     // Give the probe a unique urn:uuid (we must do this for each probe!)
                     string uuid = Guid.NewGuid().ToString();
-
-                    // Composes and sends a Probe to discover devices on the network. uuid is the urn:uuid to put in the probe.
                     string onvifDiscoveryProbe = WS_DISCOVERY_PROBE_MESSAGE.Replace("e1245346-bee7-4ef0-82f2-c02a69b54d9c", uuid.ToLowerInvariant());
 
                     byte[] message = Encoding.UTF8.GetBytes(onvifDiscoveryProbe);
