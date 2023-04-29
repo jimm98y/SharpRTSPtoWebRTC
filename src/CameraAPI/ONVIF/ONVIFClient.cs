@@ -13,7 +13,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 
-namespace CameraAPI
+namespace CameraAPI.ONVIF
 {
     /// <summary>
     /// ONVIF client.
@@ -23,7 +23,7 @@ namespace CameraAPI
     ///  clients tend to have compatibility issues due to the way they implement the contract. These issues are difficult to
     ///  solve and require elaborate preprocessing/postprocessing of the incoming/outgoing messages. 
     /// </remarks>
-    public class OnvifClient : IDisposable
+    public class ONVIFClient : IDisposable
     {
         private class UdpState
         {
@@ -54,12 +54,12 @@ namespace CameraAPI
         /// <param name="userName">User name.</param>
         /// <param name="password">Password.</param>
         /// <exception cref="ArgumentNullException">Thrown when ONVIF URI is null. Call <see cref="DiscoverAsync(string, int, int)"/> to get the URI, or get the correct URI from the camera documentation.</exception>
-        public OnvifClient(string onvifUrl, string userName = null, string password = null)
+        public ONVIFClient(string onvifUrl, string userName = null, string password = null)
         {
-            this._onvifUrl = onvifUrl ?? throw new ArgumentNullException(nameof(onvifUrl));
-            this._userName = userName;
-            this._password = password;
-            this._client = new HttpClient();
+            _onvifUrl = onvifUrl ?? throw new ArgumentNullException(nameof(onvifUrl));
+            _userName = userName;
+            _password = password;
+            _client = new HttpClient();
         }
 
         /// <summary>
@@ -76,17 +76,17 @@ namespace CameraAPI
                 </s:Body>";
 
             string message = Envelope(request);
-            string response = await PostOnvifMessage(this._onvifUrl, message);
+            string response = await PostOnvifMessage(_onvifUrl, message);
 
             XNamespace nsCap = "http://www.onvif.org/ver10/device/wsdl";
             XNamespace nsAddr = "http://www.onvif.org/ver10/schema";
 
             using (var textReader = new StringReader(response))
             {
-                var doc =  XDocument.Load(textReader);
-                var capabilities = 
+                var doc = XDocument.Load(textReader);
+                var capabilities =
                     (from node in doc.Descendants(nsCap + "Capabilities").Elements()
-                    select node.Name).ToArray();
+                     select node.Name).ToArray();
 
                 Dictionary<string, string> ret = new Dictionary<string, string>();
                 foreach (var capability in capabilities)
@@ -143,7 +143,7 @@ namespace CameraAPI
                     </s:Body>
                 </s:Envelope>";
 
-            string response = await PostOnvifMessage(this._onvifUrl, request);
+            string response = await PostOnvifMessage(_onvifUrl, request);
 
             using (var textReader = new StringReader(response))
             {
@@ -164,7 +164,7 @@ namespace CameraAPI
                 var cameraTime = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Utc);
 
                 // set the current time offset to sync time in between the camera and the client
-                this._cameraTimeOffset = DateTime.UtcNow.Subtract(cameraTime);
+                _cameraTimeOffset = DateTime.UtcNow.Subtract(cameraTime);
 
                 return cameraTime;
             }
@@ -225,13 +225,13 @@ namespace CameraAPI
 
         private string Envelope(string body)
         {
-            GetPasswordDigest(this._password, this._cameraTimeOffset, out string nonce, out string timestamp, out string digest);
+            GetPasswordDigest(_password, _cameraTimeOffset, out string nonce, out string timestamp, out string digest);
             return
                 $@"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
                     <s:Header>
                         <Security s:mustUnderstand=""1"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
                             <UsernameToken>
-                                <Username>{this._userName}</Username>
+                                <Username>{_userName}</Username>
                                 <Password Type=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest"">{digest}</Password>
                                 <Nonce EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"">{nonce}</Nonce>
                                 <Created xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"">{timestamp}</Created>

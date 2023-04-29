@@ -1,6 +1,4 @@
-﻿using CameraAPI.Opus;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+﻿using CameraAPI.RTSP;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
@@ -8,14 +6,16 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-namespace CameraAPI
+namespace CameraAPI.WebRTCProxy
 {
     public class RTSPtoWebRTCProxyService : IHostedService
     {
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
-        private readonly ConcurrentDictionary<string, Task<RTSPClientWrapper>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPClientWrapper>>();
+        private readonly ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>>();
 
         public RTSPtoWebRTCProxyService(ILogger<RTSPtoWebRTCProxyService> logger)
         {
@@ -42,36 +42,26 @@ namespace CameraAPI
             {
                 throw new ArgumentNullException(nameof(id), "The specified peer connection ID is already in use.");
             }
-            else if(string.IsNullOrWhiteSpace(url) || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            else if (string.IsNullOrWhiteSpace(url) || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
             {
                 throw new ArgumentException(nameof(url), "Invalid camera URL.");
             }
 
             // session must be created in advance in order to know which codec to use
-            RTSPClientWrapper client = await GetOrCreateClientAsync(_logger, url, userName, password);
+            RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_logger, url, userName, password);
 
             RTCPeerConnection peerConnection = new RTCPeerConnection(null);
 
-            if (client.VideoCodecEnum != VideoCodecsEnum.Unknown)
+            if (proxy.VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
-                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(new VideoFormat(client.VideoCodecEnum, client.VideoType));
+                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(proxy.VideoFormat);
                 MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(videoTrack);
             }
 
-            if (client.AudioCodecEnum != AudioCodecsEnum.Unknown)
+            if (proxy.AudioCodecEnum != AudioCodecsEnum.Unknown)
             {
-                SDPAudioVideoMediaFormat audioFormat;
-
-                if (client.AudioCodecEnum == AudioCodecsEnum.OPUS)
-                {
-                    audioFormat = new SDPAudioVideoMediaFormat(OpusAudioEncoder.MEDIA_FORMAT_OPUS);
-                }
-                else
-                {
-                    audioFormat = new SDPAudioVideoMediaFormat(new AudioFormat(client.AudioCodecEnum, client.AudioType));
-                }
-
+                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(proxy.AudioFormat);
                 MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(audioTrack);
             }
@@ -115,10 +105,10 @@ namespace CameraAPI
                 }
             };
 
-            client.AddPeerConnection(id, peerConnection);
+            proxy.AddPeerConnection(id, peerConnection);
 
             var offerInit = peerConnection.createOffer();
-            offerInit.sdp = MungleSDP(offerInit.sdp, client);
+            offerInit.sdp = MungleSDP(offerInit.sdp, proxy);
             await peerConnection.setLocalDescription(offerInit);
 
             _peerConnections.TryAdd(id, peerConnection);
@@ -126,7 +116,7 @@ namespace CameraAPI
             return offerInit;
         }
 
-        private static string MungleSDP(string sdp, RTSPClientWrapper client)
+        private static string MungleSDP(string sdp, RTSPtoWebRTCProxy client)
         {
             if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H264/90000\r\n"))
             {
@@ -140,18 +130,18 @@ namespace CameraAPI
             return sdp;
         }
 
-        private Task<RTSPClientWrapper> GetOrCreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
         {
             return _rtspClients.GetOrAdd(url, (u) =>
             {
-                return CreateClientAsync(logger, url, userName, password); 
+                return CreateClientAsync(logger, url, userName, password);
             });
         }
 
-        private async Task<RTSPClientWrapper> CreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
         {
             TaskCompletionSource<(string video, int videoType, string audio, int audioType)> result = new TaskCompletionSource<(string video, int videoType, string audio, int audioType)>();
-            
+
             var client = new RTSPClient(logger);
             client.SetupCompleted += (video, videoType, audio, audioType) =>
             {
@@ -176,7 +166,7 @@ namespace CameraAPI
             client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
 
             var codecs = await result.Task;
-            return new RTSPClientWrapper(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps, sdpVps);
+            return new RTSPtoWebRTCProxy(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps, sdpVps);
         }
 
         public void SetAnswer(string id, RTCSessionDescriptionInit description)

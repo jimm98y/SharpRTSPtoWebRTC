@@ -1,18 +1,26 @@
-﻿using CameraAPI.Opus;
+﻿using CameraAPI.Codecs;
+using CameraAPI.RTSP;
 using SharpJaad.AAC;
 using Concentus.Common;
-using Microsoft.Extensions.Logging;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
-namespace CameraAPI
+namespace CameraAPI.WebRTCProxy
 {
-    public class RTSPClientWrapper
+    /// <summary>
+    /// Proxy that takes RTP from RTSP and passes it to WebRTC PeerConnection. If necessary,
+    ///  it performs transcoding (AAC -> OPUS) or re-packetization (H265 RTP -> Safari WebRTC).
+    /// </summary>
+    public class RTSPtoWebRTCProxy
     {
+        /// <summary>
+        /// Annex-B prefix to separate the NAL units.
+        /// </summary>
         private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
 
         private readonly ILogger _logger;
@@ -38,17 +46,47 @@ namespace CameraAPI
         public VideoCodecsEnum VideoCodecEnum { get; private set; } = VideoCodecsEnum.Unknown;
         public AudioCodecsEnum AudioCodecEnum { get; private set; } = AudioCodecsEnum.Unknown;
 
-        public RTSPClientWrapper(ILogger logger, RTSPClient client, int audioType, string audioCodec, int videoType, string videoCodec, byte[] sps, byte[] pps, byte[] vps = null)
+        public AudioFormat AudioFormat
         {
-            this._logger = logger;
-            this._client = client;
-            this.AudioType = audioType;
-            this.VideoType = videoType;
-            this.AudioCodec = audioCodec;
-            this.VideoCodec = videoCodec;
-            this._sps = sps;
-            this._pps = pps;
-            this._vps = vps;
+            get
+            {
+                if (_opusEncoder != null)
+                {
+                    return _opusEncoder.MEDIA_FORMAT_OPUS;
+                }
+
+                return new AudioFormat(AudioCodecEnum, AudioType);
+            }
+        }
+
+        public VideoFormat VideoFormat
+        {
+            get
+            {
+                return new VideoFormat(VideoCodecEnum, VideoType);
+            }
+        }
+
+        public RTSPtoWebRTCProxy(
+            ILogger logger,
+            RTSPClient client,
+            int audioType,
+            string audioCodec,
+            int videoType,
+            string videoCodec,
+            byte[] sps = null,
+            byte[] pps = null,
+            byte[] vps = null)
+        {
+            _logger = logger;
+            _client = client;
+            AudioType = audioType;
+            VideoType = videoType;
+            AudioCodec = audioCodec;
+            VideoCodec = videoCodec;
+            _sps = sps;
+            _pps = pps;
+            _vps = vps;
 
             if (VideoType > 0)
             {
@@ -65,6 +103,78 @@ namespace CameraAPI
             client.Received_NALs += Client_Received_NALs;
         }
 
+        #region WebRTC
+
+        public void AddPeerConnection(string id, RTCPeerConnection peerConnection)
+        {
+            _peerConnections.TryAdd(id, peerConnection);
+        }
+
+        public int RemovePeerConnection(string id)
+        {
+            _peerConnections.TryRemove(id, out _);
+            return _peerConnections.Count;
+        }
+
+        public void Stop()
+        {
+            _client.Stop();
+        }
+
+        #endregion // WebRTC
+
+        #region Codecs
+
+        private AudioCodecsEnum GetAudioCodec(string codec)
+        {
+            AudioCodecsEnum ret;
+
+            switch (codec)
+            {
+                case "PCMA":
+                    ret = AudioCodecsEnum.PCMA;
+                    break;
+
+                case "PCMU":
+                    ret = AudioCodecsEnum.PCMU;
+                    break;
+
+                case "MPEG4-GENERIC": // AAC is not supported by WebRTC, it requires transcoding to PCMA/PCMU or Opus
+                    ret = AudioCodecsEnum.OPUS;
+                    break;
+
+                default:
+                    ret = AudioCodecsEnum.Unknown;
+                    break;
+            }
+
+            return ret;
+        }
+
+        private VideoCodecsEnum GetVideoCodec(string codec)
+        {
+            VideoCodecsEnum ret;
+
+            switch (codec)
+            {
+                case "H264":
+                    ret = VideoCodecsEnum.H264;
+                    break;
+
+                case "H265":
+                    ret = VideoCodecsEnum.H265; // as of May 2023 this only work in Safari with Experimantal WebRTC H265 feature flag enabled
+                    break;
+
+                default:
+                    ret = VideoCodecsEnum.Unknown;
+                    break;
+            }
+
+            return ret;
+        }
+
+        #endregion // Codecs
+
         private void Client_RtpMessageReceived(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip)
         {
             // forward RTP to WebRTC "as is", just without the RTP header
@@ -77,7 +187,7 @@ namespace CameraAPI
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
                         // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
-                        //  we have to keep sending it in between the NALs
+                        //  we have to keep sending it in between the AUs
                         if (_lastVideoMarkerBit == 1 && markerBit == 0)
                         {
                             if (_sps != null)
@@ -92,7 +202,7 @@ namespace CameraAPI
 
                     _lastVideoMarkerBit = markerBit;
                 }
-                else if(VideoCodecEnum != VideoCodecsEnum.H265)
+                else if (VideoCodecEnum != VideoCodecsEnum.H265)
                 {
                     _logger.LogDebug($"Unsupported video codec {VideoCodecEnum}");
                 }
@@ -151,7 +261,7 @@ namespace CameraAPI
                 00 for all next packets from this P-frame
             Don't forget set marker flag only for last packet of each Access Units
             */
-            const int maxRtpPayloadLength = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header
+            const int maxRtpPayloadLength = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header that we have to add in GetSafariH265RtpHeader
             byte auType = au[4];
             int start = -1;
 
@@ -169,7 +279,7 @@ namespace CameraAPI
                 for (int i = 0; i * maxRtpPayloadLength < au.Length; i++)
                 {
                     int srcOffset = i * maxRtpPayloadLength;
-                    int num = ((i + 1) * maxRtpPayloadLength < au.Length) ? maxRtpPayloadLength : (au.Length - i * maxRtpPayloadLength);
+                    int num = (i + 1) * maxRtpPayloadLength < au.Length ? maxRtpPayloadLength : au.Length - i * maxRtpPayloadLength;
                     bool flag = (i + 1) * maxRtpPayloadLength >= au.Length;
                     int markerBit2 = flag ? 1 : 0;
                     Tuple<byte, int> h265RtpHeader = GetSafariH265RtpHeader(auType, start);
@@ -187,7 +297,7 @@ namespace CameraAPI
             // algorithm from here: https://github.com/AlexxIT/Blog/issues/5
             if (start == -1)
             {
-                var nut = (au0 >> 1) & 0b111111;
+                var nut = au0 >> 1 & 0b111111;
 
                 switch (nut)
                 {
@@ -211,7 +321,14 @@ namespace CameraAPI
 
         #region AAC to Opus transcoding
 
-        private void Client_Received_AAC(string format, List<byte[]> aac, uint objectType, uint frequencyIndex, uint channelConfiguration, uint timestamp, int payloadType)
+        private void Client_Received_AAC(
+            string format, 
+            List<byte[]> aac, 
+            uint objectType, 
+            uint frequencyIndex, 
+            uint channelConfiguration, 
+            uint timestamp, 
+            int payloadType)
         {
             // here we know we have AAC
             int channels = (int)channelConfiguration;
@@ -228,8 +345,10 @@ namespace CameraAPI
                 // we only need resampling if the AAC payload is not using the 48k sampling rate already
                 if ((SampleFrequency)frequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
-                    _resampledBuffer = new short[1024 * 6 * channels]; 
-                    _pcmResampler = new SpeexResampler(channels, ((SampleFrequency)frequencyIndex).GetFrequency(), 48000, 10);
+                    const int MAX_DECODED_FRAME_SIZE_MULT = 6;
+                    const int MAX_AAC_FRAME_SIZE = 1024;
+                    _resampledBuffer = new short[MAX_AAC_FRAME_SIZE * MAX_DECODED_FRAME_SIZE_MULT * channels];
+                    _pcmResampler = new SpeexResampler(channels, ((SampleFrequency)frequencyIndex).GetFrequency(), 48000, 10); // 10 fot the best quality
                 }
 
                 _opusEncoder = new OpusAudioEncoder(channels);
@@ -237,7 +356,7 @@ namespace CameraAPI
 
             // calculate the RTP timestamp based upon the current timestamp and the remainder from the last AAC payload 
             //  which did not fit into the frame size of the Opus encoded payload
-            uint rtpTimestamp = (uint)(timestamp - (_samples.Count / channels));
+            uint rtpTimestamp = (uint)(timestamp - _samples.Count / channels);
 
             // single RTP can contain multiple AAC frames
             foreach (var aacFrame in aac)
@@ -254,7 +373,7 @@ namespace CameraAPI
                 short[] sdata = new short[buffer.Data.Length / sizeof(short)];
                 Buffer.BlockCopy(buffer.Data, 0, sdata, 0, buffer.Data.Length);
 
-                // if the AAC sample rate is not 48k, resample the PCM to 48k which is required by the Opus codec
+                // if the AAC sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
                 if ((SampleFrequency)frequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
                     int inLen = sdata.Length / channels;
@@ -263,7 +382,7 @@ namespace CameraAPI
                     sdata = _resampledBuffer.Take(outLen * channels).ToArray();
                 }
 
-                // append the resampled audio to the remaining samples that did not fit into the last Opus encoded payload
+                // append the resampled audio to the remaining samples that did not fit into the last OPUS encoded payload
                 _samples.AddRange(sdata);
 
                 int opusFrameSize = _opusEncoder.GetFrameSize() * channels;
@@ -274,13 +393,13 @@ namespace CameraAPI
                     sdata = _samples.Take(opusFrameSize).ToArray();
                     _samples.RemoveRange(0, opusFrameSize);
 
-                    // encode it using Opus
-                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, OpusAudioEncoder.MEDIA_FORMAT_OPUS);
+                    // encode it using OPUS
+                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, _opusEncoder.MEDIA_FORMAT_OPUS);
 
                     // send it to all peers
                     foreach (var peerConnection in _peerConnections)
                     {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, OpusAudioEncoder.MEDIA_FORMAT_OPUS.FormatID);
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.MEDIA_FORMAT_OPUS.FormatID);
                     }
 
                     // increment the RTP timestamp by the frame size
@@ -290,79 +409,6 @@ namespace CameraAPI
         }
 
         #endregion //  AAC to Opus transcoding
-
-        #region Codecs
-
-        private AudioCodecsEnum GetAudioCodec(string codec)
-        {
-            AudioCodecsEnum ret;
-
-            switch (codec)
-            {
-                case "PCMA":
-                    ret = AudioCodecsEnum.PCMA;
-                    break;
-
-                case "PCMU":
-                    ret = AudioCodecsEnum.PCMU;
-                    break;
-
-                case "MPEG4-GENERIC": // AAC is not supported by WebRTC, it requires transcoding to PCMA/PCMU or Opus
-                    ret = AudioCodecsEnum.OPUS;
-                    break;
-
-                default:
-                    ret = AudioCodecsEnum.Unknown;
-                    break;
-            }
-
-            return ret;
-        }
-
-        private VideoCodecsEnum GetVideoCodec(string codec)
-        {
-            VideoCodecsEnum ret;
-
-            switch (codec)
-            {
-                case "H264":
-                    ret = VideoCodecsEnum.H264;
-                    break;
-
-                case "H265":
-                    ret = VideoCodecsEnum.H265;
-                    break;
-
-                default:
-                    // VP9/VP8 are not supported
-                    ret = VideoCodecsEnum.Unknown;
-                    break;
-            }
-
-            return ret;
-        }
-
-        #endregion // Codecs
-
-        #region WebRTC
-
-        public void AddPeerConnection(string id, RTCPeerConnection peerConnection)
-        {
-            _peerConnections.TryAdd(id, peerConnection);
-        }
-
-        public int RemovePeerConnection(string id)
-        {
-            _peerConnections.TryRemove(id, out _);
-            return _peerConnections.Count;
-        }
-
-        public void Stop()
-        {
-            _client.Stop();
-        }
-
-        #endregion // WebRTC
 
         /*
         // only useful for debugging to dump the raw PCM into a file

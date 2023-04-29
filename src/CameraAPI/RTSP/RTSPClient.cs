@@ -7,7 +7,7 @@ using System.Linq;
 using System.IO;
 using Microsoft.Extensions.Logging;
 
-namespace CameraAPI
+namespace CameraAPI.RTSP
 {
     public class RTSPClient
     {
@@ -85,7 +85,7 @@ namespace CameraAPI
         private Rtsp.H265Payload _h265Payload = null;
         private Rtsp.G711Payload _g711Payload = new Rtsp.G711Payload();
         private Rtsp.AMRPayload _amrPayload = new Rtsp.AMRPayload();
-        private SharpRtsp.Patch.AACPayload _aacPayload = null;
+        private AACPayload _aacPayload = null;
 
         private object _syncRoot = new object();
 
@@ -99,13 +99,13 @@ namespace CameraAPI
         public void Connect(string url, RTP_TRANSPORT rtpTransport, string userName = null, string password = null, MEDIA_REQUEST mediaRequest = MEDIA_REQUEST.VIDEO_AND_AUDIO)
         {
             _logger.LogDebug("Connecting to " + url);
-            this._rtspUrl = url;
+            _rtspUrl = url;
 
             // Use URI to extract username and password
             // and to make a new URL without the username and password
             try
             {
-                Uri uri = new Uri(this._rtspUrl);
+                Uri uri = new Uri(_rtspUrl);
                 _hostname = uri.Host;
                 _rtspPort = uri.Port;
 
@@ -114,7 +114,7 @@ namespace CameraAPI
                     var userParsed = uri.UserInfo.Split(new char[] { ':' });
                     _userName = userParsed[0];
                     _password = userParsed[1];
-                    this._rtspUrl = uri.GetComponents(UriComponents.AbsoluteUri & ~UriComponents.UserInfo, UriFormat.UriEscaped);
+                    _rtspUrl = uri.GetComponents(UriComponents.AbsoluteUri & ~UriComponents.UserInfo, UriFormat.UriEscaped);
                 }
             }
             catch
@@ -136,7 +136,7 @@ namespace CameraAPI
             // We can ask the RTSP server for Video, Audio or both. If we don't want audio we don't need to SETUP the audio channal or receive it
             _clientWantsVideo = false;
             _clientWantsAudio = false;
-            
+
             if (mediaRequest == MEDIA_REQUEST.VIDEO_ONLY || mediaRequest == MEDIA_REQUEST.VIDEO_AND_AUDIO)
             {
                 _clientWantsVideo = true;
@@ -181,7 +181,7 @@ namespace CameraAPI
             // If the RTP transport is TCP then we interleave the RTP packets in the RTSP stream
             // If the RTP transport is UDP, we initialise two UDP sockets (one for video, one for RTCP status messages)
             // If the RTP transport is MULTICAST, we have to wait for the SETUP message to get the Multicast Address from the RTSP server
-            this._rtpTransport = rtpTransport;
+            _rtpTransport = rtpTransport;
 
             if (rtpTransport == RTP_TRANSPORT.UDP)
             {
@@ -206,7 +206,7 @@ namespace CameraAPI
             // Send OPTIONS
             // In the Received Message handler we will send DESCRIBE, SETUP and PLAY
             RtspRequest options_message = new RtspRequestOptions();
-            options_message.RtspUri = new Uri(this._rtspUrl);
+            options_message.RtspUri = new Uri(_rtspUrl);
             _rtspClient.SendMessage(options_message);
         }
 
@@ -236,7 +236,7 @@ namespace CameraAPI
                 RtspRequest pause_message = new RtspRequestPause();
                 pause_message.RtspUri = new Uri(_rtspUrl);
                 pause_message.Session = _session;
-                
+
                 if (_authType != null)
                 {
                     AddAuthorization(pause_message, _userName, _password, _authType, _realm, _nonce, _rtspUrl);
@@ -254,7 +254,7 @@ namespace CameraAPI
                 RtspRequest play_message = new RtspRequestPlay();
                 play_message.RtspUri = new Uri(_rtspUrl);
                 play_message.Session = _session;
-                
+
                 if (_authType != null)
                 {
                     AddAuthorization(play_message, _userName, _password, _authType, _realm, _nonce, _rtspUrl);
@@ -272,7 +272,7 @@ namespace CameraAPI
                 RtspRequest teardown_message = new RtspRequestTeardown();
                 teardown_message.RtspUri = new Uri(_rtspUrl);
                 teardown_message.Session = _session;
-                
+
                 if (_authType != null)
                 {
                     AddAuthorization(teardown_message, _userName, _password, _authType, _realm, _nonce, _rtspUrl);
@@ -329,13 +329,13 @@ namespace CameraAPI
 
                 while (packetIndex < e.Message.Data.Length)
                 {
-                    int rtcp_version = (e.Message.Data[packetIndex + 0] >> 6);
-                    int rtcp_padding = (e.Message.Data[packetIndex + 0] >> 5) & 0x01;
-                    int rtcp_reception_report_count = (e.Message.Data[packetIndex + 0] & 0x1F);
+                    int rtcp_version = e.Message.Data[packetIndex + 0] >> 6;
+                    int rtcp_padding = e.Message.Data[packetIndex + 0] >> 5 & 0x01;
+                    int rtcp_reception_report_count = e.Message.Data[packetIndex + 0] & 0x1F;
                     byte rtcp_packet_type = e.Message.Data[packetIndex + 1]; // Values from 200 to 207
-                    uint rtcp_length = (uint)(e.Message.Data[packetIndex + 2] << 8) + (uint)(e.Message.Data[packetIndex + 3]); // number of 32 bit words
+                    uint rtcp_length = (uint)(e.Message.Data[packetIndex + 2] << 8) + e.Message.Data[packetIndex + 3]; // number of 32 bit words
                     uint rtcp_ssrc = (uint)(e.Message.Data[packetIndex + 4] << 24) + (uint)(e.Message.Data[packetIndex + 5] << 16)
-                        + (uint)(e.Message.Data[packetIndex + 6] << 8) + (uint)(e.Message.Data[packetIndex + 7]);
+                        + (uint)(e.Message.Data[packetIndex + 6] << 8) + e.Message.Data[packetIndex + 7];
 
                     // 200 = SR = Sender Report
                     // 201 = RR = Receiver Report
@@ -351,21 +351,21 @@ namespace CameraAPI
                         // We have received a Sender Report
                         // Use it to convert the RTP timestamp into the UTC time
                         uint ntp_msw_seconds = (uint)(e.Message.Data[packetIndex + 8] << 24) + (uint)(e.Message.Data[packetIndex + 9] << 16)
-                        + (uint)(e.Message.Data[packetIndex + 10] << 8) + (uint)(e.Message.Data[packetIndex + 11]);
+                        + (uint)(e.Message.Data[packetIndex + 10] << 8) + e.Message.Data[packetIndex + 11];
 
                         uint ntp_lsw_fractions = (uint)(e.Message.Data[packetIndex + 12] << 24) + (uint)(e.Message.Data[packetIndex + 13] << 16)
-                        + (uint)(e.Message.Data[packetIndex + 14] << 8) + (uint)(e.Message.Data[packetIndex + 15]);
+                        + (uint)(e.Message.Data[packetIndex + 14] << 8) + e.Message.Data[packetIndex + 15];
 
                         uint rtp_timestamp = (uint)(e.Message.Data[packetIndex + 16] << 24) + (uint)(e.Message.Data[packetIndex + 17] << 16)
-                        + (uint)(e.Message.Data[packetIndex + 18] << 8) + (uint)(e.Message.Data[packetIndex + 19]);
+                        + (uint)(e.Message.Data[packetIndex + 18] << 8) + e.Message.Data[packetIndex + 19];
 
-                        double ntp = ntp_msw_seconds + (ntp_lsw_fractions / UInt32.MaxValue);
+                        double ntp = ntp_msw_seconds + ntp_lsw_fractions / uint.MaxValue;
 
                         // NTP Most Signigicant Word is relative to 0h, 1 Jan 1900
                         // This will wrap around in 2036
                         DateTime time = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-                        time = time.AddSeconds((double)ntp_msw_seconds); // adds 'double' (whole&fraction)
+                        time = time.AddSeconds(ntp_msw_seconds); // adds 'double' (whole&fraction)
 
                         _logger.LogDebug("RTCP time (UTC) for RTP timestamp " + rtp_timestamp + " is " + time);
 
@@ -377,15 +377,15 @@ namespace CameraAPI
                             int paddingBit = 0;
                             int reportCount = 0; // an empty report
                             int packetType = 201; // Receiver Report
-                            int length = (rtcp_receiver_report.Length / 4) - 1; // num 32 bit words minus 1
+                            int length = rtcp_receiver_report.Length / 4 - 1; // num 32 bit words minus 1
                             rtcp_receiver_report[0] = (byte)((version << 6) + (paddingBit << 5) + reportCount);
-                            rtcp_receiver_report[1] = (byte)(packetType);
-                            rtcp_receiver_report[2] = (byte)((length >> 8) & 0xFF);
-                            rtcp_receiver_report[3] = (byte)((length >> 0) & 0XFF);
-                            rtcp_receiver_report[4] = (byte)((_ssrc >> 24) & 0xFF);
-                            rtcp_receiver_report[5] = (byte)((_ssrc >> 16) & 0xFF);
-                            rtcp_receiver_report[6] = (byte)((_ssrc >> 8) & 0xFF);
-                            rtcp_receiver_report[7] = (byte)((_ssrc >> 0) & 0xFF);
+                            rtcp_receiver_report[1] = (byte)packetType;
+                            rtcp_receiver_report[2] = (byte)(length >> 8 & 0xFF);
+                            rtcp_receiver_report[3] = (byte)(length >> 0 & 0XFF);
+                            rtcp_receiver_report[4] = (byte)(_ssrc >> 24 & 0xFF);
+                            rtcp_receiver_report[5] = (byte)(_ssrc >> 16 & 0xFF);
+                            rtcp_receiver_report[6] = (byte)(_ssrc >> 8 & 0xFF);
+                            rtcp_receiver_report[7] = (byte)(_ssrc >> 0 & 0xFF);
 
                             if (_rtpTransport == RTP_TRANSPORT.TCP)
                             {
@@ -405,7 +405,7 @@ namespace CameraAPI
                         }
                     }
 
-                    packetIndex = packetIndex + ((rtcp_length + 1) * 4);
+                    packetIndex = packetIndex + (rtcp_length + 1) * 4;
                 }
 
                 return;
@@ -423,20 +423,20 @@ namespace CameraAPI
                 //nn - Extension ID and Length
                 //nn - Extension header
 
-                int rtp_version = (e.Message.Data[0] >> 6);
-                int rtp_padding = (e.Message.Data[0] >> 5) & 0x01;
-                int rtp_extension = (e.Message.Data[0] >> 4) & 0x01;
-                int rtp_csrc_count = (e.Message.Data[0] >> 0) & 0x0F;
-                int rtp_marker = (e.Message.Data[1] >> 7) & 0x01;
-                int rtp_payload_type = (e.Message.Data[1] >> 0) & 0x7F;
-                uint rtp_sequence_number = ((uint)e.Message.Data[2] << 8) + (uint)(e.Message.Data[3]);
-                uint rtp_timestamp = ((uint)e.Message.Data[4] << 24) + (uint)(e.Message.Data[5] << 16) + (uint)(e.Message.Data[6] << 8) + (uint)(e.Message.Data[7]);
-                uint rtp_ssrc = ((uint)e.Message.Data[8] << 24) + (uint)(e.Message.Data[9] << 16) + (uint)(e.Message.Data[10] << 8) + (uint)(e.Message.Data[11]);
+                int rtp_version = e.Message.Data[0] >> 6;
+                int rtp_padding = e.Message.Data[0] >> 5 & 0x01;
+                int rtp_extension = e.Message.Data[0] >> 4 & 0x01;
+                int rtp_csrc_count = e.Message.Data[0] >> 0 & 0x0F;
+                int rtp_marker = e.Message.Data[1] >> 7 & 0x01;
+                int rtp_payload_type = e.Message.Data[1] >> 0 & 0x7F;
+                uint rtp_sequence_number = ((uint)e.Message.Data[2] << 8) + e.Message.Data[3];
+                uint rtp_timestamp = ((uint)e.Message.Data[4] << 24) + (uint)(e.Message.Data[5] << 16) + (uint)(e.Message.Data[6] << 8) + e.Message.Data[7];
+                uint rtp_ssrc = ((uint)e.Message.Data[8] << 24) + (uint)(e.Message.Data[9] << 16) + (uint)(e.Message.Data[10] << 8) + e.Message.Data[11];
 
                 int rtp_payload_start = 4 // V,P,M,SEQ
                                     + 4 // time stamp
                                     + 4 // ssrc
-                                    + (4 * rtp_csrc_count); // zero or more csrcs
+                                    + 4 * rtp_csrc_count; // zero or more csrcs
 
                 uint rtp_extension_id = 0;
                 uint rtp_extension_size = 0;
@@ -510,7 +510,7 @@ namespace CameraAPI
                             {
                                 if (nal_unit.Length > 0)
                                 {
-                                    int nal_ref_idc = (nal_unit[0] >> 5) & 0x03;
+                                    int nal_ref_idc = nal_unit[0] >> 5 & 0x03;
                                     int nal_unit_type = nal_unit[0] & 0x1F;
 
                                     if (nal_unit_type == 7)
@@ -578,7 +578,7 @@ namespace CameraAPI
                             {
                                 if (nal_unit.Length > 0)
                                 {
-                                    int nal_unit_type = (nal_unit[0] >> 1) & 0x3F;
+                                    int nal_unit_type = nal_unit[0] >> 1 & 0x3F;
 
                                     if (nal_unit_type == 32)
                                     {
@@ -679,7 +679,7 @@ namespace CameraAPI
                         // Write the audio frames to the file
                         if (Received_AAC != null)
                         {
-                            Received_AAC(_audioCodec, audio_frames, (uint)_aacPayload.ObjectType, (uint)_aacPayload.FrequencyIndex, (uint)_aacPayload.ChannelConfiguration, rtp_timestamp, rtp_payload_type);
+                            Received_AAC(_audioCodec, audio_frames, _aacPayload.ObjectType, _aacPayload.FrequencyIndex, _aacPayload.ChannelConfiguration, rtp_timestamp, rtp_payload_type);
                         }
                     }
                 }
@@ -707,7 +707,7 @@ namespace CameraAPI
             {
                 _logger.LogDebug("Got Error in RTSP Reply " + message.ReturnCode + " " + message.ReturnMessage);
 
-                if (message.ReturnCode == 401 && (message.OriginalRequest.Headers.ContainsKey(RtspHeaderNames.Authorization) == true))
+                if (message.ReturnCode == 401 && message.OriginalRequest.Headers.ContainsKey(RtspHeaderNames.Authorization) == true)
                 {
                     // the authorization failed.
                     Stop();
@@ -766,7 +766,7 @@ namespace CameraAPI
             }
 
             // If we get a reply to OPTIONS then start the Keepalive Timer and send DESCRIBE
-            if (message.OriginalRequest != null && message.OriginalRequest is Rtsp.Messages.RtspRequestOptions)
+            if (message.OriginalRequest != null && message.OriginalRequest is RtspRequestOptions)
             {
                 // Check the capabilities returned by OPTIONS
                 // The Public: header contains the list of commands the RTSP server supports
@@ -847,8 +847,8 @@ namespace CameraAPI
 
                 for (int x = 0; x < sdp_data.Medias.Count; x++)
                 {
-                    bool audio = (sdp_data.Medias[x].MediaType == Rtsp.Sdp.Media.MediaTypes.audio);
-                    bool video = (sdp_data.Medias[x].MediaType == Rtsp.Sdp.Media.MediaTypes.video);
+                    bool audio = sdp_data.Medias[x].MediaType == Rtsp.Sdp.Media.MediaTypes.audio;
+                    bool video = sdp_data.Medias[x].MediaType == Rtsp.Sdp.Media.MediaTypes.video;
 
                     if (video && _videoPayload != -1)
                     {
@@ -860,12 +860,12 @@ namespace CameraAPI
                         continue; // have already matched an audio payload. don't match another
                     }
 
-                    if (audio && (_clientWantsAudio == false))
+                    if (audio && _clientWantsAudio == false)
                     {
                         continue; // client does not want audio from the RTSP server
                     }
 
-                    if (video && (_clientWantsVideo == false))
+                    if (video && _clientWantsVideo == false)
                     {
                         continue; // client does not want video from the RTSP server
                     }
@@ -924,7 +924,7 @@ namespace CameraAPI
                                     _audioCodec = rtpmap.EncodingName.ToUpper();
                                     _audioPayload = sdp_data.Medias[x].PayloadType;
                                 }
-                            }   
+                            }
                         }
 
                         // Create H264 RTP Parser
@@ -989,7 +989,7 @@ namespace CameraAPI
                         if (audio && _audioCodec.Contains("MPEG4-GENERIC") && fmtp["mode"].ToLower().Equals("aac-hbr"))
                         {
                             // Extract config (eg 0x1490 or 0x1210)
-                            _aacPayload = new SharpRtsp.Patch.AACPayload(fmtp["config"]);
+                            _aacPayload = new CameraAPI.RTSP.AACPayload(fmtp["config"]); // patched AAC payload, the nuget version cannot parse AAC correctly
                         }
 
                         // Send the SETUP RTSP command if we have a matching Payload Decoder
@@ -1132,7 +1132,7 @@ namespace CameraAPI
                     // Check if Transport header includes Multicast
                     if (transport.IsMulticast)
                     {
-                        String multicast_address = transport.Destination;
+                        string multicast_address = transport.Destination;
                         _videoDataChannel = transport.Port.First;
                         _videoRtcpChannel = transport.Port.Second;
 
@@ -1178,7 +1178,7 @@ namespace CameraAPI
                     RtspRequest play_message = new RtspRequestPlay();
                     play_message.RtspUri = new Uri(_rtspUrl);
                     play_message.Session = _session;
-                    
+
                     if (_authType != null)
                     {
                         AddAuthorization(play_message, _userName, _password, _authType, _realm, _nonce, _rtspUrl);
@@ -1210,7 +1210,7 @@ namespace CameraAPI
             {
                 int endIndex = sdp.IndexOf("\r\n", startIndex + 2);
                 string uri = sdp.Substring(startIndex + 4, endIndex - startIndex - 4);
-                if(!Uri.IsWellFormedUriString(uri, UriKind.Absolute))
+                if (!Uri.IsWellFormedUriString(uri, UriKind.Absolute))
                 {
                     sdp = sdp.Replace($"\r\nu={uri}\r\n", "\r\n");
                 }

@@ -1,17 +1,15 @@
 ﻿using Rtsp;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 // patch for https://github.com/ngraziano/SharpRTSP/issues/81
-namespace SharpRtsp.Patch
+namespace CameraAPI.RTSP
 {
     // This class handles the AAC-hbd (High Bitrate) Payload
     // It has methods to process the RTP Payload
 
     // (c) 2018 Roger Hardiman, RJH Technical Consultancy Ltd
     // (c) 2023 Clemens Arth, Technology Consultant
-
 
     /*
     RFC 3640
@@ -60,18 +58,15 @@ namespace SharpRtsp.Patch
     The hexadecimal value of the "config" parameter is the AudioSpecificConfig(), as defined in ISO/IEC 14496-3.
     AudioSpecificConfig() specifies a 5.1 channel AAC stream with a sampling rate of 48 kHz.For the description of MIME parameters, see
     section 4.1.
-
     */
-
-
-    public class AACPayload
+    internal class AACPayload
     {
         public uint ObjectType = 0;
         public uint FrequencyIndex = 0;
         public uint ChannelConfiguration = 0;
 
         // Constructor
-        public AACPayload(String config_string)
+        public AACPayload(string config_string)
         {
             /***
             5 bits: object type
@@ -101,7 +96,6 @@ namespace SharpRtsp.Patch
 
         public List<byte[]> Process_AAC_RTP_Packet(byte[] rtp_payload, int rtp_marker)
         {
-
             // RTP Payload for MPEG4-GENERIC can consist of multple blocks.
             // Each block has 3 parts
             // Part 1 - Acesss Unit Header Length + Header
@@ -116,20 +110,20 @@ namespace SharpRtsp.Patch
             if (ptr + 2 > rtp_payload.Length) return audio_data; // 2 bytes for AU Header Length
 
             // Get Size of the AU Header
-            int au_headers_length_bits = (((rtp_payload[ptr] << 8) + (rtp_payload[ptr + 1] << 0))); // 16 bits
-            int au_headers_length = (int)Math.Ceiling((double)au_headers_length_bits / 8.0);
+            int au_headers_length_bits = (rtp_payload[ptr] << 8) + (rtp_payload[ptr + 1] << 0); // 16 bits
+            int au_headers_length = (int)Math.Ceiling(au_headers_length_bits / 8.0);
             ptr += 2;
 
             int cnt = 0;
             for (int p = 0; p < au_headers_length >> 1; p++)
             {
-                int aac_frame_size = (((rtp_payload[ptr + 2 * p] << 8) + (rtp_payload[ptr + 2 * p + 1] << 0)) >> 3); // 13 bits
+                int aac_frame_size = (rtp_payload[ptr + 2 * p] << 8) + (rtp_payload[ptr + 2 * p + 1] << 0) >> 3; // 13 bits
                 int aac_index_delta = rtp_payload[ptr + 2 * p + 1] & 0x03; // 3 bits
 
                 // extract the AAC block
-                if ((ptr + au_headers_length + cnt) + aac_frame_size > rtp_payload.Length) break; // not enough data to copy
+                if (ptr + au_headers_length + cnt + aac_frame_size > rtp_payload.Length) break; // not enough data to copy
                 byte[] aac_data = new byte[aac_frame_size];
-                Array.Copy(rtp_payload, (ptr + au_headers_length + cnt), aac_data, 0, aac_frame_size);
+                Array.Copy(rtp_payload, ptr + au_headers_length + cnt, aac_data, 0, aac_frame_size);
                 audio_data.Add(aac_data);
 
                 cnt += aac_frame_size;
@@ -137,6 +131,5 @@ namespace SharpRtsp.Patch
 
             return audio_data;
         }
-
     }
 }
