@@ -284,6 +284,9 @@ namespace CameraAPI.ONVIF
         /// <returns>A list of discovered devices.</returns>
         public static async Task<IList<string>> DiscoverAsync(string ipAddress, int broadcastTimeout = ONVIF_BROADCAST_TIMEOUT, int broadcastPort = ONVIF_BROADCAST_PORT)
         {
+            if(ipAddress == null)
+                return new List<string>();
+
             await _discoverySlim.WaitAsync();
 
             const string WS_DISCOVERY_PROBE_MESSAGE =
