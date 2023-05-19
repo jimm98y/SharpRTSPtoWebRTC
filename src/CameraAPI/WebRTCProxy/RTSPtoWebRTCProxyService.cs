@@ -15,9 +15,10 @@ namespace CameraAPI.WebRTCProxy
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private readonly ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>>();
 
-        public RTSPtoWebRTCProxyService(ILogger<RTSPtoWebRTCProxyService> logger)
+        public RTSPtoWebRTCProxyService(ILoggerFactory loggerFactory)
         {
-            _logger = logger;
+            SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
+            _logger = loggerFactory.CreateLogger<RTSPtoWebRTCProxyService>();
         }
 
         public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null)
