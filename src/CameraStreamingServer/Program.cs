@@ -13,8 +13,7 @@ builder.Services
 // https://stackoverflow.com/questions/39169701/how-to-extract-a-list-from-appsettings-json-in-net-core
 builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
 
-builder.Services.AddSingleton(typeof(RTSPtoWebRTCProxyService));
-builder.Services.AddHostedService<RTSPtoWebRTCProxyService>();
+builder.Services.AddSingleton<RTSPtoWebRTCProxyService>();
 
 var app = builder.Build();
 

@@ -4,14 +4,12 @@ using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CameraAPI.WebRTCProxy
 {
-    public class RTSPtoWebRTCProxyService : IHostedService
+    public class RTSPtoWebRTCProxyService 
     {
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
@@ -20,16 +18,6 @@ namespace CameraAPI.WebRTCProxy
         public RTSPtoWebRTCProxyService(ILogger<RTSPtoWebRTCProxyService> logger)
         {
             _logger = logger;
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
         }
 
         public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null)
@@ -75,8 +63,8 @@ namespace CameraAPI.WebRTCProxy
             peerConnection.OnRtpClosed +=
                 (reason) => _logger.LogDebug($"Peer connection closed, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
 
-            peerConnection.OnReceiveReport += (re, media, rr) => Console.WriteLine($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
-            peerConnection.OnSendReport += (media, sr) => Console.WriteLine($"RTCP Send for {media}\n{sr.GetDebugSummary()}");
+            peerConnection.OnReceiveReport += (re, media, rr) => _logger.LogDebug($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
+            peerConnection.OnSendReport += (media, sr) => _logger.LogDebug($"RTCP Send for {media}\n{sr.GetDebugSummary()}");
 
             peerConnection.onconnectionstatechange += (state) =>
             {
@@ -199,6 +187,23 @@ namespace CameraAPI.WebRTCProxy
     /*
      * Sample ASP.NET Core Controller to call this class.
     /*
+    public class RTSPtoWebRTCProxyHostedService : RTSPtoWebRTCProxyService, IHostedService
+    {
+        public RTSPtoWebRTCProxyHostedService(ILogger<RTSPtoWebRTCProxyService> logger) : base(logger)
+        {
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     var builder = WebApplication.CreateBuilder(args);
     builder.Services
         .AddControllersWithViews()
@@ -207,8 +212,8 @@ namespace CameraAPI.WebRTCProxy
             options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
     builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
-    builder.Services.AddSingleton(typeof(RTSPtoWebRTCProxyService));
-    builder.Services.AddHostedService<RTSPtoWebRTCProxyService>();
+    builder.Services.AddSingleton(typeof(RTSPtoWebRTCProxyHostedService));
+    builder.Services.AddHostedService<RTSPtoWebRTCProxyHostedService>();
     var app = builder.Build();
     app.UseStaticFiles();
     app.UseRouting();
