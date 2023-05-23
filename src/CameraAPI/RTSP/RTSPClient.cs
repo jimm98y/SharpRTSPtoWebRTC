@@ -87,8 +87,6 @@ namespace CameraAPI.RTSP
         private Rtsp.AMRPayload _amrPayload = new Rtsp.AMRPayload();
         private AACPayload _aacPayload = null;
 
-        private object _syncRoot = new object();
-
         List<RtspRequestSetup> _setupMessages = new List<RtspRequestSetup>(); // setup messages still to send
                                                                               // RTP packet (or RTCP packet) has been received.
         public RTSPClient(ILogger logger)
