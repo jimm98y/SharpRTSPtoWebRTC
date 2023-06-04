@@ -36,8 +36,7 @@ There is a sample ASP.NET Core app that demonstrates the functionality on multip
       "Url": "rtsp://url2",
       "UserName": null,
       "Password": null
-    },
-    ...
+    }
   ]
 ```
 
