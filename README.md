@@ -8,7 +8,7 @@ any video transcoding which makes it lightweight and portable. It does support a
 - Transcode AAC audio to Opus with a small latency in audio
 - Supports the experimental H265 WebRTC feature in Safari
 
-![Alt Text](demo.gif)
+![Preview](demo.gif)
 
 ## Compatibility
 Because no video transcoding is being performed, the web browsers must support decoding of the source video codecs in WebRTC.
