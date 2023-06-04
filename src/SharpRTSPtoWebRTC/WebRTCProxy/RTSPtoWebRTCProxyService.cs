@@ -188,23 +188,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
     /*
      * Sample ASP.NET Core Controller to call this class.
     /*
-    public class RTSPtoWebRTCProxyHostedService : RTSPtoWebRTCProxyService, IHostedService
-    {
-        public RTSPtoWebRTCProxyHostedService(ILogger<RTSPtoWebRTCProxyService> logger) : base(logger)
-        {
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-    }
-
     var builder = WebApplication.CreateBuilder(args);
     builder.Services
         .AddControllersWithViews()
@@ -213,8 +196,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
     builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
-    builder.Services.AddSingleton(typeof(RTSPtoWebRTCProxyHostedService));
-    builder.Services.AddHostedService<RTSPtoWebRTCProxyHostedService>();
+    builder.Services.AddSingleton<RTSPtoWebRTCProxyService>();
     var app = builder.Build();
     app.UseStaticFiles();
     app.UseRouting();

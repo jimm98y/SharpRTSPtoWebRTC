@@ -22,6 +22,7 @@ as an experimental feature. It has to be explicitly enabled by the user in Devel
 to play H265 video in the browser.
 
 ## Samples
+### RTSPtoWebRTCGateway
 There is a sample ASP.NET Core app that demonstrates the functionality on multiple live streams. To change the default configuration, just modify the `appsettings.json`:
 ```json
 "Cameras": [
@@ -40,8 +41,68 @@ There is a sample ASP.NET Core app that demonstrates the functionality on multip
   ]
 ```
 
+### Minimal example
+In `Startup.cs`, add the following piece of code to register the `RTSPtoWebRTCProxyService`:
+```cs
+builder.Services.AddSingleton<RTSPtoWebRTCProxyService>();
+```
+
+Then (optionally) add the configuration of streams from `appsettings.json`:
+```cs
+builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
+```
+
+Implement a minimal WebRTC signalling controller, for instance:
+```cs
+[ApiController]
+[Route("api/[controller]")]
+public class WebRTCController : ControllerBase
+{
+    private readonly IList<CameraConfiguration> _cameras;
+    private readonly RTSPtoWebRTCProxyService _webRTCServer;
+
+    public WebRTCController(IOptions<List<CameraConfiguration>> cameras, RTSPtoWebRTCProxyService webRTCServer)
+    {
+        _cameras = cameras.Value;
+        _webRTCServer = webRTCServer;
+    }
+
+    [HttpGet]
+    [Route("getcameras")]
+    public IActionResult GetCameras()
+    {
+        return Ok(_cameras.Select(x => x.Name).ToList());
+    }
+
+    [HttpGet]
+    [Route("getoffer")]
+    public async Task<IActionResult> GetOffer(string id, string name)
+    {
+        return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password));
+    }
+
+    [HttpPost]
+    [Route("setanswer")]
+    public IActionResult SetAnswer(string id, [FromBody] RTCSessionDescriptionInit answer)
+    {
+        _webRTCServer.SetAnswer(id, answer);
+        return Ok();
+    }
+
+    [HttpPost]
+    [Route("addicecandidate")]
+    public IActionResult AddIceCandidate(string id, [FromBody] RTCIceCandidateInit iceCandidate)
+    {
+        _webRTCServer.AddIceCandidate(id, iceCandidate);
+        return Ok();
+    }
+}
+```
+
+Finally, for the WebRTC viewer you can refer to `src/RTSPtoWebRTCGateway/ClientApp/src/components/CameraViewer.js`.
+
 ## Known issues
-- A random crash due to a race condition in the sipsorcery 6.0.12 ICE implementation. Will be fixed when a new version of sipsorcery 6.0.13 is released.
+- A random crash due to a race condition in the sipsorcery 6.0.12 ICE implementation https://github.com/sipsorcery-org/sipsorcery/pull/924. Will be fixed when a new version of sipsorcery 6.0.13 is released.
 
 ## Credits
 - sipsorcery - WebRTC implementation in netstandard which has made this project possible https://github.com/sipsorcery-org/sipsorcery
