@@ -36,7 +36,6 @@ export class Home extends Component {
 
         return (
             <div>
-                <h2 id="tabelLabel" >RTSP streams</h2>
                 {contents}
             </div>
         );
