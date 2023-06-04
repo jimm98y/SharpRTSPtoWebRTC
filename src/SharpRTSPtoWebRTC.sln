@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33502.453
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SIPSorcery", "..\..\sipsorcery\src\SIPSorcery.csproj", "{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpRTSPtoWebRTC", "SharpRTSPtoWebRTC\SharpRTSPtoWebRTC.csproj", "{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RTSPtoWebRTCGateway", "RTSPtoWebRTCGateway\RTSPtoWebRTCGateway.csproj", "{5D99E37F-0375-411F-A200-5354428E0944}"
@@ -15,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{13BC8C8F-86C6-441E-861E-B4ADF6D28BDF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
