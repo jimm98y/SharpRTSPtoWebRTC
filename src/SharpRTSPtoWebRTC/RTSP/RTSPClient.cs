@@ -697,7 +697,16 @@ namespace SharpRTSPtoWebRTC.RTSP
         private void Rtsp_MessageReceived(object sender, Rtsp.RtspChunkEventArgs e)
         {
             RtspResponse message = e.Message as RtspResponse;
-            _logger.LogDebug("Received RTSP Message " + message.OriginalRequest.ToString());
+
+            if(message.OriginalRequest == null)
+            {
+                _logger.LogDebug("Received RTSP Message with OriginalRequest = null");
+                return;
+            }
+            else 
+            {
+                _logger.LogDebug("Received RTSP Message " + message.OriginalRequest.ToString());
+            }
 
             // If message has a 401 - Unauthorised Error, then we re-send the message with Authorization
             // using the most recently received 'realm' and 'nonce'
@@ -764,7 +773,7 @@ namespace SharpRTSPtoWebRTC.RTSP
             }
 
             // If we get a reply to OPTIONS then start the Keepalive Timer and send DESCRIBE
-            if (message.OriginalRequest != null && message.OriginalRequest is RtspRequestOptions)
+            if (message.OriginalRequest is RtspRequestOptions)
             {
                 // Check the capabilities returned by OPTIONS
                 // The Public: header contains the list of commands the RTSP server supports
@@ -812,7 +821,7 @@ namespace SharpRTSPtoWebRTC.RTSP
             }
 
             // If we get a reply to DESCRIBE (which was our second command), then prosess SDP and send the SETUP
-            if (message.OriginalRequest != null && message.OriginalRequest is RtspRequestDescribe)
+            if (message.OriginalRequest is RtspRequestDescribe)
             {
                 // Got a reply for DESCRIBE
                 if (message.IsOk == false)
@@ -1105,7 +1114,7 @@ namespace SharpRTSPtoWebRTC.RTSP
             // (i) check if the Interleaved Channel numbers have been modified by the camera (eg Panasonic cameras)
             // (ii) check if we have any more SETUP commands to send out (eg if we are doing SETUP for Video and Audio)
             // (iii) send a PLAY command if all the SETUP command have been sent
-            if (message.OriginalRequest != null && message.OriginalRequest is RtspRequestSetup)
+            if (message.OriginalRequest is RtspRequestSetup)
             {
                 // Got Reply to SETUP
                 if (message.IsOk == false)
@@ -1187,7 +1196,7 @@ namespace SharpRTSPtoWebRTC.RTSP
             }
 
             // If we get a reply to PLAY (which was our fourth command), then we should have video being received
-            if (message.OriginalRequest != null && message.OriginalRequest is RtspRequestPlay)
+            if (message.OriginalRequest is RtspRequestPlay)
             {
                 // Got Reply to PLAY
                 if (message.IsOk == false)
