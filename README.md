@@ -101,9 +101,6 @@ public class WebRTCController : ControllerBase
 
 Finally, for the WebRTC viewer you can refer to `src/RTSPtoWebRTCGateway/ClientApp/src/components/CameraViewer.js`.
 
-## Known issues
-- A random crash due to a race condition in the sipsorcery 6.0.12 ICE implementation https://github.com/sipsorcery-org/sipsorcery/pull/924. Will be fixed when a new version of sipsorcery 6.0.13 is released.
-
 ## Credits
 - sipsorcery - WebRTC implementation in netstandard which has made this project possible https://github.com/sipsorcery-org/sipsorcery
 - SharpRTSP - RTSP client in netstandard https://github.com/ngraziano/SharpRTSP
