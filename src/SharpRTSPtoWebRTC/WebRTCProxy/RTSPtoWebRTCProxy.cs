@@ -109,7 +109,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
 
             client.ReceivedVideoData += Client_ReceivedVideoData;
-            client.ReceivedAudioData += Client_Received_AAC;
+            client.ReceivedAudioData += Client_ReceivedAudioData;
         }
 
         #region WebRTC
@@ -196,18 +196,21 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
-                        // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
-                        //  we have to keep sending it in between the AUs
-                        if (_lastVideoMarkerBit == 1 && !e.IsMarker)
+                        if (peerConnection.Value.VideoStream.IsSecurityContextReady())
                         {
-                            if (_sps != null)
+                            // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
+                            //  we have to keep sending it in between the AUs
+                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
                             {
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
+                                if (_sps != null)
+                                {
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
+                                }
                             }
-                        }
 
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        }
                     }
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
@@ -231,7 +234,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
                     foreach (var peerConnection in _peerConnections)
                     {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        if (peerConnection.Value.AudioStream.IsSecurityContextReady())
+                        {
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        }
                     }
                 }
                 else if (AudioCodecEnum != AudioCodecsEnum.OPUS)
@@ -292,7 +298,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                 foreach (var peerConnection in _peerConnections)
                 {
-                    SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), e.RtpTimestamp);
+                    if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                    {
+                        SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), e.RtpTimestamp);
+                    }
                 }
             }
         }
@@ -375,7 +384,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private List<short> _samples = new List<short>();
         private short[] _resampledBuffer = null;
 
-        private void Client_Received_AAC(object sender, SimpleDataEventArgs e)
+        private void Client_ReceivedAudioData(object sender, SimpleDataEventArgs e)
         {
             var aacConfiguration = _audioStream as AACStreamConfigurationData;
 
@@ -385,7 +394,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // here we know we have AAC
             int channels = aacConfiguration.ChannelConfiguration;
 
-            // setup
             if (_aacDecoder == null)
             {
                 var decoderConfig = new DecoderConfig();
@@ -397,9 +405,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // we only need resampling if the AAC payload is not using the 48k sampling rate already
                 if ((SampleFrequency)aacConfiguration.FrequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
-                    const int MAX_DECODED_FRAME_SIZE_MULT = 6;
                     const int MAX_AAC_FRAME_SIZE = 1024; // for AAC-LC only
-                    _resampledBuffer = new short[MAX_AAC_FRAME_SIZE * MAX_DECODED_FRAME_SIZE_MULT * channels];
+                    _resampledBuffer = new short[(MAX_AAC_FRAME_SIZE * SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() * channels) / ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency()];
 
                     const int OPUS_QUALITY = 10; // 0-10, 10 is for maximum quality
                     _pcmResampler = ResamplerFactory.CreateResampler(channels, ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency(), SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), OPUS_QUALITY);
@@ -410,7 +417,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             // calculate the RTP timestamp based upon the current timestamp and the remainder from the last AAC payload 
             //  which did not fit into the frame size of the Opus encoded payload
-            uint rtpTimestamp = (uint)(e.RtpTimestamp - _samples.Count / channels);
+            uint rtpTimestamp = (uint)(e.RtpTimestamp - (_samples.Count / channels));
 
             // single RTP can contain multiple AAC frames
             foreach (var aacFrame in e.Data)
@@ -453,7 +460,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     // send it to all peers
                     foreach (var peerConnection in _peerConnections)
                     {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.OpusAudioFormat.FormatID);
+                        if (peerConnection.Value.AudioStream.IsSecurityContextReady())
+                        {
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.OpusAudioFormat.FormatID);
+                        }
                     }
 
                     // increment the RTP timestamp by the frame size

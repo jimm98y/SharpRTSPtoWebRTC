@@ -21,7 +21,7 @@ namespace SharpRTSPtoWebRTC.Codecs
         // private const int FRAME_SIZE_MILLISECONDS = 20;
         private const int OPUS_FRAME_SIZE = 960;
         private const int MAX_DECODED_FRAME_SIZE_MULT = 6; 
-        private const int MAX_PACKET_SIZE = 4000;
+        private const int MAX_PACKET_SIZE = 1275;
         private const int MAX_FRAME_SIZE = MAX_DECODED_FRAME_SIZE_MULT * OPUS_FRAME_SIZE; // some buffer large enough to hold the samples
         private const int SAMPLE_RATE = 48000;
 
