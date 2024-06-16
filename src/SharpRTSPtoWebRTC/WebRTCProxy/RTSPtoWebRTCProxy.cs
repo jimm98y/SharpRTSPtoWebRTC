@@ -1,6 +1,5 @@
 ﻿using SharpRTSPtoWebRTC.Codecs;
 using SharpJaad.AAC;
-using Concentus.Common;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
@@ -108,7 +107,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             client.ReceivedRawVideoRTP += Client_ReceivedRawVideoRTP;
             client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
 
-            client.ReceivedVideoData += Client_ReceivedVideoData;
             client.ReceivedAudioData += Client_ReceivedAudioData;
         }
 
@@ -192,7 +190,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // forward RTP to WebRTC "as is", just without the RTP header
                 byte[] msg = e.Data.Slice(e.Data.Length - e.PayloadSize).ToArray();
 
-                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only, H265 requires re-packetization of the NALs
+                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only
                 {
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
@@ -202,7 +200,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                             //  we have to keep sending it in between the AUs
                             if (_lastVideoMarkerBit == 1 && !e.IsMarker)
                             {
-                                if (_sps != null)
+                                if (_sps != null && _pps != null)
                                 {
                                     peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
                                     peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
@@ -215,7 +213,30 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
-                else if (VideoCodecEnum != VideoCodecsEnum.H265)
+                else if (VideoCodecEnum == VideoCodecsEnum.H265)
+                {
+                    // after this change: https://github.com/WebKit/WebKit/pull/15494/commits/93eb48d39b70248c062e90fceb4630a312e46b0d H265 uses now standard packetization
+                    foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+                    {
+                        if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                        {
+                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
+                            {
+                                if (_vps != null && _sps != null && _pps != null)
+                                {
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _vps, e.Timestamp, 0, e.PayloadType);
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
+                                }
+                            }
+
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        }
+                    }
+
+                    _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
+                }
+                else
                 {
                     _logger.LogDebug($"Unsupported video codec {VideoCodecEnum}");
                 }
@@ -246,135 +267,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 }
             }
         }
-
-        #region H265 WebRTC for Safari
-
-        /// <summary>
-        /// Annex-B prefix to separate the NAL units.
-        /// </summary>
-        private readonly byte[] _annexB = new byte[] { 0, 0, 0, 1 };
-
-        private const byte NALU_VPS = 32;
-        private const byte NALU_SPS = 33;
-        private const byte NALU_PPS = 34;
-        private const byte NALU_IDR = 19;
-
-        private struct SafariH265Header
-        {
-            /// <summary>
-            /// Current RTP header.
-            /// </summary>
-            public byte Current;
-
-            /// <summary>
-            /// Next RTP header for this AU.
-            /// </summary>
-            public int Next;
-
-            public SafariH265Header(byte current, int next)
-            {
-                this.Current = current;
-                this.Next = next;
-            }
-        }
-
-        private void Client_ReceivedVideoData(object sender, SimpleDataEventArgs e)
-        {
-            if (VideoCodecEnum == VideoCodecsEnum.H265)
-            {
-                if (e.Data == null || e.Data.Count() == 0)
-                    return;
-
-                var nalUnits = e.Data.ToArray();
-
-                // TODO: use VPS/SPS/PPS from the SDP in case it's not among the NALs for the IDR frame
-                IEnumerable<byte> msg = new byte[0];
-
-                // join all NAL units in this AU into a single array and prefix each NAL with Annex B
-                for (int i = 0; i < nalUnits.Length; i++)
-                {
-                    msg = msg.Concat(_annexB).Concat(nalUnits[i].ToArray());
-                }
-
-                foreach (var peerConnection in _peerConnections)
-                {
-                    if (peerConnection.Value.VideoStream.IsSecurityContextReady())
-                    {
-                        SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), e.RtpTimestamp);
-                    }
-                }
-            }
-        }
-
-        private static void SendSafariH265AU(RTCPeerConnection peerConnection, int payloadTypeID, byte[] au, uint timestamp)
-        {
-            /*
-            You need a correct H265 stream: VPS, SPS, PPS, I-frame, P-frame(s).
-            You need it with Annex-B headers 00 00 00 01 before each NAL unit.
-            You need split your stream on RTP payloads with one byte header:
-                03 for payload with VPS, SPS, PPS, I-frame start
-                01 for all next packets from this I-frame
-                02 for payload with P-frame
-                00 for all next packets from this P-frame
-            Don't forget set marker flag only for last packet of each Access Units
-            */
-            const int maxRtpPayloadLength = 1200 - 12 - 1; // 12 bytes RTP header, 1 byte is the type header that we have to add in GetSafariH265RtpHeader
-            byte auType = au[4];
-            int start = -1;
-
-            if (au.Length <= maxRtpPayloadLength)
-            {
-                int markerBit = 1;
-                SafariH265Header h265RtpHeader = GetSafariH265RtpHeader(auType);
-                byte[] array = new byte[au.Length + 1];
-                array[0] = h265RtpHeader.Current;
-                Buffer.BlockCopy(au, 0, array, 1, au.Length);
-                peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array, timestamp, markerBit, payloadTypeID);
-            }
-            else
-            {
-                for (int i = 0; i * maxRtpPayloadLength < au.Length; i++)
-                {
-                    int srcOffset = i * maxRtpPayloadLength;
-                    int num = (i + 1) * maxRtpPayloadLength < au.Length ? maxRtpPayloadLength : au.Length - i * maxRtpPayloadLength;
-                    bool flag = (i + 1) * maxRtpPayloadLength >= au.Length;
-                    int markerBit2 = flag ? 1 : 0;
-                    SafariH265Header h265RtpHeader = GetSafariH265RtpHeader(auType, start);
-                    start = h265RtpHeader.Next;
-                    byte[] array2 = new byte[num + 1];
-                    array2[0] = h265RtpHeader.Current;
-                    Buffer.BlockCopy(au, srcOffset, array2, 1, num);
-                    peerConnection.SendRtpRaw(SDPMediaTypesEnum.video, array2, timestamp, markerBit2, payloadTypeID);
-                }
-            }
-        }
-
-        private static SafariH265Header GetSafariH265RtpHeader(byte au0, int start = -1)
-        {
-            // algorithm from here: https://github.com/AlexxIT/Blog/issues/5
-            if (start == -1)
-            {
-                var nut = au0 >> 1 & 0b111111;
-
-                switch (nut)
-                {
-                    case NALU_VPS:
-                    case NALU_SPS:
-                    case NALU_PPS:
-                    case NALU_IDR:
-                        return new SafariH265Header(3, 1);
-
-                    default:
-                        return new SafariH265Header(2, 0);
-                }
-            }
-            else
-            {
-                return new SafariH265Header((byte)start, start);
-            }
-        }
-
-        #endregion // H265 WebRTC for Safari
 
         #region AAC to Opus transcoding
 
