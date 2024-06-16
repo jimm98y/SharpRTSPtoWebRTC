@@ -464,18 +464,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         #endregion //  AAC to Opus transcoding
 
-        /*
         // only useful for debugging to dump the raw PCM into a file
 #if DEBUG
         private static void AppendToFile(string fileToWrite, byte[] data)
         {
-            using (FileStream fileStream = new FileStream(fileToWrite, File.Exists(fileToWrite) ? FileMode.Append : FileMode.OpenOrCreate, FileAccess.Write))
+            using (System.IO.FileStream fileStream = new System.IO.FileStream(fileToWrite, System.IO.File.Exists(fileToWrite) ? System.IO.FileMode.Append : System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write))
             {
                 fileStream.Write(data, 0, data.Length);
                 fileStream.Close();
             }
         }
 #endif
-        */
     }
 }
