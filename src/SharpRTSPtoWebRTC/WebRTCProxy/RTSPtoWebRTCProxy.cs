@@ -1,5 +1,4 @@
 ﻿using SharpRTSPtoWebRTC.Codecs;
-using SharpRTSPtoWebRTC.RTSP;
 using SharpJaad.AAC;
 using Concentus.Common;
 using SIPSorcery.Net;
@@ -9,6 +8,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using SharpRTSPClient;
+using Concentus;
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
@@ -22,6 +23,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private RTSPClient _client = null;
+        private IStreamConfigurationData _videoStream = null;
+        private IStreamConfigurationData _audioStream = null;
 
         private int _lastVideoMarkerBit = 1; // initial value 1 to make sure the first connection will send sps/pps
         private byte[] _sps = null;
@@ -57,39 +60,56 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         }
 
         public RTSPtoWebRTCProxy(
-            ILogger logger,
-            RTSPClient client,
-            int audioType,
-            string audioCodec,
-            int videoType,
-            string videoCodec,
-            byte[] sps = null,
-            byte[] pps = null,
-            byte[] vps = null)
+                ILogger<RTSPtoWebRTCProxyService> logger,
+                RTSPClient client,
+                int videoPayloadType,
+                string videoPayloadName,
+                IStreamConfigurationData videoStream,
+                int audioPayloadType,
+                string audioPayloadName,
+                IStreamConfigurationData audioStream)
         {
             _logger = logger;
             _client = client;
-            AudioType = audioType;
-            VideoType = videoType;
-            AudioCodec = audioCodec;
-            VideoCodec = videoCodec;
-            _sps = sps;
-            _pps = pps;
-            _vps = vps;
+            _videoStream = videoStream;
+            _audioStream = audioStream;
+            AudioType = audioPayloadType;
+            VideoType = videoPayloadType;
+            AudioCodec = audioPayloadName;
+            VideoCodec = videoPayloadName;
+
+            if(_videoStream is H264StreamConfigurationData h264)
+            {
+                _vps = null;
+                _sps = h264.SPS;
+                _pps = h264.PPS;
+            }
+            else if (_videoStream is H265StreamConfigurationData h265)
+            {
+                _vps = h265.VPS;
+                _sps = h265.SPS;
+                _pps = h265.PPS;
+            }
+            else
+            {
+                throw new NotSupportedException("Unsupported video stream.");
+            }
 
             if (VideoType > 0)
             {
-                VideoCodecEnum = GetVideoCodec(videoCodec);
+                VideoCodecEnum = GetVideoCodec(VideoCodec);
             }
 
             if (AudioType > 0)
             {
-                AudioCodecEnum = GetAudioCodec(audioCodec);
+                AudioCodecEnum = GetAudioCodec(AudioCodec);
             }
 
-            client.RtpMessageReceived += Client_RtpMessageReceived;
-            client.Received_AAC += Client_Received_AAC;
-            client.Received_NALs += Client_Received_NALs;
+            client.ReceivedRawVideoRTP += Client_ReceivedRawVideoRTP;
+            client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
+
+            client.ReceivedVideoData += Client_ReceivedVideoData;
+            client.ReceivedAudioData += Client_Received_AAC;
         }
 
         #region WebRTC
@@ -128,6 +148,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     ret = AudioCodecsEnum.PCMU;
                     break;
 
+                case "AAC":
                 case "MPEG4-GENERIC": // AAC is not supported by WebRTC, it requires transcoding to PCMA/PCMU or Opus
                     ret = AudioCodecsEnum.OPUS;
                     break;
@@ -164,46 +185,53 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         #endregion // Codecs
 
-        private void Client_RtpMessageReceived(byte[] rtp, uint timestamp, int markerBit, int payloadType, int skip)
+        private void Client_ReceivedRawVideoRTP(object sender, RawRtpDataEventArgs e)
         {
-            // forward RTP to WebRTC "as is", just without the RTP header
-            byte[] msg = rtp.Skip(skip).ToArray();
-
-            if (payloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
+            if (e.PayloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
+                // forward RTP to WebRTC "as is", just without the RTP header
+                byte[] msg = e.Data.Slice(e.Data.Length - e.PayloadSize).ToArray();
+
                 if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only, H265 requires re-packetization of the NALs
                 {
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
                         // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
                         //  we have to keep sending it in between the AUs
-                        if (_lastVideoMarkerBit == 1 && markerBit == 0)
+                        if (_lastVideoMarkerBit == 1 && !e.IsMarker)
                         {
                             if (_sps != null)
                             {
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, timestamp, 0, payloadType);
-                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, timestamp, 0, payloadType);
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
+                                peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
                             }
                         }
 
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, timestamp, markerBit, payloadType);
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
                     }
 
-                    _lastVideoMarkerBit = markerBit;
+                    _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
                 else if (VideoCodecEnum != VideoCodecsEnum.H265)
                 {
                     _logger.LogDebug($"Unsupported video codec {VideoCodecEnum}");
                 }
             }
-            else if (payloadType == AudioType && AudioCodecEnum != AudioCodecsEnum.Unknown) // avoid sending RTP for unsupported codecs (AAC)
+        }
+
+        private void Client_ReceivedRawAudioRTP(object sender, RawRtpDataEventArgs e)
+        {
+            if (e.PayloadType == AudioType && AudioCodecEnum != AudioCodecsEnum.Unknown)
             {
                 if (AudioCodecEnum == AudioCodecsEnum.PCMU || AudioCodecEnum == AudioCodecsEnum.PCMA)
                 {
+                    // forward RTP to WebRTC "as is", just without the RTP header
+                    byte[] msg = e.Data.Slice(e.Data.Length - e.PayloadSize).ToArray();
+
                     // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
                     foreach (var peerConnection in _peerConnections)
                     {
-                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, timestamp, markerBit, payloadType);
+                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
                     }
                 }
                 else if (AudioCodecEnum != AudioCodecsEnum.OPUS)
@@ -244,25 +272,27 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
         }
 
-        private void Client_Received_NALs(List<byte[]> nalUnits, uint rtpTimestamp)
+        private void Client_ReceivedVideoData(object sender, SimpleDataEventArgs e)
         {
             if (VideoCodecEnum == VideoCodecsEnum.H265)
             {
-                if (nalUnits.Count == 0)
+                if (e.Data == null || e.Data.Count() == 0)
                     return;
+
+                var nalUnits = e.Data.ToArray();
 
                 // TODO: use VPS/SPS/PPS from the SDP in case it's not among the NALs for the IDR frame
                 IEnumerable<byte> msg = new byte[0];
 
                 // join all NAL units in this AU into a single array and prefix each NAL with Annex B
-                for (int i = 0; i < nalUnits.Count; i++)
+                for (int i = 0; i < nalUnits.Length; i++)
                 {
-                    msg = msg.Concat(_annexB).Concat(nalUnits[i]);
+                    msg = msg.Concat(_annexB).Concat(nalUnits[i].ToArray());
                 }
 
                 foreach (var peerConnection in _peerConnections)
                 {
-                    SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), rtpTimestamp);
+                    SendSafariH265AU(peerConnection.Value, VideoType, msg.ToArray(), e.RtpTimestamp);
                 }
             }
         }
@@ -341,40 +371,38 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private Decoder _aacDecoder = null;
         private OpusAudioEncoder _opusEncoder = null;
-        private SpeexResampler _pcmResampler = null;
+        private IResampler _pcmResampler = null;
         private List<short> _samples = new List<short>();
         private short[] _resampledBuffer = null;
 
-        private void Client_Received_AAC(
-            string format, 
-            List<byte[]> aac, 
-            uint objectType, 
-            uint frequencyIndex, 
-            uint channelConfiguration, 
-            uint timestamp, 
-            int payloadType)
+        private void Client_Received_AAC(object sender, SimpleDataEventArgs e)
         {
+            var aacConfiguration = _audioStream as AACStreamConfigurationData;
+
+            if (aacConfiguration == null)
+                return;
+
             // here we know we have AAC
-            int channels = (int)channelConfiguration;
+            int channels = aacConfiguration.ChannelConfiguration;
 
             // setup
             if (_aacDecoder == null)
             {
                 var decoderConfig = new DecoderConfig();
                 decoderConfig.SetProfile(Profile.AAC_LC); // AAC Low Complexity is most likely used, set it as default
-                decoderConfig.SetSampleFrequency((SampleFrequency)frequencyIndex);
+                decoderConfig.SetSampleFrequency((SampleFrequency)aacConfiguration.FrequencyIndex);
                 decoderConfig.SetChannelConfiguration((ChannelConfiguration)channels);
                 _aacDecoder = new Decoder(decoderConfig);
 
                 // we only need resampling if the AAC payload is not using the 48k sampling rate already
-                if ((SampleFrequency)frequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
+                if ((SampleFrequency)aacConfiguration.FrequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
                     const int MAX_DECODED_FRAME_SIZE_MULT = 6;
                     const int MAX_AAC_FRAME_SIZE = 1024; // for AAC-LC only
                     _resampledBuffer = new short[MAX_AAC_FRAME_SIZE * MAX_DECODED_FRAME_SIZE_MULT * channels];
 
                     const int OPUS_QUALITY = 10; // 0-10, 10 is for maximum quality
-                    _pcmResampler = new SpeexResampler(channels, ((SampleFrequency)frequencyIndex).GetFrequency(), SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), OPUS_QUALITY);
+                    _pcmResampler = ResamplerFactory.CreateResampler(channels, ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency(), SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), OPUS_QUALITY);
                 }
 
                 _opusEncoder = new OpusAudioEncoder(channels);
@@ -382,10 +410,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             // calculate the RTP timestamp based upon the current timestamp and the remainder from the last AAC payload 
             //  which did not fit into the frame size of the Opus encoded payload
-            uint rtpTimestamp = (uint)(timestamp - _samples.Count / channels);
+            uint rtpTimestamp = (uint)(e.RtpTimestamp - _samples.Count / channels);
 
             // single RTP can contain multiple AAC frames
-            foreach (var aacFrame in aac)
+            foreach (var aacFrame in e.Data)
             {
                 SampleBuffer buffer = new SampleBuffer();
 
@@ -393,18 +421,18 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 buffer.SetBigEndian(false);
 
                 // decode AAC to PCM using a port of the JAAD AAC Decoder
-                _aacDecoder.DecodeFrame(aacFrame, buffer);
+                _aacDecoder.DecodeFrame(aacFrame.ToArray(), buffer);
 
                 // convert to signed short PCM
                 short[] sdata = new short[buffer.Data.Length / sizeof(short)];
                 Buffer.BlockCopy(buffer.Data, 0, sdata, 0, buffer.Data.Length);
 
                 // if the AAC sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
-                if ((SampleFrequency)frequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
+                if ((SampleFrequency)aacConfiguration.FrequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
                 {
                     int inLen = sdata.Length / channels;
                     int outLen = _resampledBuffer.Length / channels;
-                    _pcmResampler.ProcessInterleaved(sdata, 0, ref inLen, _resampledBuffer, 0, ref outLen);
+                    _pcmResampler.ProcessInterleaved(sdata, ref inLen, _resampledBuffer, ref outLen);
                     sdata = _resampledBuffer.Take(outLen * channels).ToArray();
                 }
 

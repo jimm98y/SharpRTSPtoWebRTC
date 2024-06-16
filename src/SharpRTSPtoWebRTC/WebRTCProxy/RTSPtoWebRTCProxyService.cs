@@ -1,24 +1,26 @@
-﻿using SharpRTSPtoWebRTC.RTSP;
-using SIPSorcery.Net;
+﻿using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using SharpRTSPClient;
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
     public class RTSPtoWebRTCProxyService 
     {
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private readonly ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>>();
 
         public RTSPtoWebRTCProxyService(ILoggerFactory loggerFactory)
         {
-            SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
+            _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             _logger = loggerFactory.CreateLogger<RTSPtoWebRTCProxyService>();
+            SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
         }
 
         public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null)
@@ -37,7 +39,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             // session must be created in advance in order to know which codec to use
-            RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_logger, url, userName, password);
+            RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password);
 
             RTCPeerConnection peerConnection = new RTCPeerConnection(null);
 
@@ -119,43 +121,48 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             return sdp;
         }
 
-        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password)
         {
             return _rtspClients.GetOrAdd(url, (u) =>
             {
-                return CreateClientAsync(logger, url, userName, password);
+                return CreateClientAsync(loggerFactory, url, userName, password);
             });
         }
 
-        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILogger<RTSPtoWebRTCProxyService> logger, string url, string userName, string password)
+        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password)
         {
-            TaskCompletionSource<(string video, int videoType, string audio, int audioType)> result = new TaskCompletionSource<(string video, int videoType, string audio, int audioType)>();
+            TaskCompletionSource<bool> result = new TaskCompletionSource<bool>();
+            var client = new RTSPClient(loggerFactory);
 
-            var client = new RTSPClient(logger);
-            client.SetupCompleted += (video, videoType, audio, audioType) =>
+            IStreamConfigurationData videoStream = null;
+            int videoType = -1;
+            string videoName = "";
+            client.NewVideoStream += (o, e) =>
             {
-                result.SetResult((video, videoType, audio, audioType));
+                videoStream = e.StreamConfigurationData;
+                videoType = e.PayloadType;
+                videoName = e.StreamType;
             };
 
-            byte[] sdpSps = null;
-            byte[] sdpPps = null;
-            byte[] sdpVps = null;
-            client.Received_VPS_SPS_PPS += (byte[] vps, byte[] sps, byte[] pps, uint timestamp) =>
+            IStreamConfigurationData audioStream = null;
+            int audioType = -1;
+            string audioName = "";
+            client.NewAudioStream += (o, e) =>
             {
-                sdpSps = sps;
-                sdpPps = pps;
-                sdpVps = vps;
-            };
-            client.Received_SPS_PPS_From_SDP += (byte[] sps, byte[] pps, uint timestamp) =>
-            {
-                sdpSps = sps;
-                sdpPps = pps;
+                audioStream = e.StreamConfigurationData;
+                audioType = e.PayloadType;
+                audioName = e.StreamType;
             };
 
-            client.Connect(url, RTSPClient.RTP_TRANSPORT.TCP, userName, password);
+            client.SetupMessageCompleted += (o, e) =>
+            {
+                result.SetResult(true);
+            };
+
+            client.Connect(url, RTPTransport.TCP, userName, password);
 
             var codecs = await result.Task;
-            return new RTSPtoWebRTCProxy(_logger, client, codecs.audioType, codecs.audio, codecs.videoType, codecs.video, sdpSps, sdpPps, sdpVps);
+            return new RTSPtoWebRTCProxy(_logger, client, videoType, videoName, videoStream, audioType, audioName, audioStream);
         }
 
         public void SetAnswer(string id, RTCSessionDescriptionInit description)
@@ -184,72 +191,4 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
         }
     }
-
-    /*
-     * Sample ASP.NET Core Controller to call this class.
-    /*
-    var builder = WebApplication.CreateBuilder(args);
-    builder.Services
-        .AddControllersWithViews()
-        .AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        });
-    builder.Services.Configure<List<CameraConfiguration>>(builder.Configuration.GetSection("Cameras"));
-    builder.Services.AddSingleton<RTSPtoWebRTCProxyService>();
-    var app = builder.Build();
-    app.UseStaticFiles();
-    app.UseRouting();
-    app.MapControllerRoute(
-        name: "default",
-        pattern: "{controller}/{action=Index}/{id?}");
-    app.MapFallbackToFile("index.html");
-    app.Run();
-
-    [ApiController]
-    [Route("api/[controller]")]
-    public class WebRTCController : ControllerBase
-    {
-        private readonly ILogger<WebRTCController> _logger;
-        private readonly IList<CameraConfiguration> _cameras;
-        private readonly RTSPtoWebRTCProxyService _webRTCServer;
-
-        public WebRTCController(ILogger<WebRTCController> logger, IOptions<List<CameraConfiguration>> cameras, RTSPtoWebRTCProxyService webRTCServer)
-        {
-            _logger = logger;
-            _cameras = cameras.Value;
-            _webRTCServer = webRTCServer;
-        }
-
-        [HttpGet]
-        [Route("getcameras")]
-        public IActionResult GetCameras()
-        {
-            return Ok(_cameras.Select(x => x.Name).ToList());
-        }
-
-        [HttpGet]
-        [Route("getoffer")]
-        public async Task<IActionResult> GetOffer(string id, string name)
-        {
-            return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password));
-        }
-
-        [HttpPost]
-        [Route("setanswer")]
-        public IActionResult SetAnswer(string id, [FromBody] RTCSessionDescriptionInit answer)
-        {
-            _webRTCServer.SetAnswer(id, answer);
-            return Ok();
-        }
-
-        [HttpPost]
-        [Route("addicecandidate")]
-        public IActionResult AddIceCandidate(string id, [FromBody] RTCIceCandidateInit iceCandidate)
-        {
-            _webRTCServer.AddIceCandidate(id, iceCandidate);
-            return Ok();
-        }
-    }
-    */
 }
