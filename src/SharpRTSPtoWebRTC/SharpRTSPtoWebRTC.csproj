@@ -5,7 +5,7 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>SharpRTSPtoWebRTC</Title>
     <Authors>Lukas Volf</Authors>
-    <Version>0.0.3-alpha</Version>
+    <Version>0.0.5</Version>
     <Description>A C# implementation of the RTSP to WebRTC gateway that allows you to stream RTSP from various sources to the web browser. It is implemented  in netstandard2.0 without any native dependencies. Suppports H264 and H265 re-streaming (H265 in WebRTC is only available in Safari). Audio transcoding from AAC to Opus is also supported.</Description>
     <Copyright>MIT</Copyright>
     <PackageProjectUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</PackageProjectUrl>
@@ -14,8 +14,8 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>rtsp;webrtc;streaming;netstandard;aac;h264;h265</PackageTags>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyVersion>0.0.3</AssemblyVersion>
-    <FileVersion>0.0.3</FileVersion>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
@@ -27,10 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Concentus" Version="1.1.7" />
+    <PackageReference Include="Concentus" Version="2.2.2" />
     <PackageReference Include="SharpJaad.AAC" Version="0.0.4" />
-    <PackageReference Include="SharpRTSP" Version="1.0.0" />
-    <PackageReference Include="SIPSorcery" Version="6.2.0" />
+    <PackageReference Include="SharpRTSPClient" Version="0.0.4" />
+    <PackageReference Include="SIPSorcery" Version="6.2.4" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Net.Security" Version="4.3.2" />
   </ItemGroup>

@@ -1,4 +1,4 @@
-﻿using Concentus.Structs;
+﻿using Concentus;
 using Concentus.Enums;
 using SIPSorcery.Media;
 using SIPSorceryMedia.Abstractions;
@@ -21,7 +21,7 @@ namespace SharpRTSPtoWebRTC.Codecs
         // private const int FRAME_SIZE_MILLISECONDS = 20;
         private const int OPUS_FRAME_SIZE = 960;
         private const int MAX_DECODED_FRAME_SIZE_MULT = 6; 
-        private const int MAX_PACKET_SIZE = 4000;
+        private const int MAX_PACKET_SIZE = 1275;
         private const int MAX_FRAME_SIZE = MAX_DECODED_FRAME_SIZE_MULT * OPUS_FRAME_SIZE; // some buffer large enough to hold the samples
         private const int SAMPLE_RATE = 48000;
 
@@ -36,8 +36,8 @@ namespace SharpRTSPtoWebRTC.Codecs
         private short[] _shortBuffer;
         private byte[] _byteBuffer;
 
-        private OpusEncoder _opusEncoder;
-        private OpusDecoder _opusDecoder;
+        private IOpusEncoder _opusEncoder;
+        private IOpusDecoder _opusDecoder;
 
         public OpusAudioEncoder(int channels)
         {
@@ -60,13 +60,13 @@ namespace SharpRTSPtoWebRTC.Codecs
             {
                 if (_opusDecoder == null)
                 {
-                    _opusDecoder = new OpusDecoder(SAMPLE_RATE, _channels);
+                    _opusDecoder = OpusCodecFactory.CreateDecoder(SAMPLE_RATE, _channels);
                     _shortBuffer = new short[MAX_FRAME_SIZE * _channels];
                 }
 
                 try
                 {
-                    int numSamplesDecoded = _opusDecoder.Decode(encoded, 0, encoded.Length, _shortBuffer, 0, _shortBuffer.Length, false);
+                    int numSamplesDecoded = _opusDecoder.Decode(encoded, _shortBuffer, OPUS_FRAME_SIZE, false);
 
                     if (numSamplesDecoded >= 1)
                     {
@@ -96,7 +96,7 @@ namespace SharpRTSPtoWebRTC.Codecs
             {
                 if (_opusEncoder == null)
                 {
-                    _opusEncoder = new OpusEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
+                    _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
                     _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
                     _byteBuffer = new byte[MAX_PACKET_SIZE];
                 }
@@ -104,7 +104,7 @@ namespace SharpRTSPtoWebRTC.Codecs
                 try
                 {
                     int frameSize = GetFrameSize();
-                    int size = _opusEncoder.Encode(pcm, 0, frameSize, _byteBuffer, 0, _byteBuffer.Length);
+                    int size = _opusEncoder.Encode(pcm, frameSize, _byteBuffer, _byteBuffer.Length);
 
                     if (size > 1)
                     {
