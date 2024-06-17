@@ -107,7 +107,32 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             client.ReceivedRawVideoRTP += Client_ReceivedRawVideoRTP;
             client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
 
+            client.ReceivedRawVideoRTCP += Client_ReceivedRawVideoRTCP;
+            client.ReceivedRawAudioRTCP += Client_ReceivedRawAudioRTCP;
+
             client.ReceivedAudioData += Client_ReceivedAudioData;
+        }
+
+        private void Client_ReceivedRawAudioRTCP(object sender, RawRtcpDataEventArgs e)
+        {
+            foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+            {
+                if (peerConnection.Value.AudioStream.IsSecurityContextReady())
+                {
+                    peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.audio, e.Data.ToArray());
+                }
+            }
+        }
+
+        private void Client_ReceivedRawVideoRTCP(object sender, RawRtcpDataEventArgs e)
+        {
+            foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+            {
+                if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                {
+                    peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.video, e.Data.ToArray());
+                }
+            }
         }
 
         #region WebRTC

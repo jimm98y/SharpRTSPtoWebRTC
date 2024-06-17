@@ -118,6 +118,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
                 sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H264/90000\r\n", $"a=rtpmap:{client.VideoType} H264/90000\r\na=fmtp:{client.VideoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
             }
+            //else if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H265/90000\r\n"))
+            //{
+            //    sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H265/90000\r\n", $"a=rtpmap:{client.VideoType} H265/90000\r\na=fmtp:{client.VideoType} profile-id=1;tier-flag=0;level-id=120\r\n");
+            //}
             return sdp;
         }
 
