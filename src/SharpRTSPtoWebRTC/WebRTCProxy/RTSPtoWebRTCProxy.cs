@@ -212,8 +212,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             if (e.PayloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
-                // forward RTP to WebRTC "as is", just without the RTP header
-                byte[] msg = e.Data.Slice(e.Data.Length - e.PayloadSize).ToArray();
+                // forward RTP to WebRTC "as is", just without the RTP header 
+                // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
+                byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
 
                 if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only
                 {
@@ -275,7 +276,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 if (AudioCodecEnum == AudioCodecsEnum.PCMU || AudioCodecEnum == AudioCodecsEnum.PCMA)
                 {
                     // forward RTP to WebRTC "as is", just without the RTP header
-                    byte[] msg = e.Data.Slice(e.Data.Length - e.PayloadSize).ToArray();
+                    // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
+                    byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
 
                     // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
                     foreach (var peerConnection in _peerConnections)
