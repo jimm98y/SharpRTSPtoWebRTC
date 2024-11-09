@@ -30,7 +30,7 @@
     <PackageReference Include="Concentus" Version="2.2.2" />
     <PackageReference Include="SharpJaad.AAC" Version="0.0.4" />
     <PackageReference Include="SharpRTSPClient" Version="0.0.4" />
-    <PackageReference Include="SIPSorcery" Version="6.2.4" />
+    <PackageReference Include="SIPSorcery" Version="8.0.3" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Net.Security" Version="4.3.2" />
   </ItemGroup>
