@@ -99,7 +99,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 VideoCodecEnum = GetVideoCodec(VideoCodec);
             }
 
-            if (AudioType > 0)
+            if (AudioType >= 0) // PCMU: AudioType = 0
             {
                 AudioCodecEnum = GetAudioCodec(AudioCodec);
             }
