@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
 namespace RTSPtoWebRTCGateway.Pages
@@ -14,7 +15,7 @@ namespace RTSPtoWebRTCGateway.Pages
             _logger = logger;
         }
 
-        public string? RequestId { get; set; }
+        public string RequestId { get; set; }
 
         public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
