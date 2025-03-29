@@ -17,9 +17,7 @@ Because no video transcoding is being performed, the web browsers must support d
 This should be supported by the majority of web browsers as it is among the codecs required by WebRTC. There might be an exception for Firefox on Android according to this: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs.
 
 ### H265
-Although most of the web browsers today support H265 video decoding, it does not mean H265 will also work in WebRTC. As of June 2023, H265 in WebRTC is only supported in Safari 
-as an experimental feature. It has to be explicitly enabled by the user in Develop -> Experimental Features -> WebRTC H265 Codec. After enabling this option you should be able 
-to play H265 video in the browser.
+Although most of the web browsers today support H265 video decoding, it does not mean H265 will also work in WebRTC. As of April 2025, H265 in WebRTC is supported in the latest releases of Safari. It is also supported in Chrome Canary 136+.
 
 ## Samples
 ### RTSPtoWebRTCGateway
