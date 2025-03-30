@@ -195,7 +195,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     break;
 
                 case "H265":
-                    ret = VideoCodecsEnum.H265; // as of May 2023 this only work in Safari with Experimantal WebRTC H265 feature flag enabled
+                    ret = VideoCodecsEnum.H265; // as of April 2025 this works in Safari and Chrome Canary 136
                     break;
 
                 default:
