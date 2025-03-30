@@ -248,9 +248,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         {
                             if (_lastVideoMarkerBit == 1 && !e.IsMarker)
                             {
-                                if (_vps != null && _sps != null && _pps != null)
+                                if (_sps != null && _pps != null)
                                 {
-                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _vps, e.Timestamp, 0, e.PayloadType);
+                                    if (_vps != null)
+                                    {
+                                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _vps, e.Timestamp, 0, e.PayloadType);
+                                    }
                                     peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
                                     peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
                                 }
