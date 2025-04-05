@@ -5,12 +5,14 @@ VisualStudioVersion = 17.5.33502.453
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpRTSPtoWebRTC", "SharpRTSPtoWebRTC\SharpRTSPtoWebRTC.csproj", "{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RTSPtoWebRTCGateway", "RTSPtoWebRTCGateway\RTSPtoWebRTCGateway.csproj", "{5D99E37F-0375-411F-A200-5354428E0944}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTSPtoWebRTC.Server", "RTSPtoWebRTC.Server\RTSPtoWebRTC.Server.csproj", "{FBF0221C-2504-9606-0FF0-1899C863A528}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "rtsptowebrtc.client", "rtsptowebrtc.client\rtsptowebrtc.client.esproj", "{EE0BB9E5-D954-B9EF-F067-657A477204CB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,10 +24,16 @@ Global
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A612AFCA-1E9B-4D53-B380-0A31F3CCC9DE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5D99E37F-0375-411F-A200-5354428E0944}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5D99E37F-0375-411F-A200-5354428E0944}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5D99E37F-0375-411F-A200-5354428E0944}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5D99E37F-0375-411F-A200-5354428E0944}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBF0221C-2504-9606-0FF0-1899C863A528}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBF0221C-2504-9606-0FF0-1899C863A528}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBF0221C-2504-9606-0FF0-1899C863A528}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBF0221C-2504-9606-0FF0-1899C863A528}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE0BB9E5-D954-B9EF-F067-657A477204CB}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
