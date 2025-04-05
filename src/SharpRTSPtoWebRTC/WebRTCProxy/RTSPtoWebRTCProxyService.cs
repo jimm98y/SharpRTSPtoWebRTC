@@ -158,14 +158,33 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 audioName = e.StreamType;
             };
 
+            int reconnectAttempts = 0;
             client.SetupMessageCompleted += (o, e) =>
             {
+                reconnectAttempts = 0; 
                 result.SetResult(true);
+            };
+
+            client.Stopped += (o, e) =>
+            {
+                reconnectAttempts++;
+                
+                if (reconnectAttempts > 100)
+                {
+                    result.SetResult(false);
+                }
+
+                _logger.LogDebug($"Reconnect attempt {reconnectAttempts}");
+                client.TryReconnect();
             };
 
             client.Connect(url, RTPTransport.TCP, userName, password);
 
-            var codecs = await result.Task;
+            bool isConnected = await result.Task;
+            if(!isConnected)
+            {
+                throw new Exception($"Failed to connect to RTSP server {url}.");
+            }
             return new RTSPtoWebRTCProxy(_logger, client, videoType, videoName, videoStream, audioType, audioName, audioStream);
         }
 
