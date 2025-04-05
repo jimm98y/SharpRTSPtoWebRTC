@@ -6,7 +6,6 @@ any video transcoding which makes it lightweight and portable. It does support a
 - Re-stream H264/H265 RTSP from any source to the web browser
 - Stream aggregation - there is only a single session in between the gateway and the RTSP source, no matter how many users are watching the stream
 - Transcode AAC audio to Opus with a small latency in audio
-- Supports the experimental H265 WebRTC feature in Safari
 
 ![Preview](demo.gif)
 
@@ -97,11 +96,9 @@ public class WebRTCController : ControllerBase
 }
 ```
 
-Finally, for the WebRTC viewer you can refer to `src/RTSPtoWebRTCGateway/ClientApp/src/components/CameraViewer.js`.
+Finally, for the WebRTC viewer you can refer to `src/rtsptowebrtc.client/src/CameraViewer.jsx`.
 
 ## Credits
 - sipsorcery - WebRTC implementation in netstandard which has made this project possible https://github.com/sipsorcery-org/sipsorcery
 - SharpRTSP - RTSP client in netstandard https://github.com/ngraziano/SharpRTSP
 - concentus - Opus codec implementation https://github.com/lostromb/concentus
-- SharpJaad.AAC - AAC decoder implementation https://github.com/jimm98y/SharpJaad
-- Big thanks to AlexxIT for figuring out how the H265 WebRTC streaming in Safari works: https://github.com/AlexxIT/Blog/issues/5
