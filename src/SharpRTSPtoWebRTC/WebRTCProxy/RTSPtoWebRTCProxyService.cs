@@ -178,7 +178,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 client.TryReconnect();
             };
 
-            client.Connect(url, RTPTransport.TCP, userName, password);
+            client.Connect(url, RTPTransport.TCP, userName, password, MediaRequest.VIDEO_AND_AUDIO, false, null, true);
 
             bool isConnected = await result.Task;
             if(!isConnected)
