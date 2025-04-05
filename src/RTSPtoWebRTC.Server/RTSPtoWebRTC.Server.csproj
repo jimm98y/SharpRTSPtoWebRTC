@@ -7,6 +7,7 @@
     <SpaRoot>..\rtsptowebrtc.client</SpaRoot>
     <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
     <SpaProxyServerUrl>https://localhost:57741</SpaProxyServerUrl>
+	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
