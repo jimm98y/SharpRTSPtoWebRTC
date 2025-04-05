@@ -1,44 +1,39 @@
-import React, { Component } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-export class CameraViewer extends Component {
-    static displayName = CameraViewer.name;
+function CameraViewer({ name }) {
+    const [peerConnection, setPeerConnection] = useState(null);
+    const videoElement = useRef(null);
 
-    videoElement = null;
+    useEffect(() => {
+        startPlaying();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);       
 
-    constructor(props) {
-        super(props);
-        this.state = { peerConnection: null };
-        this.startPlaying = this.startPlaying.bind(this);
-        this.closePeer = this.closePeer.bind(this);
-        this.videoElement = React.createRef();
-    }
+    return (
+        <video ref={videoElement} autoPlay playsInline muted controls style={{ width: '100%' }}></video>
+    );
 
-    componentDidMount() {
-        setTimeout(() => {
-            this.startPlaying();
-        }, 500);
-    }
-
-    async startPlaying() {
-        this.closePeer();
+    async function startPlaying() {
+        console.log("startPlaying");
+        closePeer();
 
         let id = new Uint32Array(1);
         id = window.crypto.getRandomValues(id);
 
         let baseUrl = "api/webrtc/";
-        let getOfferUrl = `${baseUrl}getoffer?id=${id}&name=${encodeURIComponent(this.props.name)}`;
+        let getOfferUrl = `${baseUrl}getoffer?id=${id}&name=${encodeURIComponent(name)}`;
         let setAnswerUrl = `${baseUrl}setanswer?id=${id}`;
         let setIceCandidateUrl = `${baseUrl}addicecandidate?id=${id}`
 
         let pc = new RTCPeerConnection();
-        this.setState({
+        setPeerConnection({
             peerConnection: pc
         });
 
         pc.ontrack = ({ track, streams: [stream] }) => {
             track.onunmute = () => {
                 console.log("Adding track to video control.");
-                this.videoElement.current.srcObject = stream;
+                videoElement.current.srcObject = stream;
             };
         };
 
@@ -83,20 +78,13 @@ export class CameraViewer extends Component {
         });
     };
 
-    closePeer() {
-        let pc = this.state.peerConnection;
-        if (pc != null) {
+    function closePeer() {
+        let pc = peerConnection;
+        if (pc != null && pc.peerConnection != null) {
             console.log("Closing peer");
-            pc.close();
+            pc.peerConnection.close();
         }
     };
-
-    render() {
-        return (
-            <div>
-                <video ref={this.videoElement} autoPlay playsInline muted controls style={{ width: '100%' }}></video>
-                {/*    <button className="btn btn-primary" onClick={this.startPlaying}>Play</button>*/}
-            </div>
-        );
-    }
 }
+
+export default CameraViewer;

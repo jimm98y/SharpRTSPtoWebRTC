@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CameraViewer } from './CameraViewer'
+import CameraViewer from './CameraViewer'
 import './App.css';
 
 function App() {
@@ -19,8 +19,7 @@ function App() {
 
     return (
         <div>
-            <h1 id="tableLabel">Cameras</h1>
-            <p>This component demonstrates RTSP to WebRTC gateway.</p>
+            <h1 id="tableLabel">RTSP to WebRTC</h1>
             {contents}
         </div>
     );
