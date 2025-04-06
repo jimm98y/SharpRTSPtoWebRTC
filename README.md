@@ -1,6 +1,6 @@
 # SharpRTSP to WebRTC
 This is a proof of concept bridge in between RTSP and WebRTC implemented in C#. It can take any H264/H265 RTSP stream and feed it through WebRTC to the web browser. It does not perform
-any video transcoding which makes it lightweight and portable. It does support audio transcoding from AAC to Opus, all implemented in netstandard without any native dependencies.
+any video transcoding which makes it lightweight and portable. It does support audio transcoding from AAC to Opus, all implemented in netstandard and NET8 without any native dependencies.
 
 ## What can it do?
 - Re-stream H264/H265 RTSP from any source to the web browser
@@ -75,7 +75,7 @@ public class WebRTCController : ControllerBase
     [Route("getoffer")]
     public async Task<IActionResult> GetOffer(string id, string name)
     {
-        return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password));
+        return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
     }
 
     [HttpPost]
@@ -98,7 +98,12 @@ public class WebRTCController : ControllerBase
 
 Finally, for the WebRTC viewer you can refer to `src/rtsptowebrtc.client/src/CameraViewer.jsx`.
 
+### Hosting on a public IP address
+It is recommended to use a TURN server such as https://github.com/coturn/coturn when hosting this project on the Internet. 
+To host this project on a public IP address without using a TURN server, you will have to configure port ranges (`StartPort`, `EndPort`) for each camera in `appsettings.json`. Then you have to configure port forwarding of all the ports in the configured port ranges to this server + port forwarding for the web application. 
+In some cases, you might also want to configure your server public IP address to be included in the ICE candidates. You can use `PublicIPv4` and `PublicIPv6` in `appsettings.json` for this purpose.
+
 ## Credits
 - sipsorcery - WebRTC implementation in netstandard which has made this project possible https://github.com/sipsorcery-org/sipsorcery
-- SharpRTSP - RTSP client in netstandard https://github.com/ngraziano/SharpRTSP
+- SharpRTSP - RTSP client https://github.com/ngraziano/SharpRTSP
 - concentus - Opus codec implementation https://github.com/lostromb/concentus

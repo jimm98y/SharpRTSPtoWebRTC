@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SharpRTSPClient;
+using Microsoft.Extensions.Configuration;
+using System.Net;
+using SIPSorcery.Sys;
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
@@ -13,17 +16,36 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
+        private readonly IConfiguration _config;
+
+        private const string CONFIG_KEY_PUBLIC_IPV4 = "PublicIPv4";
+        private const string CONFIG_KEY_PUBLIC_IPV6 = "PublicIPv6";
+        private readonly IPAddress _publicIPv4;
+        private readonly IPAddress _publicIPv6;
+
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private readonly ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>> _rtspClients = new ConcurrentDictionary<string, Task<RTSPtoWebRTCProxy>>();
 
-        public RTSPtoWebRTCProxyService(ILoggerFactory loggerFactory)
+        public RTSPtoWebRTCProxyService(ILoggerFactory loggerFactory, IConfiguration config)
         {
             _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             _logger = loggerFactory.CreateLogger<RTSPtoWebRTCProxyService>();
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+
+            if (IPAddress.TryParse(config[CONFIG_KEY_PUBLIC_IPV4], out _publicIPv4))
+            {
+                _logger.LogInformation($"Public IPv4 address set to {_publicIPv4}.");
+            }
+
+            if (IPAddress.TryParse(config[CONFIG_KEY_PUBLIC_IPV6], out _publicIPv6))
+            {
+                _logger.LogInformation($"Public IPv6 address set to {_publicIPv6}.");
+            }
+
             SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
         }
 
-        public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null)
+        public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null, int startPort = 0, int endPort = 0)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -41,7 +63,37 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // session must be created in advance in order to know which codec to use
             RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password);
 
-            RTCPeerConnection peerConnection = new RTCPeerConnection(null);
+            PortRange portRange = null;
+            if(startPort >= 0 && endPort > 0 && endPort > startPort && startPort <= IPEndPoint.MaxPort && endPort <= IPEndPoint.MaxPort)
+            {
+                if (startPort % 2 != 0 || endPort % 2 != 0)
+                {
+                    _logger.LogDebug($"Start and end port must be even numbers. StartPort: {startPort}, EndPort: {endPort}.");
+                }
+                else
+                {
+                    _logger.LogDebug($"RTCPeerConnection for {url} is set to use the port range from {startPort} to {endPort}.");
+                    portRange = new PortRange(startPort, endPort, true);
+                }
+            }
+
+            RTCPeerConnection peerConnection = new RTCPeerConnection(null, 0, portRange);
+
+            if (_publicIPv4 != null)
+            {
+                var rtpPort = peerConnection.GetRtpChannel().RTPPort;
+                var publicIPv4Candidate = new RTCIceCandidate(RTCIceProtocol.udp, _publicIPv4, (ushort)rtpPort, RTCIceCandidateType.host);
+                peerConnection.addLocalIceCandidate(publicIPv4Candidate);
+                _logger.LogDebug($"Added public IPv4 candidate: {_publicIPv4.ToString()}:{rtpPort}.");
+            }
+
+            if (_publicIPv6 != null)
+            {
+                var rtpPort = peerConnection.GetRtpChannel().RTPPort;
+                var publicIPv6Candidate = new RTCIceCandidate(RTCIceProtocol.udp, _publicIPv6, (ushort)rtpPort, RTCIceCandidateType.host);
+                peerConnection.addLocalIceCandidate(publicIPv6Candidate);
+                _logger.LogDebug($"Added public IPv6 candidate: {_publicIPv6.ToString()}:{rtpPort}.");
+            }
 
             if (proxy.VideoCodecEnum != VideoCodecsEnum.Unknown)
             {
@@ -118,10 +170,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
                 sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H264/90000\r\n", $"a=rtpmap:{client.VideoType} H264/90000\r\na=fmtp:{client.VideoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
             }
-            //else if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H265/90000\r\n"))
-            //{
-            //    sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H265/90000\r\n", $"a=rtpmap:{client.VideoType} H265/90000\r\na=fmtp:{client.VideoType} profile-id=1;tier-flag=0;level-id=120\r\n");
-            //}
+
             return sdp;
         }
 
