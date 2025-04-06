@@ -48,7 +48,7 @@ namespace RTSPtoWebRTC.Server.Controllers
                 return NotFound();
             }
 
-            return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password));
+            return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
         }
 
         [HttpPost]

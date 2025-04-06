@@ -6,5 +6,7 @@ namespace RTSPtoWebRTC.Server
         public string Url { get; set; } = string.Empty;
         public string UserName { get; set; }
         public string Password { get; set; }
+        public int StartPort { get; set; }
+        public int EndPort { get; set; }
     }
 }
