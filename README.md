@@ -39,7 +39,7 @@ There is a sample ASP.NET Core app that demonstrates the functionality on multip
 ```
 
 ### Minimal example
-In `Startup.cs`, add the following piece of code to register the `RTSPtoWebRTCProxyService`:
+Start with the standard "React and ASP.NET Core" project template. In `Program.cs`, add the following piece of code to register the `RTSPtoWebRTCProxyService`:
 ```cs
 builder.Services.AddSingleton<RTSPtoWebRTCProxyService>();
 ```
