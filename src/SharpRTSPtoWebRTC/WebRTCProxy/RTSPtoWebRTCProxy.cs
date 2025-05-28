@@ -77,21 +77,24 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             AudioCodec = audioPayloadName;
             VideoCodec = videoPayloadName;
 
-            if(_videoStream is H264StreamConfigurationData h264)
+            if (_videoStream != null) // this will be null in case sprop-parameter-sets are not singalled in the SDP
             {
-                _vps = null;
-                _sps = h264.SPS;
-                _pps = h264.PPS;
-            }
-            else if (_videoStream is H265StreamConfigurationData h265)
-            {
-                _vps = h265.VPS;
-                _sps = h265.SPS;
-                _pps = h265.PPS;
-            }
-            else
-            {
-                throw new NotSupportedException("Unsupported video stream.");
+                if (_videoStream is H264StreamConfigurationData h264)
+                {
+                    _vps = null;
+                    _sps = h264.SPS;
+                    _pps = h264.PPS;
+                }
+                else if (_videoStream is H265StreamConfigurationData h265)
+                {
+                    _vps = h265.VPS;
+                    _sps = h265.SPS;
+                    _pps = h265.PPS;
+                }
+                else
+                {
+                    _logger.LogError($"Unsupported video stream");
+                }
             }
 
             if (VideoType > 0)
