@@ -218,13 +218,25 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // forward RTP to WebRTC "as is", just without the RTP header 
                 // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
                 byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
+                if (msg.Length == 0)
+                    return;
 
                 if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only
                 {
+                    int naluType = msg[0] & 0x1F;
+                    if (naluType == 7) // SPS
+                    {
+                        _sps = msg;
+                    }
+                    else if (naluType == 8) // PPS
+                    {
+                        _pps = msg;
+                    }
+
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
                         if (peerConnection.Value.VideoStream.IsSecurityContextReady())
-                        {
+                        {                            
                             // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
                             //  we have to keep sending it in between the AUs
                             if (_lastVideoMarkerBit == 1 && !e.IsMarker)
@@ -244,6 +256,20 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 }
                 else if (VideoCodecEnum == VideoCodecsEnum.H265)
                 {
+                    int naluType = msg[0] & 0x7E;
+                    if (naluType == 32) // VPS
+                    {
+                        _vps = msg;
+                    }
+                    else if (naluType == 33) // SPS
+                    {
+                        _sps = msg;
+                    }
+                    else if (naluType == 34) // PPS
+                    {
+                        _pps = msg;
+                    }
+
                     // after this change: https://github.com/WebKit/WebKit/pull/15494/commits/93eb48d39b70248c062e90fceb4630a312e46b0d H265 uses now standard packetization
                     foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
                     {
