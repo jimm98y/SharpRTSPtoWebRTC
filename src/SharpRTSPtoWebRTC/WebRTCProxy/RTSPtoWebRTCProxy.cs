@@ -120,7 +120,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
             {
-                if (peerConnection.Value.AudioStream.IsSecurityContextReady())
+                if (peerConnection.Value.AudioStream != null && peerConnection.Value.AudioStream.IsSecurityContextReady())
                 {
                     peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.audio, e.Data.ToArray());
                 }
@@ -131,7 +131,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
             {
-                if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                if (peerConnection.Value.VideoStream != null && peerConnection.Value.VideoStream.IsSecurityContextReady())
                 {
                     peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.video, e.Data.ToArray());
                 }
