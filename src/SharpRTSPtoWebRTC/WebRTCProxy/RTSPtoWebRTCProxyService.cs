@@ -1,5 +1,4 @@
 ﻿using SIPSorcery.Net;
-using SIPSorceryMedia.Abstractions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -95,14 +94,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 _logger.LogDebug($"Added public IPv6 candidate: {_publicIPv6.ToString()}:{rtpPort}.");
             }
 
-            if (proxy.VideoCodecEnum != VideoCodecsEnum.Unknown)
+            if (proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown)
             {
                 SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(proxy.VideoFormat);
                 MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
                 peerConnection.addTrack(videoTrack);
             }
 
-            if (proxy.AudioCodecEnum != AudioCodecsEnum.Unknown)
+            if (proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown)
             {
                 SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(proxy.AudioFormat);
                 MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
