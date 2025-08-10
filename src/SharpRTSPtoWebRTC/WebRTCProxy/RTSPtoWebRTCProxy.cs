@@ -32,7 +32,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
     /// <summary>
     /// Proxy that takes RTP from RTSP and passes it to WebRTC PeerConnection. If necessary,
-    ///  it performs transcoding (AAC -> OPUS) or re-packetization (H265 RTP -> Safari WebRTC).
+    ///  it performs transcoding (AAC -> OPUS).
     /// </summary>
     public class RTSPtoWebRTCProxy
     {
@@ -60,18 +60,15 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             get
             {
-                if (_opusEncoder != null)
-                {
-                    return _opusEncoder.OpusAudioFormat;
-                }
-
                 if(AudioCodecEnum == ProxyAudioCodecs.PCMU)
                     return new AudioFormat(AudioCodecsEnum.PCMU, AudioType);
                 else if(AudioCodecEnum == ProxyAudioCodecs.PCMA)
                     return new AudioFormat(AudioCodecsEnum.PCMA, AudioType);
-                else if(AudioCodecEnum == ProxyAudioCodecs.OPUS || AudioCodecEnum == ProxyAudioCodecs.AAC)
-                    return new AudioFormat(AudioType, "OPUS", 48000, 2, null); // passing just AudioCodecsEnumExp.OPUS results in incorrect SDP
-                else 
+                else if(AudioCodecEnum == ProxyAudioCodecs.OPUS)
+                    return new AudioFormat(AudioType, "opus", 48000, 2, null); // passing just AudioCodecsEnumExp.OPUS results in incorrect SDP
+                else if(AudioCodecEnum == ProxyAudioCodecs.AAC)
+                    return OpusAudioEncoder.GetOpusAudioFormat(1);
+                else
                     return new AudioFormat(AudioCodecsEnum.Unknown, AudioType);
             }
         }
@@ -527,14 +524,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     _samples.RemoveRange(0, opusFrameSize);
 
                     // encode it using OPUS
-                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, _opusEncoder.OpusAudioFormat);
+                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, AudioFormat);
 
                     // send it to all peers
                     foreach (var peerConnection in _peerConnections)
                     {
                         if (peerConnection.Value.AudioStream.IsSecurityContextReady())
                         {
-                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.OpusAudioFormat.FormatID);
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, AudioFormat.FormatID);
                         }
                     }
 
