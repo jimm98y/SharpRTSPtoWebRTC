@@ -7,21 +7,20 @@
 	<ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
 		<PackageReference Include="Concentus" Version="2.2.2" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-		<PackageReference Include="SharpJaad.AAC" Version="0.0.6" />
 		<PackageReference Include="SIPSorcery" Version="8.0.14" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
 		<PackageReference Include="Concentus" Version="2.2.2" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-		<PackageReference Include="SharpJaad.AAC" Version="0.0.6" />
 		<PackageReference Include="SIPSorcery" Version="8.0.14" />
 		<PackageReference Include="System.Net.Http" Version="4.3.4" />
 		<PackageReference Include="System.Net.Security" Version="4.3.2" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\..\SharpRealTimeStreaming\src\SharpRTSPClient\SharpRTSPClient.csproj" />
+	  <PackageReference Include="SharpRTSPClient" Version="0.1.4" />
+	  <PackageReference Include="SharpJaad.AAC" Version="0.0.6" />
 	</ItemGroup>
 
 </Project>
