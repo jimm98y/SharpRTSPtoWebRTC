@@ -12,9 +12,27 @@ using Concentus;
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
+    public enum ProxyVideoCodecs
+    {
+        H264,
+        H265,
+        H266,
+        AV1,
+        Unknown
+    }
+
+    public enum ProxyAudioCodecs
+    {
+        PCMU,
+        PCMA,
+        AAC,
+        OPUS,
+        Unknown
+    }
+
     /// <summary>
     /// Proxy that takes RTP from RTSP and passes it to WebRTC PeerConnection. If necessary,
-    ///  it performs transcoding (AAC -> OPUS) or re-packetization (H265 RTP -> Safari WebRTC).
+    ///  it performs transcoding (AAC -> OPUS).
     /// </summary>
     public class RTSPtoWebRTCProxy
     {
@@ -26,6 +44,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private IStreamConfigurationData _audioStream = null;
 
         private int _lastVideoMarkerBit = 1; // initial value 1 to make sure the first connection will send sps/pps
+        private byte[] _dci = null;
         private byte[] _sps = null;
         private byte[] _pps = null;
         private byte[] _vps = null;
@@ -34,19 +53,23 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         public int VideoType { get; private set; } = -1;
         public string AudioCodec { get; private set; }
         public string VideoCodec { get; private set; }
-        public VideoCodecsEnum VideoCodecEnum { get; private set; } = VideoCodecsEnum.Unknown;
-        public AudioCodecsEnum AudioCodecEnum { get; private set; } = AudioCodecsEnum.Unknown;
+        public ProxyVideoCodecs VideoCodecEnum { get; private set; } = ProxyVideoCodecs.Unknown;
+        public ProxyAudioCodecs AudioCodecEnum { get; private set; } = ProxyAudioCodecs.Unknown;
 
         public AudioFormat AudioFormat
         {
             get
             {
-                if (_opusEncoder != null)
-                {
-                    return _opusEncoder.OpusAudioFormat;
-                }
-
-                return new AudioFormat(AudioCodecEnum, AudioType);
+                if(AudioCodecEnum == ProxyAudioCodecs.PCMU)
+                    return new AudioFormat(AudioCodecsEnum.PCMU, AudioType);
+                else if(AudioCodecEnum == ProxyAudioCodecs.PCMA)
+                    return new AudioFormat(AudioCodecsEnum.PCMA, AudioType);
+                else if(AudioCodecEnum == ProxyAudioCodecs.OPUS)
+                    return new AudioFormat(AudioType, "opus", 48000, 2, null); // passing just AudioCodecsEnumExp.OPUS results in incorrect SDP
+                else if(AudioCodecEnum == ProxyAudioCodecs.AAC)
+                    return OpusAudioEncoder.GetOpusAudioFormat(1);
+                else
+                    return new AudioFormat(AudioCodecsEnum.Unknown, AudioType);
             }
         }
 
@@ -54,7 +77,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             get
             {
-                return new VideoFormat(VideoCodecEnum, VideoType);
+                if (VideoCodecEnum == ProxyVideoCodecs.H264)
+                    return new VideoFormat(VideoCodecsEnum.H264, VideoType);
+                else if (VideoCodecEnum == ProxyVideoCodecs.H265)
+                    return new VideoFormat(VideoCodecsEnum.H265, VideoType);
+                else if (VideoCodecEnum == ProxyVideoCodecs.H266)
+                    return new VideoFormat(VideoType, "H266", 90000, null);
+                else if (VideoCodecEnum == ProxyVideoCodecs.AV1)
+                    return new VideoFormat(VideoType, "AV1", 90000, null);
+                else
+                    return new VideoFormat(VideoCodecsEnum.Unknown, VideoType);
             }
         }
 
@@ -77,23 +109,33 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             AudioCodec = audioPayloadName;
             VideoCodec = videoPayloadName;
 
-            if (_videoStream != null) // this will be null in case sprop-parameter-sets are not singalled in the SDP
+            if (VideoCodec != "AV1")
             {
-                if (_videoStream is H264StreamConfigurationData h264)
+                if (_videoStream != null) // this will be null in case sprop-parameter-sets are not singalled in the SDP
                 {
-                    _vps = null;
-                    _sps = h264.SPS;
-                    _pps = h264.PPS;
-                }
-                else if (_videoStream is H265StreamConfigurationData h265)
-                {
-                    _vps = h265.VPS;
-                    _sps = h265.SPS;
-                    _pps = h265.PPS;
-                }
-                else
-                {
-                    _logger.LogError($"Unsupported video stream");
+                    if (_videoStream is H264StreamConfigurationData h264)
+                    {
+                        _vps = null;
+                        _sps = h264.SPS;
+                        _pps = h264.PPS;
+                    }
+                    else if (_videoStream is H265StreamConfigurationData h265)
+                    {
+                        _vps = h265.VPS;
+                        _sps = h265.SPS;
+                        _pps = h265.PPS;
+                    }
+                    else if (_videoStream is H266StreamConfigurationData h266)
+                    {
+                        _dci = h266.DCI;
+                        _vps = h266.VPS;
+                        _sps = h266.SPS;
+                        _pps = h266.PPS;
+                    }
+                    else
+                    {
+                        _logger.LogError($"Unsupported video stream");
+                    }
                 }
             }
 
@@ -120,7 +162,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
             {
-                if (peerConnection.Value.AudioStream.IsSecurityContextReady())
+                if (peerConnection.Value.AudioStream != null && peerConnection.Value.AudioStream.IsSecurityContextReady())
                 {
                     peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.audio, e.Data.ToArray());
                 }
@@ -131,7 +173,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
             {
-                if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                if (peerConnection.Value.VideoStream != null && peerConnection.Value.VideoStream.IsSecurityContextReady())
                 {
                     peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.video, e.Data.ToArray());
                 }
@@ -160,49 +202,61 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         #region Codecs
 
-        private AudioCodecsEnum GetAudioCodec(string codec)
+        private ProxyAudioCodecs GetAudioCodec(string codec)
         {
-            AudioCodecsEnum ret;
+            ProxyAudioCodecs ret;
 
             switch (codec)
             {
                 case "PCMA":
-                    ret = AudioCodecsEnum.PCMA;
+                    ret = ProxyAudioCodecs.PCMA;
                     break;
 
                 case "PCMU":
-                    ret = AudioCodecsEnum.PCMU;
+                    ret = ProxyAudioCodecs.PCMU;
+                    break;
+
+                case "OPUS":
+                    ret = ProxyAudioCodecs.OPUS;
                     break;
 
                 case "AAC":
                 case "MPEG4-GENERIC": // AAC is not supported by WebRTC, it requires transcoding to PCMA/PCMU or Opus
-                    ret = AudioCodecsEnum.OPUS;
+                    ret = ProxyAudioCodecs.AAC;
                     break;
 
                 default:
-                    ret = AudioCodecsEnum.Unknown;
+                    ret = ProxyAudioCodecs.Unknown;
                     break;
             }
 
             return ret;
         }
 
-        private VideoCodecsEnum GetVideoCodec(string codec)
+        private ProxyVideoCodecs GetVideoCodec(string codec)
         {
-            VideoCodecsEnum ret;
+            ProxyVideoCodecs ret;
 
             switch (codec)
             {
                 case "H264":
-                    ret = VideoCodecsEnum.H264;
+                    ret = ProxyVideoCodecs.H264;
                     break;
 
                 case "H265":
-                    ret = VideoCodecsEnum.H265; // as of April 2025 this works in Safari and Chrome Canary 136
+                    ret = ProxyVideoCodecs.H265; // as of April 2025 this works in Safari and Chrome Canary 136
+                    break;
+
+                case "H266":
+                    ret = ProxyVideoCodecs.H266; // not supported by any browser yet
+                    break;
+
+                case "AV1":
+                    ret = ProxyVideoCodecs.AV1;
                     break;
 
                 default:
-                    ret = VideoCodecsEnum.Unknown;
+                    ret = ProxyVideoCodecs.Unknown;
                     break;
             }
 
@@ -213,7 +267,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private void Client_ReceivedRawVideoRTP(object sender, RawRtpDataEventArgs e)
         {
-            if (e.PayloadType == VideoType && VideoCodecEnum != VideoCodecsEnum.Unknown)
+            if (VideoCodecEnum != ProxyVideoCodecs.Unknown)
             {
                 // forward RTP to WebRTC "as is", just without the RTP header 
                 // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
@@ -221,7 +275,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 if (msg.Length == 0)
                     return;
 
-                if (VideoCodecEnum == VideoCodecsEnum.H264) // H264 only
+                if (VideoCodecEnum == ProxyVideoCodecs.H264) // H264 only
                 {
                     int naluType = msg[0] & 0x1F;
                     if (naluType == 7) // SPS
@@ -254,7 +308,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
-                else if (VideoCodecEnum == VideoCodecsEnum.H265)
+                else if (VideoCodecEnum == ProxyVideoCodecs.H265)
                 {
                     int naluType = msg[0] & 0x7E;
                     if (naluType == 32) // VPS
@@ -294,6 +348,66 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
+                // as of 8/10/2025 H266 does not seem to be supported by any web browser
+                else if(VideoCodecEnum == ProxyVideoCodecs.H266)
+                {
+                    int naluType = (msg[1] & 0xF8) >> 3;
+                    if (naluType == 13) // DCI
+                    {
+                        _dci = msg;
+                    }
+                    else if (naluType == 14) // VPS
+                    {
+                        _vps = msg;
+                    }
+                    else if (naluType == 15) // SPS
+                    {
+                        _sps = msg;
+                    }
+                    else if (naluType == 16) // PPS
+                    {
+                        _pps = msg;
+                    }
+
+                    foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+                    {
+                        if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                        {
+                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
+                            {
+                                if (_sps != null && _pps != null)
+                                {
+                                    if (_dci != null)
+                                    {
+                                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _dci, e.Timestamp, 0, e.PayloadType);
+                                    }
+                                    if (_vps != null)
+                                    {
+                                        peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _vps, e.Timestamp, 0, e.PayloadType);
+                                    }
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _sps, e.Timestamp, 0, e.PayloadType);
+                                    peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, _pps, e.Timestamp, 0, e.PayloadType);
+                                }
+                            }
+
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        }
+                    }
+
+                    _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
+                }
+                else if (VideoCodecEnum == ProxyVideoCodecs.AV1)
+                {
+                    foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
+                    {
+                        if (peerConnection.Value.VideoStream.IsSecurityContextReady())
+                        {
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.video, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
+                        }
+                    }
+
+                    _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
+                }
                 else
                 {
                     _logger.LogDebug($"Unsupported video codec {VideoCodecEnum}");
@@ -303,15 +417,23 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private void Client_ReceivedRawAudioRTP(object sender, RawRtpDataEventArgs e)
         {
-            if (e.PayloadType == AudioType && AudioCodecEnum != AudioCodecsEnum.Unknown)
+            if (e.PayloadType == AudioType && AudioCodecEnum != ProxyAudioCodecs.Unknown)
             {
-                if (AudioCodecEnum == AudioCodecsEnum.PCMU || AudioCodecEnum == AudioCodecsEnum.PCMA)
+                if(AudioCodecEnum == ProxyAudioCodecs.AAC)
+                { 
+                    // transcoring AAC to Opus will happen in the Audio callback
+                }
+                else if(AudioCodecEnum == ProxyAudioCodecs.Unknown)
+                {
+                    _logger.LogDebug($"Unsupported audio codec {AudioCodecEnum}");
+                }
+                else
                 {
                     // forward RTP to WebRTC "as is", just without the RTP header
                     // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
                     byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
 
-                    // forward RTP "as is", the browser should be able to decode it because PCMA and PCMU are defined as mandatory in the WebRTC specification
+                    // forward RTP "as is", the browser should be able to decode it because PCMA, PCMU adn Opus are defined as mandatory in the WebRTC specification
                     foreach (var peerConnection in _peerConnections)
                     {
                         if (peerConnection.Value.AudioStream.IsSecurityContextReady())
@@ -319,10 +441,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                             peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, msg, e.Timestamp, e.IsMarker ? 1 : 0, e.PayloadType);
                         }
                     }
-                }
-                else if (AudioCodecEnum != AudioCodecsEnum.OPUS)
-                {
-                    _logger.LogDebug($"Unsupported audio codec {AudioCodecEnum}");
                 }
             }
         }
@@ -406,14 +524,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     _samples.RemoveRange(0, opusFrameSize);
 
                     // encode it using OPUS
-                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, _opusEncoder.OpusAudioFormat);
+                    byte[] encoded = _opusEncoder.EncodeAudio(sdata, AudioFormat);
 
                     // send it to all peers
                     foreach (var peerConnection in _peerConnections)
                     {
                         if (peerConnection.Value.AudioStream.IsSecurityContextReady())
                         {
-                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, _opusEncoder.OpusAudioFormat.FormatID);
+                            peerConnection.Value.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, AudioFormat.FormatID);
                         }
                     }
 
