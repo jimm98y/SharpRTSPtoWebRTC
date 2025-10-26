@@ -2,6 +2,8 @@
 This is a bridge in between RTSP and WebRTC implemented in C#. It can take any H264/H265/AV1 RTSP stream and feed it through WebRTC to the web browser. It does not perform
 any video transcoding which makes it lightweight and portable. It does support audio transcoding from AAC to Opus, all implemented in netstandard and NET8 without any native dependencies.
 
+[![NuGet version](https://img.shields.io/nuget/v/SharpRTSPtoWebRTC.svg?style=flat-square)](https://www.nuget.org/packages/SharpRTSPtoWebRTC)
+
 ## What can it do?
 - Re-stream H264/H265/AV1 RTSP from any source to the web browser
 - Stream aggregation - there is only a single session in between the gateway and the RTSP source, no matter how many users are watching the stream
