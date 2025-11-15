@@ -5,19 +5,19 @@
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>disable</ImplicitUsings>
 		<Title>$(ProjectName)</Title>
-		<Version>0.0.17</Version>
+		<Version>0.1.0</Version>
 		<Authors>Lukas Volf</Authors>
 		<Copyright>MIT</Copyright>
 		<PackageProjectUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<PackageTags>rtsp;webrtc;streaming;netstandard;netcore;h264;h265;av1;aac;opus</PackageTags>
+		<PackageTags>rtsp;webrtc;streaming;netcore;h264;h265;av1;aac;opus;netstandard2.0;net10</PackageTags>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyVersion>1.0.0</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Description>A C# implementation of the RTSP to WebRTC gateway that allows you to stream RTSP from various sources to the web browser. Suppports H264, H265 and AV1 re-streaming. Audio transcoding from AAC to Opus is also supported.</Description>
+		<Description>C# implementation of the RTSP to WebRTC gateway that allows you to stream RTSP from various sources to the web browser. Suppports H264, H265 and AV1 re-streaming. Audio transcoding from AAC to Opus is also supported.</Description>
 	</PropertyGroup>
 	
 	<ItemGroup>
