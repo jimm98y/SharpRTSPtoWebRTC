@@ -1,21 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CameraViewer from './CameraViewer'
 import './App.css';
 
 function App() {
-    const [cameras, setCameras] = useState();
+    const [cameras, setCameras] = useState({ c: null, loading: true });
+    const hasRun = useRef(false);
 
     useEffect(() => {
-        populateCameras();
+        if (hasRun.current) return;
+        hasRun.current = true;
+
+        fetch('api/webrtc/getcameras').then(response => {
+            response.json().then(data => {
+                setCameras({ c: data, loading: false });
+            });
+        });
     }, []);
 
-    const contents = cameras === undefined
-        ? <p><em>Loading... Please refresh once the ASP.NET backend has started.</em></p>
-        : <div>
-            {cameras.cameras.map(camera =>
-                <CameraViewer key={camera} name={camera} />
-            )}
-        </div>;
+    const contents =
+        cameras.loading
+            ? <p><em>Loading... Please refresh once the ASP.NET backend has started.</em></p>
+            : <div>{cameras.c.map(camera => <CameraViewer key={camera} name={camera} />)}</div>;
 
     return (
         <div>
@@ -23,12 +28,6 @@ function App() {
             {contents}
         </div>
     );
-    
-    async function populateCameras() {
-        const response = await fetch('api/webrtc/getcameras');
-        const data = await response.json();
-        setCameras({ cameras: data, loading: false });
-    }
 }
 
 export default App;
