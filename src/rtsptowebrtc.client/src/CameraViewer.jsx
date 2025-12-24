@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 
 function CameraViewer({ name }) {
-    const [peerConnection, setPeerConnection] = useState(null);
+    const [ _peerConnection, setPeerConnection ] = useState(null);
     const videoElement = useRef(null);
     const hasRun = useRef(false);
     useEffect(() => {
