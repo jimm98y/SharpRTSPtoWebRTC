@@ -1,15 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2.0;net481;net10.0</TargetFrameworks>
+		<TargetFrameworks>netstandard2.0;net481;net8.0;net10.0</TargetFrameworks>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="SharpRTSPClient" Version="0.4.0" />
+		<PackageReference Include="SharpRTSPClient" Version="0.5.3" />
 		<PackageReference Include="SIPSorcery" Version="8.0.14" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
 		<PackageReference Include="Concentus" Version="2.2.2" />
 	    <PackageReference Include="SharpJaad.AAC" Version="0.1.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) OR $(TargetFramework.StartsWith('net4')) OR $(TargetFramework.StartsWith('net8.')) ">
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('net10.')) ">
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.3" />
 	</ItemGroup>
 
 </Project>

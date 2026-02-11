@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
-      <Version>10.0.0</Version>
+      <Version>10.0.3</Version>
     </PackageReference>
   </ItemGroup>
 
