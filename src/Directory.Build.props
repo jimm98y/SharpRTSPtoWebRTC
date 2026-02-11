@@ -5,14 +5,14 @@
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>disable</ImplicitUsings>
 		<Title>$(ProjectName)</Title>
-		<Version>0.1.0</Version>
+		<Version>0.1.1</Version>
 		<Authors>Lukas Volf</Authors>
 		<Copyright>MIT</Copyright>
 		<PackageProjectUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<PackageTags>rtsp;webrtc;streaming;netcore;h264;h265;av1;aac;opus;netstandard2.0;net10</PackageTags>
+		<PackageTags>rtsp;webrtc;streaming;netcore;h264;h265;av1;aac;opus;netstandard2.0;net8;net10</PackageTags>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyVersion>1.0.0</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>
