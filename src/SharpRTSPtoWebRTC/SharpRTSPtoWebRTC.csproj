@@ -5,10 +5,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="SharpRTSPClient" Version="0.5.3" />
-		<PackageReference Include="SIPSorcery" Version="8.0.14" />
+		<PackageReference Include="SharpRTSPClient" Version="0.5.4" />
+		<PackageReference Include="SIPSorcery" Version="10.0.3" />
 		<PackageReference Include="Concentus" Version="2.2.2" />
-	    <PackageReference Include="SharpJaad.AAC" Version="0.1.0" />
+	    <PackageReference Include="SharpJaad.AAC" Version="0.1.1" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) OR $(TargetFramework.StartsWith('net4')) OR $(TargetFramework.StartsWith('net8.')) ">
