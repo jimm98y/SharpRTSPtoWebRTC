@@ -6,17 +6,10 @@
 
 	<ItemGroup>
 		<PackageReference Include="SharpRTSPClient" Version="0.6.0" />
-		<PackageReference Include="SIPSorcery" Version="10.0.4-pre" />
+		<PackageReference Include="SIPSorcery" Version="10.0.7" />
 		<PackageReference Include="Concentus" Version="2.2.2" />
 	    <PackageReference Include="SharpJaad.AAC" Version="0.1.1" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) OR $(TargetFramework.StartsWith('net4')) OR $(TargetFramework.StartsWith('net8.')) ">
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" $(TargetFramework.StartsWith('net10.')) ">
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.8" />
 	</ItemGroup>
 
 </Project>
