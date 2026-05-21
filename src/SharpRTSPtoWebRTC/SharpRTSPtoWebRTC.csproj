@@ -5,7 +5,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="SharpRTSPClient" Version="0.6.0" />
+		<PackageReference Include="SharpRTSPClient" Version="0.6.2" />
 		<PackageReference Include="SIPSorcery" Version="10.0.7" />
 		<PackageReference Include="Concentus" Version="2.2.2" />
 	    <PackageReference Include="SharpJaad.AAC" Version="0.1.1" />
