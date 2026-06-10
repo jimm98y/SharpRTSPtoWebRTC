@@ -84,7 +84,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 else if (VideoCodecEnum == ProxyVideoCodecs.H266)
                     return new VideoFormat(VideoType, "H266", 90000, null);
                 else if (VideoCodecEnum == ProxyVideoCodecs.AV1)
-                    return new VideoFormat(VideoType, "AV1", 90000, null);
+                    return new VideoFormat(VideoCodecsEnum.AV1, VideoType);
                 else
                     return new VideoFormat(VideoCodecsEnum.Unknown, VideoType);
             }
@@ -115,12 +115,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     if (_videoStream is H264StreamConfigurationData h264)
                     {
+                        _dci = null;
                         _vps = null;
                         _sps = h264.SPS;
                         _pps = h264.PPS;
                     }
                     else if (_videoStream is H265StreamConfigurationData h265)
                     {
+                        _dci = null;
                         _vps = h265.VPS;
                         _sps = h265.SPS;
                         _pps = h265.PPS;
@@ -421,7 +423,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 if(AudioCodecEnum == ProxyAudioCodecs.AAC)
                 { 
-                    // transcoring AAC to Opus will happen in the Audio callback
+                    // transcoding AAC to Opus will happen in the Audio callback
                 }
                 else if(AudioCodecEnum == ProxyAudioCodecs.Unknown)
                 {
