@@ -6,10 +6,10 @@
 
 	<ItemGroup>
 		<PackageReference Include="SharpRTSPClient" Version="0.6.2" />
-		<PackageReference Include="SIPSorcery" Version="10.0.7" />
+		<PackageReference Include="SIPSorcery" Version="10.0.9" />
 		<PackageReference Include="Concentus" Version="2.2.2" />
 	    <PackageReference Include="SharpJaad.AAC" Version="0.1.1" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.8" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
 	</ItemGroup>
 
 </Project>
