@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using SharpRTSPClient;
 using Concentus;
@@ -154,32 +155,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             client.ReceivedRawVideoRTP += Client_ReceivedRawVideoRTP;
             client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
 
-            client.ReceivedRawVideoRTCP += Client_ReceivedRawVideoRTCP;
-            client.ReceivedRawAudioRTCP += Client_ReceivedRawAudioRTCP;
-
             client.ReceivedAudioData += Client_ReceivedAudioData;
-        }
-
-        private void Client_ReceivedRawAudioRTCP(object sender, RawRtcpDataEventArgs e)
-        {
-            foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
-            {
-                if (peerConnection.Value.AudioStream != null && peerConnection.Value.AudioStream.IsSecurityContextReady())
-                {
-                    peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.audio, e.Data.ToArray());
-                }
-            }
-        }
-
-        private void Client_ReceivedRawVideoRTCP(object sender, RawRtcpDataEventArgs e)
-        {
-            foreach (KeyValuePair<string, RTCPeerConnection> peerConnection in _peerConnections)
-            {
-                if (peerConnection.Value.VideoStream != null && peerConnection.Value.VideoStream.IsSecurityContextReady())
-                {
-                    peerConnection.Value.SendRtcpRaw(SDPMediaTypesEnum.video, e.Data.ToArray());
-                }
-            }
         }
 
         #region WebRTC
@@ -197,6 +173,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         public void Stop()
         {
+            _audioQueue.CompleteAdding();
             _client.Stop();
         }
 
@@ -454,44 +431,71 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private IResampler _pcmResampler = null;
         private List<short> _samples = new List<short>();
         private short[] _resampledBuffer = null;
+        private int _decodedChannels = 0;   // actual channel count produced by the AAC decoder (see note in TranscodeAndSend)
+        private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
+
+        private readonly BlockingCollection<(byte[][] Frames, uint RtpTimestamp)> _audioQueue = new BlockingCollection<(byte[][], uint)>();
+        private Thread _audioWorker = null;
 
         private void Client_ReceivedAudioData(object sender, SimpleDataEventArgs e)
+        {
+            if (!(_audioStream is AACStreamConfigurationData))
+                return;
+
+            // Copy the AAC frames out of the payload processor's pooled buffers (they are returned to the
+            //  pool as soon as this handler returns) and hand them to the worker thread for transcoding.
+            byte[][] frames = e.Data.Select(f => f.ToArray()).ToArray();
+            if (frames.Length == 0)
+                return;
+
+            if (_audioWorker == null)
+            {
+                // the receive callback is always raised from the same read-loop thread, so this is safe
+                _audioWorker = new Thread(ProcessAudioQueue) { IsBackground = true, Name = "AAC-to-Opus transcoder" };
+                _audioWorker.Start();
+            }
+
+            if (!_audioQueue.IsAddingCompleted)
+                _audioQueue.Add((frames, e.RtpTimestamp));
+        }
+
+        private void ProcessAudioQueue()
+        {
+            try
+            {
+                foreach (var item in _audioQueue.GetConsumingEnumerable())
+                {
+                    TranscodeAndSend(item.Frames, item.RtpTimestamp);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AAC to Opus transcoding worker stopped unexpectedly.");
+            }
+        }
+
+        private void TranscodeAndSend(byte[][] aacFrames, uint sourceRtpTimestamp)
         {
             var aacConfiguration = _audioStream as AACStreamConfigurationData;
 
             if (aacConfiguration == null)
                 return;
 
-            // here we know we have AAC
-            int channels = aacConfiguration.ChannelConfiguration;
-
             if (_aacDecoder == null)
             {
                 var decoderConfig = new DecoderConfig();
                 decoderConfig.SetProfile(Profile.AAC_LC); // AAC Low Complexity is most likely used, set it as default
                 decoderConfig.SetSampleFrequency((SampleFrequency)aacConfiguration.FrequencyIndex);
-                decoderConfig.SetChannelConfiguration((ChannelConfiguration)channels);
+                decoderConfig.SetChannelConfiguration((ChannelConfiguration)aacConfiguration.ChannelConfiguration);
                 _aacDecoder = new Decoder(decoderConfig);
-
-                // we only need resampling if the AAC payload is not using the 48k sampling rate already
-                if ((SampleFrequency)aacConfiguration.FrequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
-                {
-                    const int MAX_AAC_FRAME_SIZE = 1024; // for AAC-LC only
-                    _resampledBuffer = new short[(MAX_AAC_FRAME_SIZE * SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() * channels) / ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency()];
-
-                    const int OPUS_QUALITY = 10; // 0-10, 10 is for maximum quality
-                    _pcmResampler = ResamplerFactory.CreateResampler(channels, ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency(), SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), OPUS_QUALITY);
-                }
-
-                _opusEncoder = new OpusAudioEncoder(channels);
             }
 
-            // calculate the RTP timestamp based upon the current timestamp and the remainder from the last AAC payload 
-            //  which did not fit into the frame size of the Opus encoded payload
-            uint rtpTimestamp = (uint)(e.RtpTimestamp - (_samples.Count / channels));
+            int aacFrequency = ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency();
+            uint scaledTimestamp = (uint)((ulong)sourceRtpTimestamp * (ulong)SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() / (ulong)aacFrequency);
+            uint rtpTimestamp = scaledTimestamp - (uint)(_samples.Count / Math.Max(1, _decodedChannels));
 
             // single RTP can contain multiple AAC frames
-            foreach (var aacFrame in e.Data)
+            foreach (var aacFrame in aacFrames)
             {
                 SampleBuffer buffer = new SampleBuffer();
 
@@ -499,25 +503,53 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 buffer.SetBigEndian(false);
 
                 // decode AAC to PCM using a port of the JAAD AAC Decoder
-                _aacDecoder.DecodeFrame(aacFrame.ToArray(), buffer);
+                _aacDecoder.DecodeFrame(aacFrame, buffer);
+
+                // Configure the resampler/encoder from the ACTUAL decoded format rather than from the SDP
+                //  config. The JAAD decoder always emits interleaved stereo (it up-mixes mono to 2 channels),
+                //  and the decoded sample rate is authoritative. Using aacConfiguration.ChannelConfiguration
+                //  here (which reports mono for this stream) would make us treat interleaved stereo as mono:
+                //  the resampler would consume only half of every frame and the rest would be dropped, badly
+                //  distorting the audio.
+                if (_opusEncoder == null)
+                {
+                    _decodedChannels = buffer.Channels;
+                    _decodedFrequency = buffer.SampleRate;
+
+                    if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
+                    {
+                        const int RESAMPLER_QUALITY = 5; // 0-10; 5 is transparent for 44.1k->48k and far cheaper than 10, which keeps the real-time worker comfortably ahead
+                        _pcmResampler = ResamplerFactory.CreateResampler(_decodedChannels, _decodedFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), RESAMPLER_QUALITY);
+                    }
+
+                    _opusEncoder = new OpusAudioEncoder(_decodedChannels);
+
+                    // _samples is empty before the first frame, so the timestamp offset is 0 either way; this
+                    //  just re-evaluates it now that the real channel count is known.
+                    rtpTimestamp = scaledTimestamp - (uint)(_samples.Count / _decodedChannels);
+                }
 
                 // convert to signed short PCM
                 short[] sdata = new short[buffer.Data.Length / sizeof(short)];
                 Buffer.BlockCopy(buffer.Data, 0, sdata, 0, buffer.Data.Length);
 
-                // if the AAC sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
-                if ((SampleFrequency)aacConfiguration.FrequencyIndex != SampleFrequency.SAMPLE_FREQUENCY_48000)
+                // if the decoded sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
+                if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
                 {
-                    int inLen = sdata.Length / channels;
-                    int outLen = _resampledBuffer.Length / channels;
+                    int inLen = sdata.Length / _decodedChannels;
+                    int neededPerChannel = (inLen * SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() / _decodedFrequency) + 1;
+                    if (_resampledBuffer == null || _resampledBuffer.Length < neededPerChannel * _decodedChannels)
+                        _resampledBuffer = new short[neededPerChannel * _decodedChannels];
+
+                    int outLen = _resampledBuffer.Length / _decodedChannels;
                     _pcmResampler.ProcessInterleaved(sdata, ref inLen, _resampledBuffer, ref outLen);
-                    sdata = _resampledBuffer.Take(outLen * channels).ToArray();
+                    sdata = _resampledBuffer.Take(outLen * _decodedChannels).ToArray();
                 }
 
                 // append the resampled audio to the remaining samples that did not fit into the last OPUS encoded payload
                 _samples.AddRange(sdata);
 
-                int opusFrameSize = _opusEncoder.GetFrameSize() * channels;
+                int opusFrameSize = _opusEncoder.GetFrameSize() * _decodedChannels;
 
                 while (_samples.Count >= opusFrameSize)
                 {
@@ -544,17 +576,5 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         }
 
         #endregion //  AAC to Opus transcoding
-
-        // only useful for debugging to dump the raw PCM into a file
-#if DEBUG
-        private static void AppendToFile(string fileToWrite, byte[] data)
-        {
-            using (System.IO.FileStream fileStream = new System.IO.FileStream(fileToWrite, System.IO.File.Exists(fileToWrite) ? System.IO.FileMode.Append : System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.Write))
-            {
-                fileStream.Write(data, 0, data.Length);
-                fileStream.Close();
-            }
-        }
-#endif
     }
 }
