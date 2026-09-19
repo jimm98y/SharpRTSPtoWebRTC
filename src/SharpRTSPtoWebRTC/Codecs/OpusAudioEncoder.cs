@@ -28,7 +28,10 @@ namespace SharpRTSPtoWebRTC.Codecs
         // Chrome uses in SDP two audio channels, but if the audio itself contains only one channel, we must pass it as 2 channels in SDP but create a decoder/encoder with only one channel
         public static AudioFormat GetOpusAudioFormat(int channels)
         {    
-            return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "a=fmtp:111 minptime=10;useinbandfec=1"); 
+            // Just the parameters: sipsorcery writes the "a=fmtp:<id> " prefix itself, so spelling it
+            //  out here produced "a=fmtp:111 a=fmtp:111 minptime=10..." in the offer and the browser
+            //  had no usable fmtp line at all.
+            return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "minptime=10;useinbandfec=1"); 
         }
 
         public List<AudioFormat> SupportedFormats => _supportedFormats;
