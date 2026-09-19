@@ -593,6 +593,59 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             _samplesTail += count;
         }
 
+        private bool _haveSourceTimestamp = false;
+        private uint _lastSourceTimestamp = 0;
+        private uint _scaledTimestamp = 0;
+        private ulong _scaleRemainder = 0;
+
+        /// <summary>
+        /// Carries the source timestamp over to the 48kHz clock OPUS is sent on.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Scales the step between packets rather than the timestamp itself. RTP timestamps wrap at
+        /// 2^32, and scaling the absolute value does not survive that: at 44.1kHz the source wraps
+        /// about every 27 hours, and the scaled value jumped from roughly 380 million back to nearly
+        /// zero - a backwards step of some two hours on the output clock, where a wrap should have
+        /// been a step of one frame. A camera left running hits this.
+        /// </para>
+        /// <para>
+        /// Stepping means the division has to carry its remainder: 1024 source samples at 44.1kHz are
+        /// worth 1114.6 ticks, and truncating that on every frame would lose about 43 seconds a day.
+        /// </para>
+        /// </remarks>
+        private uint ScaleToOpusClock(uint sourceRtpTimestamp, int sourceFrequency)
+        {
+            ulong opusClock = (ulong)SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency();
+
+            if (!_haveSourceTimestamp)
+            {
+                _haveSourceTimestamp = true;
+                _lastSourceTimestamp = sourceRtpTimestamp;
+                _scaledTimestamp = (uint)((ulong)sourceRtpTimestamp * opusClock / (ulong)sourceFrequency);
+                _scaleRemainder = 0;
+                return _scaledTimestamp;
+            }
+
+            uint delta = unchecked(sourceRtpTimestamp - _lastSourceTimestamp);
+            _lastSourceTimestamp = sourceRtpTimestamp;
+
+            // Anything this far ahead is not a wrap but a new stream: the client reconnected and the
+            //  camera picked a fresh random start. Carry the output clock straight on rather than
+            //  stepping it by however far apart the two random values happened to be.
+            if (delta > (uint)sourceFrequency * 30)
+            {
+                _scaleRemainder = 0;
+                return _scaledTimestamp;
+            }
+
+            ulong scaled = (delta * opusClock) + _scaleRemainder;
+            _scaledTimestamp = unchecked(_scaledTimestamp + (uint)(scaled / (ulong)sourceFrequency));
+            _scaleRemainder = scaled % (ulong)sourceFrequency;
+
+            return _scaledTimestamp;
+        }
+
         private void TranscodeAndSend(byte[][] aacFrames, uint sourceRtpTimestamp)
         {
             var aacConfiguration = _audioStream as AACStreamConfigurationData;
@@ -610,7 +663,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             int aacFrequency = ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency();
-            uint scaledTimestamp = (uint)((ulong)sourceRtpTimestamp * (ulong)SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() / (ulong)aacFrequency);
+            uint scaledTimestamp = ScaleToOpusClock(sourceRtpTimestamp, aacFrequency);
             uint rtpTimestamp = scaledTimestamp - (uint)(BufferedSamples / Math.Max(1, _decodedChannels));
 
             // single RTP can contain multiple AAC frames
