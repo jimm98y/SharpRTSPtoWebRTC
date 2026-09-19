@@ -189,21 +189,25 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             IStreamConfigurationData videoStream = null;
             int videoType = -1;
             string videoName = "";
-            client.NewVideoStream += (o, e) =>
-            {
-                videoStream = e.StreamConfigurationData;
-                videoType = e.PayloadType;
-                videoName = e.StreamType;
-            };
 
             IStreamConfigurationData audioStream = null;
             int audioType = -1;
             string audioName = "";
-            client.NewAudioStream += (o, e) =>
+
+            client.NewTrack += (o, e) =>
             {
-                audioStream = e.StreamConfigurationData;
-                audioType = e.PayloadType;
-                audioName = e.StreamType;
+                if (e.Kind == TrackKind.Video)
+                {
+                    videoStream = e.StreamConfigurationData;
+                    videoType = e.PayloadType;
+                    videoName = e.Codec;
+                }
+                else if (e.Kind == TrackKind.Audio)
+                {
+                    audioStream = e.StreamConfigurationData;
+                    audioType = e.PayloadType;
+                    audioName = e.Codec;
+                }
             };
 
             int reconnectAttempts = 0;
@@ -226,7 +230,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 client.TryReconnect();
             };
 
-            client.Connect(url, RTPTransport.TCP, userName, password, MediaRequest.VIDEO_AND_AUDIO, false, null, true);
+            // The proxy carries a single video track and a single audio track, so take the first of
+            //  each kind and nothing else. Without this the client would also set up the first
+            //  metadata track, which this proxy has nothing to do with.
+            client.AcceptTrack = t => RTSPClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
+
+            client.Connect(url, RTPTransport.TCP, userName, password, false, null, true);
 
             bool isConnected = await result.Task;
             if(!isConnected)

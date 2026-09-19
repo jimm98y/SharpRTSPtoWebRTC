@@ -152,10 +152,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 AudioCodecEnum = GetAudioCodec(AudioCodec);
             }
 
-            client.ReceivedRawVideoRTP += Client_ReceivedRawVideoRTP;
-            client.ReceivedRawAudioRTP += Client_ReceivedRawAudioRTP;
-
-            client.ReceivedAudioData += Client_ReceivedAudioData;
+            client.ReceivedRawRTP += Client_ReceivedRawRTP;
+            client.ReceivedData += Client_ReceivedData;
         }
 
         #region WebRTC
@@ -244,13 +242,35 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         #endregion // Codecs
 
-        private void Client_ReceivedRawVideoRTP(object sender, RawRtpDataEventArgs e)
+        // The client reports every track through a single event now, so the kind tells video from
+        //  audio. Only the first track of each kind is set up (see AcceptTrack in the service), so
+        //  the kind alone identifies the track.
+        private void Client_ReceivedRawRTP(object sender, TrackRawRtpEventArgs e)
+        {
+            if (e.Kind == TrackKind.Video)
+            {
+                Client_ReceivedRawVideoRTP(e.Data);
+            }
+            else if (e.Kind == TrackKind.Audio)
+            {
+                Client_ReceivedRawAudioRTP(e.Data);
+            }
+        }
+
+        private void Client_ReceivedData(object sender, TrackDataEventArgs e)
+        {
+            if (e.Kind == TrackKind.Audio)
+            {
+                Client_ReceivedAudioData(e.Data);
+            }
+        }
+
+        private void Client_ReceivedRawVideoRTP(RawRtpDataEventArgs e)
         {
             if (VideoCodecEnum != ProxyVideoCodecs.Unknown)
             {
                 // forward RTP to WebRTC "as is", just without the RTP header 
-                // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
-                byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
+                byte[] msg = e.Data.Slice(e.PayloadStart).ToArray();
                 if (msg.Length == 0)
                     return;
 
@@ -394,7 +414,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
         }
 
-        private void Client_ReceivedRawAudioRTP(object sender, RawRtpDataEventArgs e)
+        private void Client_ReceivedRawAudioRTP(RawRtpDataEventArgs e)
         {
             if (e.PayloadType == AudioType && AudioCodecEnum != ProxyAudioCodecs.Unknown)
             {
@@ -409,8 +429,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 else
                 {
                     // forward RTP to WebRTC "as is", just without the RTP header
-                    // Note: e.PayloadSize is incorrect in this case, we have to calculate the correct size using 12 + e.CsrcCount * 4
-                    byte[] msg = e.Data.Slice(12 + e.CsrcCount * 4).ToArray();
+                    byte[] msg = e.Data.Slice(e.PayloadStart).ToArray();
 
                     // forward RTP "as is", the browser should be able to decode it because PCMA, PCMU adn Opus are defined as mandatory in the WebRTC specification
                     foreach (var peerConnection in _peerConnections)
@@ -437,7 +456,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly BlockingCollection<(byte[][] Frames, uint RtpTimestamp)> _audioQueue = new BlockingCollection<(byte[][], uint)>();
         private Thread _audioWorker = null;
 
-        private void Client_ReceivedAudioData(object sender, SimpleDataEventArgs e)
+        private void Client_ReceivedAudioData(SimpleDataEventArgs e)
         {
             if (!(_audioStream is AACStreamConfigurationData))
                 return;
