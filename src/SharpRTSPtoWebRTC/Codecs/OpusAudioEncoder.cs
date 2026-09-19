@@ -97,37 +97,47 @@ namespace SharpRTSPtoWebRTC.Codecs
             }
         }
 
+        /// <summary>
+        /// Encodes exactly one OPUS frame of interleaved PCM.
+        /// </summary>
+        /// <remarks>
+        /// Takes a span so a caller holding a longer buffer can encode a frame out of the middle of it
+        ///  without copying the frame out first.
+        /// </remarks>
+        public byte[] EncodeOpus(ReadOnlySpan<short> pcm)
+        {
+            if (_opusEncoder == null)
+            {
+                _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
+                _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
+                _byteBuffer = new byte[MAX_PACKET_SIZE];
+            }
+
+            try
+            {
+                int frameSize = GetFrameSize();
+                int size = _opusEncoder.Encode(pcm, frameSize, _byteBuffer, _byteBuffer.Length);
+
+                if (size > 1)
+                {
+                    byte[] result = new byte[size];
+                    Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex.Message);
+            }
+
+            return new byte[0];
+        }
+
         public byte[] EncodeAudio(short[] pcm, AudioFormat format)
         {
             if (format.FormatName == "opus")
             {
-                if (_opusEncoder == null)
-                {
-                    _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
-                    _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
-                    _byteBuffer = new byte[MAX_PACKET_SIZE];
-                }
-
-                try
-                {
-                    int frameSize = GetFrameSize();
-                    int size = _opusEncoder.Encode(pcm, frameSize, _byteBuffer, _byteBuffer.Length);
-
-                    if (size > 1)
-                    {
-                        byte[] result = new byte[size];
-                        Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
-
-                        log.LogDebug($"[EncodeAudio] frameSize:[{frameSize}] - DecodedShort:[{pcm.Length}] - EncodedBytes.Length:[{result.Length}]");
-                        return result;
-                    }
-                }
-                catch(Exception ex)
-                {
-                    log.LogError(ex.Message);
-                }
-
-                return new byte[0];
+                return EncodeOpus(pcm);
             }
             else
             {
