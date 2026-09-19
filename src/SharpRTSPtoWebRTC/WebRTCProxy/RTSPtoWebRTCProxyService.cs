@@ -110,7 +110,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
         }
 
-        public async Task<RTCSessionDescriptionInit> GetOfferAsync(string id, string url, string userName = null, string password = null, int startPort = 0, int endPort = 0)
+        public async Task<RTCSessionDescriptionInit> GetOfferAsync(
+            string id,
+            string url,
+            string userName = null,
+            string password = null,
+            int startPort = 0,
+            int endPort = 0,
+            RTPTransport transport = RTPTransport.TCP,
+            int rtspStartPort = 0,
+            int rtspEndPort = 0)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -126,7 +135,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             // session must be created in advance in order to know which codec to use
-            RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password);
+            RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password, transport, rtspStartPort, rtspEndPort);
 
             PortRange portRange = null;
             if(startPort >= 0 && endPort > 0 && endPort > startPort && startPort <= IPEndPoint.MaxPort && endPort <= IPEndPoint.MaxPort)
@@ -305,7 +314,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }, TaskScheduler.Default);
         }
 
-        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password)
+        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RTPTransport transport, int rtspStartPort, int rtspEndPort)
         {
             // Lazy, because ConcurrentDictionary.GetOrAdd may run its factory on several threads at
             //  once and keep only one result. Every other run had already called Connect, so two
@@ -314,7 +323,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 () =>
                 {
                     var created = new ProxySession();
-                    created.Proxy = CreateClientAsync(loggerFactory, url, userName, password, created);
+                    created.Proxy = CreateClientAsync(loggerFactory, url, userName, password, created, transport, rtspStartPort, rtspEndPort);
                     return created;
                 },
                 LazyThreadSafetyMode.ExecutionAndPublication));
@@ -348,7 +357,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 .Remove(new KeyValuePair<string, Lazy<ProxySession>>(url, lazy));
         }
 
-        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session)
+        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session, RTPTransport transport, int rtspStartPort, int rtspEndPort)
         {
             TaskCompletionSource<bool> result = new TaskCompletionSource<bool>();
             var client = new RTSPClient(loggerFactory);
@@ -433,7 +442,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             //  metadata track, which this proxy has nothing to do with.
             client.AcceptTrack = t => RTSPClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
 
-            client.Connect(url, RTPTransport.TCP, userName, password, false, null, true);
+            if (transport != RTPTransport.TCP && rtspStartPort > 0 && rtspEndPort > 0)
+            {
+                // Only meaningful for the UDP transports; TCP interleaves the RTP in the RTSP
+                //  connection and binds nothing.
+                client.SetRtpPortRange(rtspStartPort, rtspEndPort);
+                _logger.LogDebug($"RTSP client for {Redact(url)} takes its UDP ports from {rtspStartPort}-{rtspEndPort}.");
+            }
+
+            _logger.LogDebug($"Connecting to {Redact(url)} over {transport}.");
+            client.Connect(url, transport, userName, password, false, null, true);
 
             bool isConnected = await result.Task;
             if(!isConnected)

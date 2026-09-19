@@ -50,7 +50,16 @@ namespace RTSPtoWebRTC.Server.Controllers
 
             try
             {
-                return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
+                return Ok(await _webRTCServer.GetOfferAsync(
+                    id,
+                    camera.Url,
+                    camera.UserName,
+                    camera.Password,
+                    camera.StartPort,
+                    camera.EndPort,
+                    camera.Transport,
+                    camera.RtspStartPort,
+                    camera.RtspEndPort));
             }
             catch (DuplicateSessionException ex)
             {
