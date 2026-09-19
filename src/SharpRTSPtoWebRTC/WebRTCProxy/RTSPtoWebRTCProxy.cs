@@ -45,6 +45,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         //  offered to every peer, and enumerating the dictionary allocated an enumerator each time -
         //  per packet, per stream, for the life of the process.
         private volatile RTCPeerConnection[] _peers = new RTCPeerConnection[0];
+
+        // Serialises rebuilding the snapshot. The dictionary is concurrent, but taking a copy of it
+        //  and publishing that copy is two steps: two viewers arriving at once could both read the
+        //  dictionary and the one that wrote second could publish the older of the two reads,
+        //  leaving a peer that receives nothing for as long as it is connected.
+        private readonly object _peersLock = new object();
         private RTSPClient _client = null;
         private IStreamConfigurationData _videoStream = null;
         private IStreamConfigurationData _audioStream = null;
@@ -169,11 +175,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// </summary>
         public bool AddPeerConnection(string id, RTCPeerConnection peerConnection)
         {
-            if (!_peerConnections.TryAdd(id, peerConnection))
-                return false;
+            lock (_peersLock)
+            {
+                if (!_peerConnections.TryAdd(id, peerConnection))
+                    return false;
 
-            RebuildPeers();
-            return true;
+                RebuildPeers();
+                return true;
+            }
         }
 
         /// <summary>
@@ -182,12 +191,15 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// </summary>
         public int RemovePeerConnection(string id)
         {
-            if (_peerConnections.TryRemove(id, out _))
+            lock (_peersLock)
             {
-                RebuildPeers();
-            }
+                if (_peerConnections.TryRemove(id, out _))
+                {
+                    RebuildPeers();
+                }
 
-            return _peerConnections.Count;
+                return _peerConnections.Count;
+            }
         }
 
         private void RebuildPeers()
