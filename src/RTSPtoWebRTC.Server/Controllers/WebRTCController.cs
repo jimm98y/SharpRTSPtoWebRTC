@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharpRTSPtoWebRTC.WebRTCProxy;
@@ -48,7 +48,15 @@ namespace RTSPtoWebRTC.Server.Controllers
                 return NotFound();
             }
 
-            return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
+            try
+            {
+                return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
+            }
+            catch (DuplicateSessionException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return Conflict(ex.Message);
+            }
         }
 
         [HttpPost]
@@ -66,7 +74,11 @@ namespace RTSPtoWebRTC.Server.Controllers
                 return BadRequest("The SDP answer cannot be empty in SetAnswer.");
             }
 
-            _webRTCServer.SetAnswer(id, answer);
+            if (!_webRTCServer.SetAnswer(id, answer))
+            {
+                return NotFound($"No peer connection is available for id {id}.");
+            }
+
             return Ok();
         }
 
@@ -85,7 +97,10 @@ namespace RTSPtoWebRTC.Server.Controllers
                 return BadRequest("The candidate field cannot be empty in AddIceCandidate.");
             }
 
-            _webRTCServer.AddIceCandidate(id, iceCandidate);
+            if (!_webRTCServer.AddIceCandidate(id, iceCandidate))
+            {
+                return NotFound($"No peer connection is available for id {id}.");
+            }
 
             return Ok();
         }
