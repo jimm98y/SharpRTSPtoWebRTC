@@ -492,14 +492,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private Decoder _aacDecoder = null;
         private OpusAudioEncoder _opusEncoder = null;
         private IResampler _pcmResampler = null;
-        // A plain buffer with a read cursor rather than a List: the encode loop took frames off the
-        //  front, and List.RemoveRange(0, n) shifts every remaining sample down on each of the ~50
-        //  frames a second, while Take(n).ToArray() allocated the frame again on the way out.
-        private short[] _samples = new short[0];
-        private int _samplesHead = 0; // first sample not yet encoded
-        private int _samplesTail = 0; // one past the last sample written
+        private readonly PcmSampleBuffer _samples = new PcmSampleBuffer();
+        private OpusClockScaler _opusClock = null;
 
-        private int BufferedSamples => _samplesTail - _samplesHead;
+        private int BufferedSamples => _samples.Count;
         private short[] _resampledBuffer = null;
         private int _decodedChannels = 0;   // actual channel count produced by the AAC decoder (see note in TranscodeAndSend)
         private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
@@ -558,94 +554,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
         }
 
-        /// <summary>
-        /// Appends decoded PCM to the buffer the encoder reads frames out of.
-        /// </summary>
-        /// <remarks>
-        /// Compacts what is left of the buffer before growing it, so a steady stream settles on one
-        /// allocation rather than growing without limit as the read cursor walks forward.
-        /// </remarks>
-        private void AppendSamples(short[] data, int count)
-        {
-            if (count <= 0)
-                return;
-
-            if (_samplesTail + count > _samples.Length)
-            {
-                int live = BufferedSamples;
-
-                if (live + count <= _samples.Length)
-                {
-                    Array.Copy(_samples, _samplesHead, _samples, 0, live);
-                }
-                else
-                {
-                    var grown = new short[Math.Max(live + count, Math.Max(_samples.Length * 2, 4096))];
-                    Array.Copy(_samples, _samplesHead, grown, 0, live);
-                    _samples = grown;
-                }
-
-                _samplesHead = 0;
-                _samplesTail = live;
-            }
-
-            Array.Copy(data, 0, _samples, _samplesTail, count);
-            _samplesTail += count;
-        }
-
-        private bool _haveSourceTimestamp = false;
-        private uint _lastSourceTimestamp = 0;
-        private uint _scaledTimestamp = 0;
-        private ulong _scaleRemainder = 0;
-
-        /// <summary>
-        /// Carries the source timestamp over to the 48kHz clock OPUS is sent on.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Scales the step between packets rather than the timestamp itself. RTP timestamps wrap at
-        /// 2^32, and scaling the absolute value does not survive that: at 44.1kHz the source wraps
-        /// about every 27 hours, and the scaled value jumped from roughly 380 million back to nearly
-        /// zero - a backwards step of some two hours on the output clock, where a wrap should have
-        /// been a step of one frame. A camera left running hits this.
-        /// </para>
-        /// <para>
-        /// Stepping means the division has to carry its remainder: 1024 source samples at 44.1kHz are
-        /// worth 1114.6 ticks, and truncating that on every frame would lose about 43 seconds a day.
-        /// </para>
-        /// </remarks>
-        private uint ScaleToOpusClock(uint sourceRtpTimestamp, int sourceFrequency)
-        {
-            ulong opusClock = (ulong)SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency();
-
-            if (!_haveSourceTimestamp)
-            {
-                _haveSourceTimestamp = true;
-                _lastSourceTimestamp = sourceRtpTimestamp;
-                _scaledTimestamp = (uint)((ulong)sourceRtpTimestamp * opusClock / (ulong)sourceFrequency);
-                _scaleRemainder = 0;
-                return _scaledTimestamp;
-            }
-
-            uint delta = unchecked(sourceRtpTimestamp - _lastSourceTimestamp);
-            _lastSourceTimestamp = sourceRtpTimestamp;
-
-            // Anything this far ahead is not a wrap but a new stream: the client reconnected and the
-            //  camera picked a fresh random start. Carry the output clock straight on rather than
-            //  stepping it by however far apart the two random values happened to be.
-            if (delta > (uint)sourceFrequency * 30)
-            {
-                _scaleRemainder = 0;
-                return _scaledTimestamp;
-            }
-
-            ulong scaled = (delta * opusClock) + _scaleRemainder;
-            _scaledTimestamp = unchecked(_scaledTimestamp + (uint)(scaled / (ulong)sourceFrequency));
-            _scaleRemainder = scaled % (ulong)sourceFrequency;
-
-            return _scaledTimestamp;
-        }
-
         private void TranscodeAndSend(byte[][] aacFrames, uint sourceRtpTimestamp)
         {
             var aacConfiguration = _audioStream as AACStreamConfigurationData;
@@ -663,7 +571,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             int aacFrequency = ((SampleFrequency)aacConfiguration.FrequencyIndex).GetFrequency();
-            uint scaledTimestamp = ScaleToOpusClock(sourceRtpTimestamp, aacFrequency);
+
+            if (_opusClock == null)
+            {
+                _opusClock = new OpusClockScaler(aacFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency());
+            }
+
+            uint scaledTimestamp = _opusClock.Next(sourceRtpTimestamp);
             uint rtpTimestamp = scaledTimestamp - (uint)(BufferedSamples / Math.Max(1, _decodedChannels));
 
             // single RTP can contain multiple AAC frames
@@ -718,11 +632,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     // append straight out of the resampler's buffer; copying it to a right sized array
                     //  first only to append it was an allocation per frame
-                    AppendSamples(_resampledBuffer, outLen * _decodedChannels);
+                    _samples.Append(_resampledBuffer, outLen * _decodedChannels);
                 }
                 else
                 {
-                    AppendSamples(sdata, sdata.Length);
+                    _samples.Append(sdata, sdata.Length);
                 }
 
                 int opusFrameSize = _opusEncoder.GetFrameSize() * _decodedChannels;
@@ -730,8 +644,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 while (BufferedSamples >= opusFrameSize)
                 {
                     // encode one frame straight out of the buffer, then step the read cursor past it
-                    byte[] encoded = _opusEncoder.EncodeOpus(new ReadOnlySpan<short>(_samples, _samplesHead, opusFrameSize));
-                    _samplesHead += opusFrameSize;
+                    byte[] encoded = _opusEncoder.EncodeOpus(_samples.Peek(opusFrameSize));
+                    _samples.Advance(opusFrameSize);
 
                     // send it to all peers
                     foreach (RTCPeerConnection peerConnection in _peers)

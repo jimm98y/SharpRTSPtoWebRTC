@@ -26,8 +26,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
         private readonly ConcurrentDictionary<string, Lazy<ProxySession>> _rtspClients = new ConcurrentDictionary<string, Lazy<ProxySession>>();
 
-        private const int MAX_RECONNECT_ATTEMPTS = 100;
-
         /// <summary>
         /// How long a peer connection may stay unanswered before it is closed.
         /// </summary>
@@ -46,36 +44,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             public CancellationTokenSource Reconnects { get; } = new CancellationTokenSource();
 
             public Task<RTSPtoWebRTCProxy> Proxy { get; set; }
-        }
-
-        private static TimeSpan ReconnectDelay(int attempt)
-        {
-            // 1s, 2s, 4s ... capped at 30s
-            double seconds = Math.Min(30d, Math.Pow(2, Math.Min(attempt, 5) - 1));
-            return TimeSpan.FromSeconds(seconds);
-        }
-
-        /// <summary>
-        /// Whether reconnecting to a stream that stopped for this reason could ever work.
-        /// </summary>
-        /// <remarks>
-        /// Retrying a rejected password or a URL the server does not have just repeats the same
-        /// exchange, and against a camera that locks an account out after so many failures it does
-        /// real harm. These used to be retried as hard as a dropped connection.
-        /// </remarks>
-        private static bool IsWorthRetrying(StoppedReason reason)
-        {
-            switch (reason)
-            {
-                case StoppedReason.Unauthorized:
-                case StoppedReason.NotFound:
-                case StoppedReason.UnsupportedMedia:
-                case StoppedReason.EncryptionUnavailable:
-                    return false;
-
-                default:
-                    return true;
-            }
         }
 
         /// <summary>
@@ -401,16 +369,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             client.Stopped += (o, e) =>
             {
-                if (!IsWorthRetrying(e.Reason))
+                if (!ReconnectPolicy.IsWorthRetrying(e.Reason))
                 {
                     _logger.LogError($"RTSP client for {Redact(url)} stopped: {e.Reason}. Not reconnecting.");
                     result.TrySetResult(false);
                     return;
                 }
 
-                if (++reconnectAttempts > MAX_RECONNECT_ATTEMPTS)
+                if (++reconnectAttempts > ReconnectPolicy.MAX_ATTEMPTS)
                 {
-                    _logger.LogError($"RTSP client for {Redact(url)} gave up after {MAX_RECONNECT_ATTEMPTS} reconnect attempts.");
+                    _logger.LogError($"RTSP client for {Redact(url)} gave up after {ReconnectPolicy.MAX_ATTEMPTS} reconnect attempts.");
                     result.TrySetResult(false);
                     return;
                 }
@@ -419,7 +387,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                 // Backed off and off the receive thread. Reconnecting straight from the handler
                 //  retried as fast as the connection could fail, which hammers the camera.
-                Task.Delay(ReconnectDelay(reconnectAttempts), session.Reconnects.Token)
+                Task.Delay(ReconnectPolicy.Delay(reconnectAttempts), session.Reconnects.Token)
                     .ContinueWith(
                         _ =>
                         {
