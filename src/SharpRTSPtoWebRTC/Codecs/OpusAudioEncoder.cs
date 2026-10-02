@@ -28,7 +28,10 @@ namespace SharpRTSPtoWebRTC.Codecs
         // Chrome uses in SDP two audio channels, but if the audio itself contains only one channel, we must pass it as 2 channels in SDP but create a decoder/encoder with only one channel
         public static AudioFormat GetOpusAudioFormat(int channels)
         {    
-            return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "a=fmtp:111 minptime=10;useinbandfec=1"); 
+            // Just the parameters: sipsorcery writes the "a=fmtp:<id> " prefix itself, so spelling it
+            //  out here produced "a=fmtp:111 a=fmtp:111 minptime=10..." in the offer and the browser
+            //  had no usable fmtp line at all.
+            return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "minptime=10;useinbandfec=1"); 
         }
 
         public List<AudioFormat> SupportedFormats => _supportedFormats;
@@ -94,37 +97,47 @@ namespace SharpRTSPtoWebRTC.Codecs
             }
         }
 
+        /// <summary>
+        /// Encodes exactly one OPUS frame of interleaved PCM.
+        /// </summary>
+        /// <remarks>
+        /// Takes a span so a caller holding a longer buffer can encode a frame out of the middle of it
+        ///  without copying the frame out first.
+        /// </remarks>
+        public byte[] EncodeOpus(ReadOnlySpan<short> pcm)
+        {
+            if (_opusEncoder == null)
+            {
+                _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
+                _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
+                _byteBuffer = new byte[MAX_PACKET_SIZE];
+            }
+
+            try
+            {
+                int frameSize = GetFrameSize();
+                int size = _opusEncoder.Encode(pcm, frameSize, _byteBuffer, _byteBuffer.Length);
+
+                if (size > 1)
+                {
+                    byte[] result = new byte[size];
+                    Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex.Message);
+            }
+
+            return new byte[0];
+        }
+
         public byte[] EncodeAudio(short[] pcm, AudioFormat format)
         {
             if (format.FormatName == "opus")
             {
-                if (_opusEncoder == null)
-                {
-                    _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
-                    _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
-                    _byteBuffer = new byte[MAX_PACKET_SIZE];
-                }
-
-                try
-                {
-                    int frameSize = GetFrameSize();
-                    int size = _opusEncoder.Encode(pcm, frameSize, _byteBuffer, _byteBuffer.Length);
-
-                    if (size > 1)
-                    {
-                        byte[] result = new byte[size];
-                        Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
-
-                        log.LogDebug($"[EncodeAudio] frameSize:[{frameSize}] - DecodedShort:[{pcm.Length}] - EncodedBytes.Length:[{result.Length}]");
-                        return result;
-                    }
-                }
-                catch(Exception ex)
-                {
-                    log.LogError(ex.Message);
-                }
-
-                return new byte[0];
+                return EncodeOpus(pcm);
             }
             else
             {
