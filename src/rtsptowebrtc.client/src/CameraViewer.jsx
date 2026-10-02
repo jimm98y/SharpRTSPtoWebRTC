@@ -2,15 +2,14 @@ import React, { useEffect, useRef } from 'react';
 
 function CameraViewer({ name }) {
     const videoElement = useRef(null);
-    const hasRun = useRef(false);
-    useEffect(() => {
-        if (hasRun.current) return;
-        hasRun.current = true;
+    const rtcConnectionRef = useRef(null);
 
+    useEffect(() => {
         const id = window.crypto.getRandomValues(new Uint32Array(1))[0];
         const rtcConnection = new RTCPeerConnection();
+        rtcConnectionRef.current = rtcConnection;
         // Set once the component goes away, so a fetch that is still in flight does not carry on
-        //  talking to a connection that has been closed.
+        // talking to a connection that has been closed.
         let closed = false;
 
         rtcConnection.ontrack = ({ track, streams: [stream] }) => {
@@ -18,6 +17,7 @@ function CameraViewer({ name }) {
                 if (videoElement.current) videoElement.current.srcObject = stream;
             };
         };
+
         rtcConnection.onicecandidate = async (event) => {
             if (!event.candidate || closed) return;
             try {
@@ -64,7 +64,8 @@ function CameraViewer({ name }) {
             // Closing it tells the server to drop the peer connection and, once the last viewer has
             //  gone, to stop pulling from the camera. Leaving it open leaked both.
             closed = true;
-            rtcConnection.close();
+            rtcConnectionRef.current?.close();
+            rtcConnectionRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
