@@ -265,6 +265,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// and keeping the camera streaming until the process ends. An offer nobody answers is the
         /// normal outcome of a page being closed on the way in.
         /// </remarks>
+        private static string SanitizeForLog(string value)
+        {
+            if (value == null)
+            {
+                return string.Empty;
+            }
+
+            return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
+        }
+
         private void ScheduleHandshakeTimeout(string id, string url, RTCPeerConnection peerConnection)
         {
             Task.Delay(HandshakeTimeout).ContinueWith(_ =>
@@ -276,7 +286,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                 if (_peerConnections.ContainsKey(id))
                 {
-                    _logger.LogWarning($"Peer connection {id} did not complete its handshake within {HandshakeTimeout.TotalSeconds}s, closing it.");
+                    string safeId = SanitizeForLog(id);
+                    _logger.LogWarning($"Peer connection {safeId} did not complete its handshake within {HandshakeTimeout.TotalSeconds}s, closing it.");
                     ClosePeerConnection(id, url, peerConnection);
                 }
             }, TaskScheduler.Default);
