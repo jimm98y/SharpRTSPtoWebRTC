@@ -582,6 +582,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly PcmSampleBuffer _samples = new PcmSampleBuffer();
         private OpusClockScaler _opusClock = null;
 
+        // One 20ms frame: the rounding of the source clock is a sample either way, a real gap is more.
+        private readonly OpusTimeline _opusTimeline = new OpusTimeline(960);
+
         private int BufferedSamples => _samples.Count;
         private short[] _resampledBuffer = null;
         private int _decodedChannels = 0;   // actual channel count produced by the AAC decoder (see note in TranscodeAndSend)
@@ -664,8 +667,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 _opusClock = new OpusClockScaler(aacFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency());
             }
 
+            // Where the source says the next Opus frame starts: this AAC frame's time, less what is
+            //  still buffered from the last. Only followed when it is out by more than a frame - see
+            //  OpusTimeline for why counting on is what keeps the audio smooth.
             uint scaledTimestamp = _opusClock.Next(sourceRtpTimestamp);
-            uint rtpTimestamp = scaledTimestamp - (uint)(BufferedSamples / Math.Max(1, _decodedChannels));
+            _opusTimeline.Align(scaledTimestamp - (uint)(BufferedSamples / Math.Max(1, _decodedChannels)));
 
             // single RTP can contain multiple AAC frames
             foreach (var aacFrame in aacFrames)
@@ -696,10 +702,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     }
 
                     _opusEncoder = new OpusAudioEncoder(_decodedChannels);
-
-                    // the buffer is empty before the first frame, so the timestamp offset is 0 either way;
-                    //  this just re-evaluates it now that the real channel count is known.
-                    rtpTimestamp = scaledTimestamp - (uint)(BufferedSamples / _decodedChannels);
                 }
 
                 // convert to signed short PCM
@@ -734,6 +736,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     byte[] encoded = _opusEncoder.EncodeOpus(_samples.Peek(opusFrameSize));
                     _samples.Advance(opusFrameSize);
 
+                    uint rtpTimestamp = _opusTimeline.Take(_opusEncoder.GetFrameSize());
+
                     // send it to all peers
                     foreach (RTCPeerConnection peerConnection in _peers)
                     {
@@ -742,9 +746,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                             peerConnection.SendRtpRaw(SDPMediaTypesEnum.audio, encoded, rtpTimestamp, 0, AudioFormat.FormatID);
                         }
                     }
-
-                    // increment the RTP timestamp by the frame size
-                    rtpTimestamp += (uint)_opusEncoder.GetFrameSize();
                 }
             }
         }
