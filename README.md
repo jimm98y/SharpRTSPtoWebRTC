@@ -1,11 +1,11 @@
 # SharpRTSP to WebRTC
-This is a bridge in between RTSP and WebRTC implemented in C#. It can take any H264/H265/AV1 RTSP stream and feed it through WebRTC to the web browser. It does not perform
+This is a bridge in between RTSP and WebRTC implemented in C#. It can take any H264/H265/AV1/VP9 RTSP stream and feed it through WebRTC to the web browser. It does not perform
 any video transcoding which makes it lightweight and portable. It does support audio transcoding from AAC to Opus, all implemented in netstandard and NET10 without any native dependencies.
 
 [![NuGet version](https://img.shields.io/nuget/v/SharpRTSPtoWebRTC.svg?style=flat-square)](https://www.nuget.org/packages/SharpRTSPtoWebRTC)
 
 ## What can it do?
-- Re-stream H264/H265/AV1 RTSP from any source to the web browser
+- Re-stream H264/H265/AV1/VP9 RTSP from any source to the web browser
 - Stream aggregation - there is only a single session in between the gateway and the RTSP source, no matter how many users are watching the stream
 - Transcode AAC audio to Opus with a small latency in audio
 
@@ -22,6 +22,9 @@ Although most of the web browsers today support H265 video decoding, it does not
 
 ### AV1
 Most modern web browsers support AV1 in WebRTC.
+
+### VP9
+VP9 is supported in WebRTC by all major web browsers. The stream is offered with the profile the RTSP source signals (`profile-id` in its SDP, profile 0 when it gives none). Profile 0 plays everywhere; 10-bit profile 2 only where the browser can decode it, which is mostly Chrome.
 
 ## Samples
 ### RTSPtoWebRTCGateway

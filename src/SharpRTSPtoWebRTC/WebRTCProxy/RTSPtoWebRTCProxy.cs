@@ -19,6 +19,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         H265,
         H266,
         AV1,
+        VP9,
         Unknown
     }
 
@@ -61,6 +62,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private byte[] _pps = null;
         private byte[] _vps = null;
 
+        // The source puts a decoding order number in front of its NAL units (sprop-max-don-diff > 0),
+        //  which no browser reads, so it is taken out before the payload is forwarded.
+        private bool _stripDonl = false;
+
         public int AudioType { get; private set; } = -1;
         public int VideoType { get; private set; } = -1;
         public string AudioCodec { get; private set; }
@@ -77,28 +82,94 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 else if(AudioCodecEnum == ProxyAudioCodecs.PCMA)
                     return new AudioFormat(AudioCodecsEnum.PCMA, AudioType);
                 else if(AudioCodecEnum == ProxyAudioCodecs.OPUS)
-                    return new AudioFormat(AudioType, "opus", 48000, 2, null); // passing just AudioCodecsEnumExp.OPUS results in incorrect SDP
+                    return new AudioFormat(AudioType, "opus", 48000, 2, OpusAudioEncoder.GetStereoFormatParameters((_audioStream as OpusStreamConfigurationData)?.SpropStereo == true)); // passing just AudioCodecsEnumExp.OPUS results in incorrect SDP
                 else if(AudioCodecEnum == ProxyAudioCodecs.AAC)
-                    return OpusAudioEncoder.GetOpusAudioFormat(1);
+                    return OpusAudioEncoder.GetOpusAudioFormat((_audioStream as AACStreamConfigurationData)?.ChannelConfiguration ?? 1, TranscodedAudioType);
                 else
                     return new AudioFormat(AudioCodecsEnum.Unknown, AudioType);
             }
         }
+
+        /// <summary>
+        /// The payload type the Opus transcoded from AAC goes out on. 111 is what the browsers use
+        /// for Opus, but the video keeps the camera's payload type, so it must not be that one.
+        /// </summary>
+        private int TranscodedAudioType => VideoType == 111 ? 110 : 111;
 
         public VideoFormat VideoFormat
         {
             get
             {
                 if (VideoCodecEnum == ProxyVideoCodecs.H264)
-                    return new VideoFormat(VideoCodecsEnum.H264, VideoType);
+                    return new VideoFormat(VideoCodecsEnum.H264, VideoType, VideoFormat.DEFAULT_CLOCK_RATE, GetH264FormatParameters());
                 else if (VideoCodecEnum == ProxyVideoCodecs.H265)
-                    return new VideoFormat(VideoCodecsEnum.H265, VideoType);
+                    return new VideoFormat(VideoCodecsEnum.H265, VideoType, VideoFormat.DEFAULT_CLOCK_RATE, GetVideoFormatParameters());
                 else if (VideoCodecEnum == ProxyVideoCodecs.H266)
-                    return new VideoFormat(VideoType, "H266", 90000, null);
+                    return new VideoFormat(VideoType, "H266", VideoFormat.DEFAULT_CLOCK_RATE, GetVideoFormatParameters());
                 else if (VideoCodecEnum == ProxyVideoCodecs.AV1)
-                    return new VideoFormat(VideoCodecsEnum.AV1, VideoType);
+                    return new VideoFormat(VideoCodecsEnum.AV1, VideoType, VideoFormat.DEFAULT_CLOCK_RATE, GetVideoFormatParameters());
+                else if (VideoCodecEnum == ProxyVideoCodecs.VP9)
+                    return new VideoFormat(VideoCodecsEnum.VP9, VideoType, VideoFormat.DEFAULT_CLOCK_RATE, GetVideoFormatParameters());
                 else
                     return new VideoFormat(VideoCodecsEnum.Unknown, VideoType);
+            }
+        }
+
+        /// <summary>
+        /// The fmtp of the H264 offer.
+        /// </summary>
+        /// <remarks>
+        /// profile-level-id - All WebRTC implementations are required to specify and interpret this parameter in their SDP,
+        ///  and the browsers pick their decoder by it. The SPS is what the stream really is, so it goes before what the
+        ///  camera's SDP claims; 42e01f (Constrained Baseline 3.1) only where neither says.
+        /// packetization-mode - All endpoints are required to support mode 1 (non-interleaved mode), and it covers the
+        ///  single NAL unit packets of mode 0 as well.
+        /// sprop-parameter-sets - When AVC is used with WebRTC, this information must be signaled in-band, so it is
+        ///  never offered; the parameter sets are resent in the stream instead.
+        /// Without an fmtp, Firefox answers with VP8 and the connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
+        /// </remarks>
+        private string GetH264FormatParameters()
+        {
+            string profileLevelId = GetProfileLevelId(_sps) ?? (_videoStream as H264StreamConfigurationData)?.ProfileLevelId ?? "42e01f";
+            return $"profile-level-id={profileLevelId.ToLowerInvariant()};level-asymmetry-allowed=1;packetization-mode=1";
+        }
+
+        /// <summary>
+        /// The profile-level-id an H264 SPS describes: its profile_idc, constraint flags and
+        /// level_idc, or null where it is not an SPS.
+        /// </summary>
+        internal static string GetProfileLevelId(byte[] sps)
+        {
+            if (sps == null || sps.Length < 4 || (sps[0] & 0x1F) != 7)
+                return null;
+
+            return $"{sps[1]:x2}{sps[2]:x2}{sps[3]:x2}";
+        }
+
+        /// <summary>
+        /// The fmtp of the offer for the codecs that only negotiate a profile and a level, taken
+        /// from what the camera's SDP said; null where the client could not read it.
+        /// </summary>
+        private string GetVideoFormatParameters()
+        {
+            switch (_videoStream)
+            {
+                case H265StreamConfigurationData h265:
+                    // tx-mode=SRST: one RTP stream, which is all this forwards
+                    return (h265.ProfileSpace != 0 ? $"profile-space={h265.ProfileSpace};" : "") +
+                        $"profile-id={h265.ProfileId};tier-flag={h265.TierFlag};level-id={h265.LevelId};tx-mode=SRST";
+
+                case H266StreamConfigurationData h266:
+                    return $"profile-id={h266.ProfileId};tier-flag={h266.TierFlag};level-id={h266.LevelId}";
+
+                case AV1StreamConfigurationData av1:
+                    return $"profile={av1.Profile};level-idx={av1.LevelIdx};tier={av1.Tier}";
+
+                case VP9StreamConfigurationData vp9:
+                    return $"profile-id={vp9.ProfileId}";
+
+                default:
+                    return null;
             }
         }
 
@@ -121,36 +192,33 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             AudioCodec = audioPayloadName;
             VideoCodec = videoPayloadName;
 
-            if (VideoCodec != "AV1")
+            // The parameter sets are null where the SDP does not carry them; they are then picked
+            //  up from the stream. AV1 and VP9 have none to resend, and a configuration the client
+            //  could not read is null altogether.
+            if (_videoStream is H264StreamConfigurationData h264)
             {
-                if (_videoStream != null) // this will be null in case sprop-parameter-sets are not singalled in the SDP
+                _sps = h264.SPS;
+                _pps = h264.PPS;
+
+                if (h264.PacketizationMode == 2)
                 {
-                    if (_videoStream is H264StreamConfigurationData h264)
-                    {
-                        _dci = null;
-                        _vps = null;
-                        _sps = h264.SPS;
-                        _pps = h264.PPS;
-                    }
-                    else if (_videoStream is H265StreamConfigurationData h265)
-                    {
-                        _dci = null;
-                        _vps = h265.VPS;
-                        _sps = h265.SPS;
-                        _pps = h265.PPS;
-                    }
-                    else if (_videoStream is H266StreamConfigurationData h266)
-                    {
-                        _dci = h266.DCI;
-                        _vps = h266.VPS;
-                        _sps = h266.SPS;
-                        _pps = h266.PPS;
-                    }
-                    else
-                    {
-                        _logger.LogError($"Unsupported video stream");
-                    }
+                    _logger.LogError("The H264 stream uses interleaved packetization (packetization-mode=2), which no browser supports. It will not play.");
                 }
+            }
+            else if (_videoStream is H265StreamConfigurationData h265)
+            {
+                _vps = h265.VPS;
+                _sps = h265.SPS;
+                _pps = h265.PPS;
+                _stripDonl = h265.MaxDonDiff > 0;
+            }
+            else if (_videoStream is H266StreamConfigurationData h266)
+            {
+                _dci = h266.DCI;
+                _vps = h266.VPS;
+                _sps = h266.SPS;
+                _pps = h266.PPS;
+                _stripDonl = h266.MaxDonDiff > 0;
             }
 
             if (VideoType > 0)
@@ -276,6 +344,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     ret = ProxyVideoCodecs.AV1;
                     break;
 
+                case "VP9":
+                    ret = ProxyVideoCodecs.VP9;
+                    break;
+
                 default:
                     ret = ProxyVideoCodecs.Unknown;
                     break;
@@ -353,7 +425,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 }
                 else if (VideoCodecEnum == ProxyVideoCodecs.H265)
                 {
-                    int naluType = msg[0] & 0x7E;
+                    if (_stripDonl)
+                    {
+                        msg = DonlRemover.StripH265(msg);
+                        if (msg == null)
+                            return;
+                    }
+
+                    int naluType = (msg[0] >> 1) & 0x3F;
                     if (naluType == 32) // VPS
                     {
                         _vps = msg;
@@ -394,6 +473,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // as of 8/10/2025 H266 does not seem to be supported by any web browser
                 else if(VideoCodecEnum == ProxyVideoCodecs.H266)
                 {
+                    if (_stripDonl)
+                    {
+                        msg = DonlRemover.StripH266(msg);
+                        if (msg == null)
+                            return;
+                    }
+
                     int naluType = (msg[1] & 0xF8) >> 3;
                     if (naluType == 13) // DCI
                     {
@@ -439,7 +525,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
-                else if (VideoCodecEnum == ProxyVideoCodecs.AV1)
+                // what a decoder needs is in the key frames themselves, so the packets go through as they came
+                else if (VideoCodecEnum == ProxyVideoCodecs.AV1 || VideoCodecEnum == ProxyVideoCodecs.VP9)
                 {
                     foreach (RTCPeerConnection peerConnection in _peers)
                     {

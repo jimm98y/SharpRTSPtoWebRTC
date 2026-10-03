@@ -24,14 +24,28 @@ namespace SharpRTSPtoWebRTC.Codecs
         private const int MAX_PACKET_SIZE = 1275;
         private const int MAX_FRAME_SIZE = MAX_DECODED_FRAME_SIZE_MULT * OPUS_FRAME_SIZE; // some buffer large enough to hold the samples
         private const int SAMPLE_RATE = 48000;
+        private const int DEFAULT_FORMAT_ID = 111;
 
         // Chrome uses in SDP two audio channels, but if the audio itself contains only one channel, we must pass it as 2 channels in SDP but create a decoder/encoder with only one channel
-        public static AudioFormat GetOpusAudioFormat(int channels)
-        {    
+        public static AudioFormat GetOpusAudioFormat(int channels, int formatId = DEFAULT_FORMAT_ID)
+        {
             // Just the parameters: sipsorcery writes the "a=fmtp:<id> " prefix itself, so spelling it
             //  out here produced "a=fmtp:111 a=fmtp:111 minptime=10..." in the offer and the browser
             //  had no usable fmtp line at all.
-            return new AudioFormat(111, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "minptime=10;useinbandfec=1"); 
+            string stereo = GetStereoFormatParameters(channels >= 2);
+            return new AudioFormat(formatId, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "minptime=10;useinbandfec=1" + (stereo == null ? "" : ";" + stereo));
+        }
+
+        /// <summary>
+        /// What an Opus offer has to say for the browser to play stereo, or null for mono.
+        /// </summary>
+        /// <remarks>
+        /// The rtpmap of Opus always says two channels, so it tells the browser nothing: Chrome
+        /// decodes to mono unless the offer has stereo=1. sprop-stereo=1 says it is what is sent.
+        /// </remarks>
+        public static string GetStereoFormatParameters(bool stereo)
+        {
+            return stereo ? "stereo=1;sprop-stereo=1" : null;
         }
 
         public List<AudioFormat> SupportedFormats => _supportedFormats;
