@@ -137,19 +137,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 _logger.LogDebug($"Added public IPv6 candidate: {_publicIPv6.ToString()}:{rtpPort}.");
             }
 
-            if (proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown)
-            {
-                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(proxy.VideoFormat);
-                MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
-                peerConnection.addTrack(videoTrack);
-            }
-
-            if (proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown)
-            {
-                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(proxy.AudioFormat);
-                MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
-                peerConnection.addTrack(audioTrack);
-            }
+            AddTracks(peerConnection, proxy);
 
             peerConnection.onicecandidateerror +=
                 (candidate, error) => _logger.LogWarning($"Error adding remote ICE candidate. {error} {candidate}");
@@ -187,7 +175,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             var offerInit = peerConnection.createOffer();
-            offerInit.sdp = MungleSDP(offerInit.sdp, proxy);
             await peerConnection.setLocalDescription(offerInit);
 
             if (!_peerConnections.TryAdd(id, peerConnection))
@@ -200,21 +187,6 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             ScheduleHandshakeTimeout(id, url, peerConnection);
 
             return offerInit;
-        }
-
-        private static string MungleSDP(string sdp, RTSPtoWebRTCProxy client)
-        {
-            if (!sdp.Contains($"a=fmtp:{client.VideoType}") && sdp.Contains($"a=rtpmap:{client.VideoType} H264/90000\r\n"))
-            {
-                // packetization-mode - All endpoints are required to support mode 1 (non-interleaved mode). Support for other packetization modes is optional, and the parameter itself is not required to be specified.
-                // profile-level-id - All WebRTC implementations are required to specify and interpret this parameter in their SDP, identifying the sub-profile used by the codec. The specific value that is set is not defined; what matters is that the parameter be used at all.This is useful to note, since in RFC 6184("RTP Payload Format for H.264 Video"), profile-level-id is entirely optional.
-                // sprop-parameter-sets - Sequence and picture information for AVC can be sent either in-band or out-of - band. When AVC is used with WebRTC, this information must be signaled in-band; the sprop-parameter-sets parameter must therefore not be included in the SDP.
-
-                // mungle SDP for Firefox, otherwise Firefox answers with VP8 and WebRTC connection fails: https://groups.google.com/g/discuss-webrtc/c/facYnHFiY-8?pli=1
-                sdp = sdp.Replace($"a=rtpmap:{client.VideoType} H264/90000\r\n", $"a=rtpmap:{client.VideoType} H264/90000\r\na=fmtp:{client.VideoType} profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1\r\n");
-            }
-
-            return sdp;
         }
 
         /// <summary>
@@ -291,6 +263,30 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     ClosePeerConnection(id, url, peerConnection);
                 }
             }, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Adds the send-only tracks a viewer of this proxy is offered.
+        /// </summary>
+        internal static void AddTracks(RTCPeerConnection peerConnection, RTSPtoWebRTCProxy proxy)
+        {
+            if (proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown)
+            {
+                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(proxy.VideoFormat);
+                MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
+                peerConnection.addTrack(videoTrack);
+            }
+
+            if (proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown)
+            {
+                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(proxy.AudioFormat);
+                MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
+
+                // Nothing here sends DTMF, and the telephone-event sipsorcery adds otherwise takes
+                //  payload type 101 - which a camera may well have given its video.
+                audioTrack.NoDtmfSupport = true;
+                peerConnection.addTrack(audioTrack);
+            }
         }
 
         private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RTPTransport transport, int rtspStartPort, int rtspEndPort)
