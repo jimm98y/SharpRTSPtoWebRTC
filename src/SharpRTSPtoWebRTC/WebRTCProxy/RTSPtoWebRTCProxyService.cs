@@ -1,4 +1,25 @@
-﻿using SIPSorcery.Net;
+﻿// SharpRTSPtoWebRTC
+// Copyright (C) 2026 Lukas Volf
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+using SIPSorcery.Net;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -466,5 +487,71 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             peerConnection.addIceCandidate(iceCandidate);
             return true;
         }
+    }
+
+    /// <summary>
+    /// When a dropped RTSP stream is worth reconnecting to, and how long to wait first.
+    /// </summary>
+    internal static class ReconnectPolicy
+    {
+        public const int MAX_ATTEMPTS = 100;
+
+        private const int MAX_DELAY_SECONDS = 30;
+
+        /// <summary>
+        /// Whether reconnecting to a stream that stopped for this reason could ever work.
+        /// </summary>
+        /// <remarks>
+        /// Retrying a rejected password or a path the server does not have just repeats the same
+        /// exchange, and against a camera that locks an account out after so many failures it does
+        /// real harm. These used to be retried as hard as a dropped connection.
+        /// </remarks>
+        public static bool IsWorthRetrying(StoppedReason reason)
+        {
+            switch (reason)
+            {
+                case StoppedReason.Unauthorized:
+                case StoppedReason.NotFound:
+                case StoppedReason.UnsupportedMedia:
+                case StoppedReason.EncryptionUnavailable:
+                    return false;
+
+                default:
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// How long to wait before the given attempt: 1s, 2s, 4s ... capped at 30s.
+        /// </summary>
+        public static TimeSpan Delay(int attempt)
+        {
+            if (attempt < 1)
+            {
+                attempt = 1;
+            }
+
+            // capped before the shift so a long outage cannot overflow it
+            double seconds = attempt >= 6 ? MAX_DELAY_SECONDS : Math.Pow(2, attempt - 1);
+            return TimeSpan.FromSeconds(Math.Min(MAX_DELAY_SECONDS, seconds));
+        }
+    }
+
+    /// <summary>
+    /// Thrown when an offer is asked for under a session id that is already in use.
+    /// </summary>
+    /// <remarks>
+    /// Its own type so the caller can answer 409 rather than the 500 an ArgumentNullException used
+    /// to produce - the request is refused, but nothing about it was null.
+    /// </remarks>
+    public class DuplicateSessionException : Exception
+    {
+        public DuplicateSessionException(string id)
+            : base($"The session id '{id}' is already in use.")
+        {
+            SessionId = id;
+        }
+
+        public string SessionId { get; }
     }
 }
