@@ -41,7 +41,7 @@ namespace RTSPtoWebRTC.Server
         /// what gets through a firewall; UDP keeps it off the control connection, which a camera
         /// under load usually prefers.
         /// </summary>
-        public RTPTransport Transport { get; set; } = RTPTransport.TCP;
+        public RtpTransport Transport { get; set; } = RtpTransport.TCP;
 
         /// <summary>
         /// Port range the UDP transports take their pairs from. Ignored for TCP, and left to the

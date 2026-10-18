@@ -23,7 +23,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharpRTSPtoWebRTC.WebRTCProxy;
-using SIPSorcery.Net;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -91,22 +90,29 @@ namespace RTSPtoWebRTC.Server.Controllers
 
         [HttpPost]
         [Route("setanswer")]
-        public IActionResult SetAnswer(string id, [FromBody] RTCSessionDescriptionInit answer)
+        public IActionResult SetAnswer(string id, [FromBody] SessionDescriptionInit answer)
         {
-            _logger.LogDebug($"SetAnswer {id} {answer?.type} {answer?.sdp}.");
+            _logger.LogDebug($"SetAnswer {id} {answer?.Type} {answer?.Sdp}.");
 
             if (string.IsNullOrWhiteSpace(id))
             {
                 return BadRequest("The id cannot be empty in SetAnswer.");
             }
-            else if (string.IsNullOrWhiteSpace(answer?.sdp))
+            else if (string.IsNullOrWhiteSpace(answer?.Sdp))
             {
                 return BadRequest("The SDP answer cannot be empty in SetAnswer.");
             }
 
-            if (!_webRTCServer.SetAnswer(id, answer))
+            try
             {
-                return NotFound($"No peer connection is available for id {id}.");
+                if (!_webRTCServer.SetAnswer(id, answer))
+                {
+                    return NotFound($"No peer connection is available for id {id}.");
+                }
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
 
             return Ok();
@@ -114,15 +120,15 @@ namespace RTSPtoWebRTC.Server.Controllers
 
         [HttpPost]
         [Route("addicecandidate")]
-        public IActionResult AddIceCandidate(string id, [FromBody] RTCIceCandidateInit iceCandidate)
+        public IActionResult AddIceCandidate(string id, [FromBody] IceCandidateInit iceCandidate)
         {
-            _logger.LogDebug($"SetIceCandidate {id} {iceCandidate?.candidate}.");
+            _logger.LogDebug($"SetIceCandidate {id} {iceCandidate?.Candidate}.");
 
             if (string.IsNullOrWhiteSpace(id))
             {
                 return BadRequest("The id cannot be empty in AddIceCandidate.");
             }
-            else if (string.IsNullOrWhiteSpace(iceCandidate?.candidate))
+            else if (string.IsNullOrWhiteSpace(iceCandidate?.Candidate))
             {
                 return BadRequest("The candidate field cannot be empty in AddIceCandidate.");
             }

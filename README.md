@@ -88,7 +88,7 @@ public class WebRTCController : ControllerBase
 
     [HttpPost]
     [Route("setanswer")]
-    public IActionResult SetAnswer(string id, [FromBody] RTCSessionDescriptionInit answer)
+    public IActionResult SetAnswer(string id, [FromBody] SessionDescriptionInit answer)
     {
         _webRTCServer.SetAnswer(id, answer);
         return Ok();
@@ -96,7 +96,7 @@ public class WebRTCController : ControllerBase
 
     [HttpPost]
     [Route("addicecandidate")]
-    public IActionResult AddIceCandidate(string id, [FromBody] RTCIceCandidateInit iceCandidate)
+    public IActionResult AddIceCandidate(string id, [FromBody] IceCandidateInit iceCandidate)
     {
         _webRTCServer.AddIceCandidate(id, iceCandidate);
         return Ok();
@@ -108,10 +108,11 @@ Finally, for the WebRTC viewer you can refer to `src/rtsptowebrtc.client/src/Cam
 
 ### Hosting on a public IP address
 It is recommended to use a TURN server such as https://github.com/coturn/coturn when hosting this project on the Internet. 
-To host this project on a public IP address without using a TURN server, you will have to configure port ranges (`StartPort`, `EndPort`) for each camera in `appsettings.json`. Then you have to configure port forwarding of all the ports in the configured port ranges to this server + port forwarding for the web application. 
-In some cases, you might also want to configure your server public IP address to be included in the ICE candidates. You can use `PublicIPv4` and `PublicIPv6` in `appsettings.json` for this purpose.
+To host this project on a public IP address without using a TURN server, you will have to configure port ranges (`StartPort`, `EndPort`) for each camera in `appsettings.json`. Then you have to configure port forwarding of all the ports in the configured port ranges to this server + port forwarding for the web application. Each viewer takes one UDP port of the range for each local address of the server, so make the range large enough for the viewers you expect. 
+When the server is behind a NAT that maps each of its ports to the same port of a public address - a cloud VM, for instance - configure that address with `PublicIPv4` and `PublicIPv6` in `appsettings.json`: it is offered as an ICE candidate of each of the server's ports.
 
 ## Credits
-- sipsorcery - WebRTC implementation in netstandard which has made this project possible https://github.com/sipsorcery-org/sipsorcery
+- SharpWebRTC - WebRTC peer connection, of SharpICE (ICE, STUN, TURN) and SharpSRTP (DTLS-SRTP) https://github.com/jimm98y/SharpWebRTC
+- sipsorcery - WebRTC implementation in netstandard which this project was first built on https://github.com/sipsorcery-org/sipsorcery
 - SharpRTSP - RTSP client https://github.com/ngraziano/SharpRTSP
 - concentus - Opus codec implementation https://github.com/lostromb/concentus

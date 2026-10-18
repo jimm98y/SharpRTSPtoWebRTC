@@ -21,40 +21,30 @@
 
 using Concentus;
 using Concentus.Enums;
-using SIPSorcery.Media;
-using SIPSorceryMedia.Abstractions;
+using SharpWebRTC.SDP;
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SharpRTSPtoWebRTC.Codecs
 {
     /// <summary>
-    /// OPUS audio encoder/decoder for sipsorcery based upon the Concentus OPUS codec implementation.
+    /// OPUS audio encoder based upon the Concentus OPUS codec implementation: of the AAC a camera sends, transcoded, what a
+    /// browser plays.
     /// </summary>
-    /// <remarks>
-    /// Based on this discussion: https://github.com/sipsorcery-org/sipsorcery/issues/518#issuecomment-888639894
-    /// </remarks>
-    internal class OpusAudioEncoder : IAudioEncoder
+    internal class OpusAudioEncoder
     {
-        private static readonly ILogger log = SIPSorcery.LogFactory.CreateLogger<OpusAudioEncoder>();
-
         // private const int FRAME_SIZE_MILLISECONDS = 20;
         private const int OPUS_FRAME_SIZE = 960;
-        private const int MAX_DECODED_FRAME_SIZE_MULT = 6; 
         private const int MAX_PACKET_SIZE = 1275;
-        private const int MAX_FRAME_SIZE = MAX_DECODED_FRAME_SIZE_MULT * OPUS_FRAME_SIZE; // some buffer large enough to hold the samples
         private const int SAMPLE_RATE = 48000;
         private const int DEFAULT_FORMAT_ID = 111;
 
         // Chrome uses in SDP two audio channels, but if the audio itself contains only one channel, we must pass it as 2 channels in SDP but create a decoder/encoder with only one channel
-        public static AudioFormat GetOpusAudioFormat(int channels, int formatId = DEFAULT_FORMAT_ID)
+        public static RtpFormat GetOpusAudioFormat(int channels, int formatId = DEFAULT_FORMAT_ID)
         {
-            // Just the parameters: sipsorcery writes the "a=fmtp:<id> " prefix itself, so spelling it
-            //  out here produced "a=fmtp:111 a=fmtp:111 minptime=10..." in the offer and the browser
-            //  had no usable fmtp line at all.
             string stereo = GetStereoFormatParameters(channels >= 2);
-            return new AudioFormat(formatId, "opus", SAMPLE_RATE, SAMPLE_RATE, Math.Max(2, channels), "minptime=10;useinbandfec=1" + (stereo == null ? "" : ";" + stereo));
+            return new RtpFormat { PayloadType = formatId, Name = "opus", ClockRate = SAMPLE_RATE, Channels = Math.Max(2, channels), Parameters = "minptime=10;useinbandfec=1" + (stereo == null ? "" : ";" + stereo) };
         }
 
         /// <summary>
@@ -69,67 +59,16 @@ namespace SharpRTSPtoWebRTC.Codecs
             return stereo ? "stereo=1;sprop-stereo=1" : null;
         }
 
-        public List<AudioFormat> SupportedFormats => _supportedFormats;
-
-        private AudioEncoder _audioEncoder; // the AudioEncoder available in SIPSorcery
-        private List<AudioFormat> _supportedFormats;
-
+        private readonly ILogger _log;
         private int _channels = 1;
-        private short[] _shortBuffer;
         private byte[] _byteBuffer;
 
         private IOpusEncoder _opusEncoder;
-        private IOpusDecoder _opusDecoder;
 
-        public OpusAudioEncoder(int channels)
+        public OpusAudioEncoder(int channels, ILogger log = null)
         {
             _channels = channels;
-            _audioEncoder = new AudioEncoder();
-
-            // Add OPUS in the list of AudioFormat
-            _supportedFormats = new List<AudioFormat>
-            {
-                GetOpusAudioFormat(_channels)
-            };
-
-            // Add also list available in the AudioEncoder available in SIPSorcery
-            _supportedFormats.AddRange(_audioEncoder.SupportedFormats);
-        }
-
-        public short[] DecodeAudio(byte[] encoded, AudioFormat format)
-        {
-            if (format.FormatName == "opus")
-            {
-                if (_opusDecoder == null)
-                {
-                    _opusDecoder = OpusCodecFactory.CreateDecoder(SAMPLE_RATE, _channels);
-                    _shortBuffer = new short[MAX_FRAME_SIZE * _channels];
-                }
-
-                try
-                {
-                    int numSamplesDecoded = _opusDecoder.Decode(encoded, _shortBuffer, OPUS_FRAME_SIZE, false);
-
-                    if (numSamplesDecoded >= 1)
-                    {
-                        var buffer = new short[numSamplesDecoded * _channels];
-                        Buffer.BlockCopy(_shortBuffer, 0, buffer, 0, numSamplesDecoded * _channels * sizeof(short));
-
-                        log.LogDebug($"[DecodeAudio] DecodedShort:[{numSamplesDecoded}] - EncodedBytes.Length:[{encoded.Length}]");
-                        return buffer;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    log.LogError(ex.Message);
-                }
-
-                return new short[0];
-            }
-            else
-            {
-                return _audioEncoder.DecodeAudio(encoded, format);
-            }
+            _log = log ?? NullLogger.Instance;
         }
 
         /// <summary>
@@ -162,22 +101,10 @@ namespace SharpRTSPtoWebRTC.Codecs
             }
             catch (Exception ex)
             {
-                log.LogError(ex.Message);
+                _log.LogError(ex.Message);
             }
 
             return new byte[0];
-        }
-
-        public byte[] EncodeAudio(short[] pcm, AudioFormat format)
-        {
-            if (format.FormatName == "opus")
-            {
-                return EncodeOpus(pcm);
-            }
-            else
-            {
-                return _audioEncoder.EncodeAudio(pcm, format);
-            }
         }
 
         public int GetFrameSize()

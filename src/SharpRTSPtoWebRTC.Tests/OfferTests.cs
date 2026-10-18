@@ -22,7 +22,10 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using SharpRTSPClient;
 using SharpRTSPtoWebRTC.WebRTCProxy;
-using SIPSorcery.Net;
+using SharpICE;
+using SharpWebRTC;
+using System.Net;
+using System.Net.Sockets;
 
 namespace SharpRTSPtoWebRTC.Tests
 {
@@ -39,20 +42,17 @@ namespace SharpRTSPtoWebRTC.Tests
             int videoType = 96, int audioType = 97)
         {
             var proxy = new RTSPtoWebRTCProxy(
-                NullLogger<RTSPtoWebRTCProxyService>.Instance, new RTSPClient(),
+                NullLogger<RTSPtoWebRTCProxyService>.Instance, new RtspClient(),
                 videoType, videoCodec, videoStream,
                 audioCodec == "" ? -1 : audioType, audioCodec, audioStream);
 
-            var peerConnection = new RTCPeerConnection();
-            try
+            // of the loopback alone: the candidates are not what is tested
+            using var peerConnection = new PeerConnection(new PeerConnectionOptions
             {
-                RTSPtoWebRTCProxyService.AddTracks(peerConnection, proxy);
-                return peerConnection.createOffer().sdp;
-            }
-            finally
-            {
-                peerConnection.close();
-            }
+                Ice = new IceAgentOptions { IncludeLoopback = true, AddressFilter = a => IPAddress.IsLoopback(a) && a.AddressFamily == AddressFamily.InterNetwork },
+            });
+            RTSPtoWebRTCProxyService.AddTracks(peerConnection, proxy);
+            return peerConnection.CreateOfferAsync().GetAwaiter().GetResult();
         }
 
         // an H264 SPS: Main profile (77), no constraint flags, level 4.0 (40)

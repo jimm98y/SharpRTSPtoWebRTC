@@ -19,7 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using SIPSorcery.Net;
+using SharpICE;
+using SharpWebRTC;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -29,7 +30,6 @@ using SharpRTSPClient;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Threading;
-using SIPSorcery.Sys;
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
@@ -44,7 +44,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly IPAddress _publicIPv4;
         private readonly IPAddress _publicIPv6;
 
-        private readonly ConcurrentDictionary<string, RTCPeerConnection> _peerConnections = new ConcurrentDictionary<string, RTCPeerConnection>();
+        private readonly ConcurrentDictionary<string, WebRtcViewer> _peerConnections = new ConcurrentDictionary<string, WebRtcViewer>();
         private readonly ConcurrentDictionary<string, Lazy<ProxySession>> _rtspClients = new ConcurrentDictionary<string, Lazy<ProxySession>>();
 
         /// <summary>
@@ -95,18 +95,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 _logger.LogInformation($"Public IPv6 address set to {_publicIPv6}.");
             }
-
-            SIPSorcery.LogFactory.Set(loggerFactory); // get the logs from the SIP Sorcery
         }
 
-        public async Task<RTCSessionDescriptionInit> GetOfferAsync(
+        public async Task<SessionDescriptionInit> GetOfferAsync(
             string id,
             string url,
             string userName = null,
             string password = null,
             int startPort = 0,
             int endPort = 0,
-            RTPTransport transport = RTPTransport.TCP,
+            RtpTransport transport = RtpTransport.TCP,
             int rtspStartPort = 0,
             int rtspEndPort = 0)
         {
@@ -126,61 +124,53 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // session must be created in advance in order to know which codec to use
             RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password, transport, rtspStartPort, rtspEndPort);
 
-            PortRange portRange = null;
-            if(startPort >= 0 && endPort > 0 && endPort > startPort && startPort <= IPEndPoint.MaxPort && endPort <= IPEndPoint.MaxPort)
+            // One socket of each local address, each of a port of the range: rtcp-mux leaves no RTCP port to keep even.
+            var ice = new IceAgentOptions();
+            if (startPort > 0 && endPort > startPort && endPort <= IPEndPoint.MaxPort)
             {
-                if (startPort % 2 != 0 || endPort % 2 != 0)
-                {
-                    _logger.LogDebug($"Start and end port must be even numbers. StartPort: {startPort}, EndPort: {endPort}.");
-                }
-                else
-                {
-                    _logger.LogDebug($"RTCPeerConnection for {url} is set to use the port range from {startPort} to {endPort}.");
-                    portRange = new PortRange(startPort, endPort, true);
-                }
+                _logger.LogDebug($"The peer connection for {Redact(url)} takes its ports from {startPort} to {endPort}.");
+                ice.PortMin = startPort;
+                ice.PortMax = endPort;
             }
 
-            RTCPeerConnection peerConnection = new RTCPeerConnection(null, 0, portRange);
-
+            // A host behind a NAT of one to one - a cloud host - is reachable of its public addresses, on its sockets' ports.
             if (_publicIPv4 != null)
             {
-                var rtpPort = peerConnection.GetRtpChannel().RTPPort;
-                var publicIPv4Candidate = new RTCIceCandidate(RTCIceProtocol.udp, _publicIPv4, (ushort)rtpPort, RTCIceCandidateType.host);
-                peerConnection.addLocalIceCandidate(publicIPv4Candidate);
-                _logger.LogDebug($"Added public IPv4 candidate: {_publicIPv4.ToString()}:{rtpPort}.");
+                ice.PublicAddresses.Add(_publicIPv4);
             }
 
             if (_publicIPv6 != null)
             {
-                var rtpPort = peerConnection.GetRtpChannel().RTPPort;
-                var publicIPv6Candidate = new RTCIceCandidate(RTCIceProtocol.udp, _publicIPv6, (ushort)rtpPort, RTCIceCandidateType.host);
-                peerConnection.addLocalIceCandidate(publicIPv6Candidate);
-                _logger.LogDebug($"Added public IPv6 candidate: {_publicIPv6.ToString()}:{rtpPort}.");
+                ice.PublicAddresses.Add(_publicIPv6);
             }
 
-            AddTracks(peerConnection, proxy);
-
-            peerConnection.onicecandidateerror +=
-                (candidate, error) => _logger.LogWarning($"Error adding remote ICE candidate. {error} {candidate}");
-            peerConnection.oniceconnectionstatechange +=
-                (state) => _logger.LogDebug($"ICE connection state change to {state}.");
-            peerConnection.OnRtcpBye +=
-                (reason) => _logger.LogDebug($"RTCP BYE receive, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
-            peerConnection.OnRtpClosed +=
-                (reason) => _logger.LogDebug($"Peer connection closed, reason: {(string.IsNullOrWhiteSpace(reason) ? "<none>" : reason)}.");
-
-            peerConnection.OnReceiveReport += (re, media, rr) => _logger.LogDebug($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
-            peerConnection.OnSendReport += (media, sr) => _logger.LogDebug($"RTCP Send for {media}\n{sr.GetDebugSummary()}");
-
-            peerConnection.onconnectionstatechange += (state) =>
+            var peerConnection = new PeerConnection(new PeerConnectionOptions
             {
-                _logger.LogDebug($"Peer connection {id} state changed to {state}.");
+                Ice = ice,
+                Trace = message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}"),
+            });
+            WebRtcViewer viewer = AddTracks(peerConnection, proxy);
 
-                if (state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.failed)
+            peerConnection.LocalCandidate += (s, candidate) => _logger.LogDebug($"Local ICE candidate {candidate}.");
+            peerConnection.KeyFrameRequested += (s, track) =>
+                _logger.LogDebug($"Peer connection {SanitizeForLog(id)} asks for a key frame of its {track.Kind}: the camera's next one is what it gets.");
+            peerConnection.RtcpPacketReceived += (s, e) =>
+            {
+                foreach (var (reporter, block) in e.ReportBlocks)
                 {
-                    ClosePeerConnection(id, url, peerConnection);
+                    _logger.LogDebug($"RTCP receiver report of {reporter:X8} for {block.Ssrc:X8}: {block.FractionLost / 2.56:F1}% lost, {block.CumulativeLost} in all, jitter {block.Jitter}.");
                 }
-                else if (state == RTCPeerConnectionState.connected)
+            };
+
+            peerConnection.StateChanged += (s, state) =>
+            {
+                _logger.LogDebug($"Peer connection {SanitizeForLog(id)} state changed to {state}.");
+
+                if (state == PeerConnectionState.Closed || state == PeerConnectionState.Disconnected || state == PeerConnectionState.Failed)
+                {
+                    ClosePeerConnection(id, url, viewer);
+                }
+                else if (state == PeerConnectionState.Connected)
                 {
                     _logger.LogDebug("Peer connection connected.");
                 }
@@ -189,25 +179,34 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // Claim the id before handing the connection anywhere. The check at the top of this
             //  method is only a fast path: two requests carrying the same id both got past it, and
             //  the loser left a peer connection that nothing tracked and nothing could ever close.
-            if (!proxy.AddPeerConnection(id, peerConnection))
+            if (!proxy.AddPeerConnection(id, viewer))
             {
-                peerConnection.close();
+                peerConnection.Close();
                 throw new DuplicateSessionException(id);
             }
 
-            var offerInit = peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offerInit);
-
-            if (!_peerConnections.TryAdd(id, peerConnection))
+            string offer;
+            try
+            {
+                offer = await peerConnection.CreateOfferAsync();
+            }
+            catch
             {
                 proxy.RemovePeerConnection(id);
-                peerConnection.close();
+                peerConnection.Close();
+                throw;
+            }
+
+            if (!_peerConnections.TryAdd(id, viewer))
+            {
+                proxy.RemovePeerConnection(id);
+                peerConnection.Close();
                 throw new DuplicateSessionException(id);
             }
 
-            ScheduleHandshakeTimeout(id, url, peerConnection);
+            ScheduleHandshakeTimeout(id, url, viewer);
 
-            return offerInit;
+            return new SessionDescriptionInit { Type = "offer", Sdp = offer };
         }
 
         /// <summary>
@@ -218,7 +217,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// closing, so the state change handler and the handshake timeout cannot both tear the same
         /// connection down, and close() raising another state change cannot recurse.
         /// </remarks>
-        private void ClosePeerConnection(string id, string url, RTCPeerConnection peerConnection)
+        private void ClosePeerConnection(string id, string url, WebRtcViewer viewer)
         {
             if (!_peerConnections.TryRemove(id, out _))
             {
@@ -226,8 +225,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
 
             // Removing it from the map used to be all that happened, which left the ports and the
-            //  DTLS state to the garbage collector. close() is a no-op if it is closed already.
-            peerConnection.close();
+            //  DTLS state to the garbage collector. Close() is a no-op if it is closed already.
+            viewer.Connection.Close();
 
             if (!_rtspClients.TryGetValue(url, out Lazy<ProxySession> lazy) || !lazy.IsValueCreated)
             {
@@ -245,7 +244,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 session.Reconnects.Cancel();
                 session.Proxy.Result.Stop();
-                _logger.LogDebug($"RTSPClient for {Redact(url)} stopped.");
+                _logger.LogDebug($"RtspClient for {Redact(url)} stopped.");
             }
         }
 
@@ -254,8 +253,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// </summary>
         /// <remarks>
         /// Without an answer there is no remote description, so ICE never starts its checks and
-        /// sipsorcery's own failure timeout never runs - the connection sits in 'new' holding a port
-        /// and keeping the camera streaming until the process ends. An offer nobody answers is the
+        /// never fails - the connection sits in 'new' holding its ports and keeping the camera
+        /// streaming until the process ends. An offer nobody answers is the
         /// normal outcome of a page being closed on the way in.
         /// </remarks>
         private static string SanitizeForLog(string value)
@@ -268,11 +267,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
         }
 
-        private void ScheduleHandshakeTimeout(string id, string url, RTCPeerConnection peerConnection)
+        private void ScheduleHandshakeTimeout(string id, string url, WebRtcViewer viewer)
         {
             Task.Delay(HandshakeTimeout).ContinueWith(_ =>
             {
-                if (peerConnection.connectionState == RTCPeerConnectionState.connected)
+                if (viewer.Connection.State == PeerConnectionState.Connected)
                 {
                     return;
                 }
@@ -281,36 +280,37 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     string safeId = SanitizeForLog(id);
                     _logger.LogWarning($"Peer connection {safeId} did not complete its handshake within {HandshakeTimeout.TotalSeconds}s, closing it.");
-                    ClosePeerConnection(id, url, peerConnection);
+                    ClosePeerConnection(id, url, viewer);
                 }
             }, TaskScheduler.Default);
         }
 
         /// <summary>
-        /// Adds the send-only tracks a viewer of this proxy is offered.
+        /// Adds the send-only tracks a viewer of this proxy is offered: of the video and the sound the camera sends, those a
+        /// browser can play. No telephone-event is offered: nothing here sends DTMF, and the payload type it would take may
+        /// well be the one a camera gave its video.
         /// </summary>
-        internal static void AddTracks(RTCPeerConnection peerConnection, RTSPtoWebRTCProxy proxy)
+        internal static WebRtcViewer AddTracks(PeerConnection peerConnection, RTSPtoWebRTCProxy proxy)
         {
-            if (proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown)
+            MediaTrack video = null;
+            MediaTrack audio = null;
+
+            var videoFormat = proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown ? proxy.VideoFormat : null;
+            if (videoFormat != null)
             {
-                SDPAudioVideoMediaFormat videoFormat = new SDPAudioVideoMediaFormat(proxy.VideoFormat);
-                MediaStreamTrack videoTrack = new MediaStreamTrack(SDPMediaTypesEnum.video, false, new List<SDPAudioVideoMediaFormat> { videoFormat }, MediaStreamStatusEnum.SendOnly);
-                peerConnection.addTrack(videoTrack);
+                video = peerConnection.AddTrack("video", videoFormat);
             }
 
-            if (proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown)
+            var audioFormat = proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown ? proxy.AudioFormat : null;
+            if (audioFormat != null)
             {
-                SDPAudioVideoMediaFormat audioFormat = new SDPAudioVideoMediaFormat(proxy.AudioFormat);
-                MediaStreamTrack audioTrack = new MediaStreamTrack(SDPMediaTypesEnum.audio, false, new List<SDPAudioVideoMediaFormat> { audioFormat }, MediaStreamStatusEnum.SendOnly);
-
-                // Nothing here sends DTMF, and the telephone-event sipsorcery adds otherwise takes
-                //  payload type 101 - which a camera may well have given its video.
-                audioTrack.NoDtmfSupport = true;
-                peerConnection.addTrack(audioTrack);
+                audio = peerConnection.AddTrack("audio", audioFormat);
             }
+
+            return new WebRtcViewer(peerConnection, video, audio);
         }
 
-        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RTPTransport transport, int rtspStartPort, int rtspEndPort)
+        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RtpTransport transport, int rtspStartPort, int rtspEndPort)
         {
             // Lazy, because ConcurrentDictionary.GetOrAdd may run its factory on several threads at
             //  once and keep only one result. Every other run had already called Connect, so two
@@ -353,10 +353,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 .Remove(new KeyValuePair<string, Lazy<ProxySession>>(url, lazy));
         }
 
-        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session, RTPTransport transport, int rtspStartPort, int rtspEndPort)
+        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session, RtpTransport transport, int rtspStartPort, int rtspEndPort)
         {
             TaskCompletionSource<bool> result = new TaskCompletionSource<bool>();
-            var client = new RTSPClient(loggerFactory);
+            var client = new RtspClient(loggerFactory);
 
             IStreamConfigurationData videoStream = null;
             int videoType = -1;
@@ -436,9 +436,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // The proxy carries a single video track and a single audio track, so take the first of
             //  each kind and nothing else. Without this the client would also set up the first
             //  metadata track, which this proxy has nothing to do with.
-            client.AcceptTrack = t => RTSPClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
+            client.AcceptTrack = t => RtspClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
 
-            if (transport != RTPTransport.TCP && rtspStartPort > 0 && rtspEndPort > 0)
+            if (transport != RtpTransport.TCP && rtspStartPort > 0 && rtspEndPort > 0)
             {
                 // Only meaningful for the UDP transports; TCP interleaves the RTP in the RTSP
                 //  connection and binds nothing.
@@ -461,30 +461,51 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// Applies the answer to a pending offer. False where no session has that id - a stale page
         /// answering after its connection was cleaned up, which is a 404 and not a server fault.
         /// </summary>
-        public bool SetAnswer(string id, RTCSessionDescriptionInit description)
+        /// <exception cref="ArgumentException">Of an answer that is not one to this offer: it is closed.</exception>
+        public bool SetAnswer(string id, SessionDescriptionInit description)
         {
-            if (!_peerConnections.TryGetValue(id, out var peerConnection))
+            if (!_peerConnections.TryGetValue(id, out var viewer))
             {
                 return false;
             }
 
-            _logger.LogDebug($"Answer SDP: {description.sdp}");
-            peerConnection.setRemoteDescription(description);
+            _logger.LogDebug($"Answer SDP: {description.Sdp}");
+            try
+            {
+                viewer.Connection.SetAnswer(description.Sdp);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException || ex is InvalidOperationException || ex is FormatException)
+            {
+                _logger.LogWarning($"The answer of {SanitizeForLog(id)} is refused: {ex.Message}");
+                viewer.Connection.Close();
+                throw new ArgumentException(ex.Message, nameof(description), ex);
+            }
+
+            foreach (var track in new[] { viewer.Video, viewer.Audio })
+            {
+                if (track != null && track.IsRejected)
+                {
+                    _logger.LogWarning($"The viewer {SanitizeForLog(id)} refuses the {track.Kind} of {track.Formats[0].Name}: it cannot play it.");
+                }
+            }
             return true;
         }
 
         /// <summary>
         /// Adds a remote ICE candidate. False where no session has that id.
         /// </summary>
-        public bool AddIceCandidate(string id, RTCIceCandidateInit iceCandidate)
+        public bool AddIceCandidate(string id, IceCandidateInit iceCandidate)
         {
-            if (!_peerConnections.TryGetValue(id, out var peerConnection))
+            if (!_peerConnections.TryGetValue(id, out var viewer))
             {
                 return false;
             }
 
-            _logger.LogDebug($"ICE Candidate: {iceCandidate.candidate}");
-            peerConnection.addIceCandidate(iceCandidate);
+            _logger.LogDebug($"ICE Candidate: {iceCandidate.Candidate}");
+            if (!viewer.Connection.AddRemoteCandidate(iceCandidate.Candidate))
+            {
+                _logger.LogWarning($"Error adding remote ICE candidate {SanitizeForLog(iceCandidate.Candidate)}.");
+            }
             return true;
         }
     }
