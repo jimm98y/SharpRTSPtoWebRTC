@@ -83,14 +83,14 @@ public class WebRTCController : ControllerBase
     [Route("getoffer")]
     public async Task<IActionResult> GetOffer(string id, string name)
     {
-        return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort));
+        return Ok(await _webRTCServer.GetOfferAsync(id, camera.Url, camera.UserName, camera.Password, camera.StartPort, camera.EndPort, user: User?.Identity?.Name));
     }
 
     [HttpPost]
     [Route("setanswer")]
     public IActionResult SetAnswer(string id, [FromBody] SessionDescriptionInit answer)
     {
-        _webRTCServer.SetAnswer(id, answer);
+        _webRTCServer.SetAnswer(id, Request.Headers[SessionToken.Header], User?.Identity?.Name, answer);
         return Ok();
     }
 
@@ -98,7 +98,7 @@ public class WebRTCController : ControllerBase
     [Route("addicecandidate")]
     public IActionResult AddIceCandidate(string id, [FromBody] IceCandidateInit iceCandidate)
     {
-        _webRTCServer.AddIceCandidate(id, iceCandidate);
+        _webRTCServer.AddIceCandidate(id, Request.Headers[SessionToken.Header], User?.Identity?.Name, iceCandidate);
         return Ok();
     }
 }
@@ -106,10 +106,28 @@ public class WebRTCController : ControllerBase
 
 Finally, for the WebRTC viewer you can refer to `src/rtsptowebrtc.client/src/CameraViewer.jsx`.
 
+Each offer carries a `token`, a secret the server makes for the session: the answer and the ICE candidates of the session are taken only with it in the `X-Session-Token` header, and - of a server of authentication - only of the user who asked for the offer. Anything else is answered 404, as an unknown session is, so neither a guessed id nor another user's session can be taken over.
+
+### Authentication
+The page and the API take HTTP Basic authentication of the users of `BasicAuthentication` in `appsettings.json`. Each user's password is best kept as a hash, which the server makes:
+```
+dotnet RTSPtoWebRTC.Server.dll hash-password "the password"
+```
+```json
+"BasicAuthentication": {
+  "Realm": "RTSPtoWebRTC",
+  "Users": {
+    "viewer": "pbkdf2-sha256$210000$...$..."
+  }
+}
+```
+The browser asks for the user and password once, as the page loads. A .NET client gives them in the URL of the API, `https://viewer:password@host/api/webrtc`, which `WebRtcSource` of SharpMediaPlayer sends as the Authorization header. Of no users, the API is open, and the server says so as it starts. Basic authentication sends the password readable by anyone on the path over plain HTTP: use HTTPS beyond the loopback.
+
 ### Hosting on a public IP address
 It is recommended to use a TURN server such as https://github.com/coturn/coturn when hosting this project on the Internet. 
 To host this project on a public IP address without using a TURN server, you will have to configure port ranges (`StartPort`, `EndPort`) for each camera in `appsettings.json`. Then you have to configure port forwarding of all the ports in the configured port ranges to this server + port forwarding for the web application. Each viewer takes one UDP port of the range for each local address of the server, so make the range large enough for the viewers you expect. 
 When the server is behind a NAT that maps each of its ports to the same port of a public address - a cloud VM, for instance - configure that address with `PublicIPv4` and `PublicIPv6` in `appsettings.json`: it is offered as an ICE candidate of each of the server's ports.
+The signalling API has no authentication of its own, so put it behind your own (a reverse proxy, for instance) when it is reachable from the Internet. `MaxViewers` in `appsettings.json` (100 by default) caps the viewers at once: each holds ports, a DTLS key and the camera's bitrate of upload, and more are answered 503.
 
 ## Credits
 - SharpWebRTC - WebRTC peer connection, of SharpICE (ICE, STUN, TURN) and SharpSRTP (DTLS-SRTP) https://github.com/jimm98y/SharpWebRTC

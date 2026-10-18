@@ -79,12 +79,18 @@ namespace RTSPtoWebRTC.Server.Controllers
                     camera.EndPort,
                     camera.Transport,
                     camera.RtspStartPort,
-                    camera.RtspEndPort));
+                    camera.RtspEndPort,
+                    User?.Identity?.Name));
             }
             catch (DuplicateSessionException ex)
             {
                 _logger.LogWarning(ex.Message);
                 return Conflict(ex.Message);
+            }
+            catch (TooManySessionsException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return StatusCode(503, ex.Message);
             }
         }
 
@@ -105,7 +111,7 @@ namespace RTSPtoWebRTC.Server.Controllers
 
             try
             {
-                if (!_webRTCServer.SetAnswer(id, answer))
+                if (!_webRTCServer.SetAnswer(id, Request.Headers[SessionToken.Header], User?.Identity?.Name, answer))
                 {
                     return NotFound($"No peer connection is available for id {id}.");
                 }
@@ -133,7 +139,7 @@ namespace RTSPtoWebRTC.Server.Controllers
                 return BadRequest("The candidate field cannot be empty in AddIceCandidate.");
             }
 
-            if (!_webRTCServer.AddIceCandidate(id, iceCandidate))
+            if (!_webRTCServer.AddIceCandidate(id, Request.Headers[SessionToken.Header], User?.Identity?.Name, iceCandidate))
             {
                 return NotFound($"No peer connection is available for id {id}.");
             }

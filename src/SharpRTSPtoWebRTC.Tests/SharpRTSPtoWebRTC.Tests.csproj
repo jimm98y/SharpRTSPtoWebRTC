@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharpRTSPtoWebRTC\SharpRTSPtoWebRTC.csproj" />
+    <ProjectReference Include="..\RTSPtoWebRTC.Server\RTSPtoWebRTC.Server.csproj" />
   </ItemGroup>
 
 </Project>

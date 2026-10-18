@@ -39,6 +39,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly ILogger<RTSPtoWebRTCProxyService> _logger;
         private readonly IConfiguration _config;
 
+        private const string CONFIG_KEY_MAX_VIEWERS = "MaxViewers";
+        private const int DEFAULT_MAX_VIEWERS = 100;
+        private readonly int _maxViewers;
+
         private const string CONFIG_KEY_PUBLIC_IPV4 = "PublicIPv4";
         private const string CONFIG_KEY_PUBLIC_IPV6 = "PublicIPv6";
         private readonly IPAddress _publicIPv4;
@@ -86,6 +90,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             _logger = loggerFactory.CreateLogger<RTSPtoWebRTCProxyService>();
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
+            // each viewer holds ports, a DTLS key and the camera's bitrate of upload: of anyone's asking, a number of them alone
+            _maxViewers = int.TryParse(config[CONFIG_KEY_MAX_VIEWERS], out int maxViewers) && maxViewers > 0 ? maxViewers : DEFAULT_MAX_VIEWERS;
+
             if (IPAddress.TryParse(config[CONFIG_KEY_PUBLIC_IPV4], out _publicIPv4))
             {
                 _logger.LogInformation($"Public IPv4 address set to {_publicIPv4}.");
@@ -106,7 +113,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             int endPort = 0,
             RtpTransport transport = RtpTransport.TCP,
             int rtspStartPort = 0,
-            int rtspEndPort = 0)
+            int rtspEndPort = 0,
+            string user = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -115,6 +123,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             else if (_peerConnections.ContainsKey(id))
             {
                 throw new DuplicateSessionException(id);
+            }
+            else if (_peerConnections.Count >= _maxViewers)
+            {
+                throw new TooManySessionsException(_maxViewers);
             }
             else if (string.IsNullOrWhiteSpace(url) || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
             {
@@ -150,6 +162,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 Trace = message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}"),
             });
             WebRtcViewer viewer = AddTracks(peerConnection, proxy);
+            viewer.User = user;
 
             peerConnection.LocalCandidate += (s, candidate) => _logger.LogDebug($"Local ICE candidate {candidate}.");
             peerConnection.KeyFrameRequested += (s, track) =>
@@ -192,21 +205,21 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
             catch
             {
-                proxy.RemovePeerConnection(id);
+                proxy.RemovePeerConnection(id, viewer);
                 peerConnection.Close();
                 throw;
             }
 
             if (!_peerConnections.TryAdd(id, viewer))
             {
-                proxy.RemovePeerConnection(id);
+                proxy.RemovePeerConnection(id, viewer);
                 peerConnection.Close();
                 throw new DuplicateSessionException(id);
             }
 
             ScheduleHandshakeTimeout(id, url, viewer);
 
-            return new SessionDescriptionInit { Type = "offer", Sdp = offer };
+            return new SessionDescriptionInit { Type = "offer", Sdp = offer, Token = viewer.Token };
         }
 
         /// <summary>
@@ -219,8 +232,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// </remarks>
         private void ClosePeerConnection(string id, string url, WebRtcViewer viewer)
         {
-            if (!_peerConnections.TryRemove(id, out _))
+            // that viewer alone, of its id: one that left and a later one of the same id are two, and the leaving one's timer or
+            // state is not to close - or leak - the other
+            if (!((ICollection<KeyValuePair<string, WebRtcViewer>>)_peerConnections).Remove(new KeyValuePair<string, WebRtcViewer>(id, viewer)))
             {
+                viewer.Connection.Close();
                 return;
             }
 
@@ -240,7 +256,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 return;
             }
 
-            if (session.Proxy.Result.RemovePeerConnection(id) == 0 && DropClient(url, lazy))
+            if (session.Proxy.Result.RemovePeerConnection(id, viewer) == 0 && DropClient(url, lazy))
             {
                 session.Reconnects.Cancel();
                 session.Proxy.Result.Stop();
@@ -276,7 +292,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     return;
                 }
 
-                if (_peerConnections.ContainsKey(id))
+                if (_peerConnections.TryGetValue(id, out var current) && current == viewer)
                 {
                     string safeId = SanitizeForLog(id);
                     _logger.LogWarning($"Peer connection {safeId} did not complete its handshake within {HandshakeTimeout.TotalSeconds}s, closing it.");
@@ -452,7 +468,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             bool isConnected = await result.Task;
             if(!isConnected)
             {
-                throw new Exception($"Failed to connect to RTSP server {url}.");
+                // of the URL its credentials taken out: the message is logged, and of a server of developer pages, shown
+                throw new Exception($"Failed to connect to RTSP server {Redact(url)}.");
             }
             return new RTSPtoWebRTCProxy(_logger, client, videoType, videoName, videoStream, audioType, audioName, audioStream);
         }
@@ -462,14 +479,21 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// answering after its connection was cleaned up, which is a 404 and not a server fault.
         /// </summary>
         /// <exception cref="ArgumentException">Of an answer that is not one to this offer: it is closed.</exception>
-        public bool SetAnswer(string id, SessionDescriptionInit description)
+        public bool SetAnswer(string id, string token, string user, SessionDescriptionInit description)
         {
-            if (!_peerConnections.TryGetValue(id, out var viewer))
+            // of the session's token and user alone: of anyone else - who guessed its id - as of no session at all, so that
+            //  the answer tells nothing of which ids are in use
+            if (!_peerConnections.TryGetValue(id, out var viewer) || !viewer.IsOwnedBy(token, user))
             {
                 return false;
             }
 
             _logger.LogDebug($"Answer SDP: {description.Sdp}");
+            // an answer again - of another page that knows the id - is refused, the session left as it is
+            if (viewer.Connection.RemoteDescription != null)
+            {
+                throw new ArgumentException("The session has its answer already.", nameof(description));
+            }
             try
             {
                 viewer.Connection.SetAnswer(description.Sdp);
@@ -494,9 +518,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// <summary>
         /// Adds a remote ICE candidate. False where no session has that id.
         /// </summary>
-        public bool AddIceCandidate(string id, IceCandidateInit iceCandidate)
+        public bool AddIceCandidate(string id, string token, string user, IceCandidateInit iceCandidate)
         {
-            if (!_peerConnections.TryGetValue(id, out var viewer))
+            if (!_peerConnections.TryGetValue(id, out var viewer) || !viewer.IsOwnedBy(token, user))
             {
                 return false;
             }
@@ -565,6 +589,17 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
     /// Its own type so the caller can answer 409 rather than the 500 an ArgumentNullException used
     /// to produce - the request is refused, but nothing about it was null.
     /// </remarks>
+    /// <summary>
+    /// A viewer refused, of as many as the service takes already ("MaxViewers" of its configuration).
+    /// </summary>
+    public class TooManySessionsException : Exception
+    {
+        public TooManySessionsException(int max)
+            : base($"There are {max} viewers already.")
+        {
+        }
+    }
+
     public class DuplicateSessionException : Exception
     {
         public DuplicateSessionException(string id)

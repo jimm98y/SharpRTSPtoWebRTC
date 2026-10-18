@@ -30,6 +30,42 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         public string Type { get; set; }
 
         public string Sdp { get; set; }
+
+        /// <summary>
+        /// Of an offer, the session's secret: what its answer and candidates are to carry, of the header
+        /// <see cref="SessionToken.Header"/>, as no one else knows it. Null of an answer.
+        /// </summary>
+        public string Token { get; set; }
+    }
+
+    /// <summary>
+    /// The secret of a session: 32 random bytes, of base64url, made by the server as it offers. The session's answer and
+    /// candidates are taken of it alone - not of its id, which the page chooses and anyone may guess.
+    /// </summary>
+    public static class SessionToken
+    {
+        public const string Header = "X-Session-Token";
+
+        public static string Create()
+        {
+            byte[] bytes = new byte[32];
+            using (var random = System.Security.Cryptography.RandomNumberGenerator.Create())
+                random.GetBytes(bytes);
+            return System.Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        /// <summary>Whether the token given is the session's, compared in constant time.</summary>
+        public static bool Matches(string expected, string given)
+        {
+            if (expected == null || given == null)
+                return false;
+            byte[] a = System.Text.Encoding.UTF8.GetBytes(expected);
+            byte[] b = System.Text.Encoding.UTF8.GetBytes(given);
+            int difference = a.Length ^ b.Length;
+            for (int i = 0; i < a.Length; i++)
+                difference |= a[i] ^ (i < b.Length ? b[i] : 0);
+            return difference == 0;
+        }
     }
 
     /// <summary>

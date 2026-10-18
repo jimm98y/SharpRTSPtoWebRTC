@@ -11,6 +11,8 @@ function CameraViewer({ name }) {
         // Set once the component goes away, so a fetch that is still in flight does not carry on
         // talking to a connection that has been closed.
         let closed = false;
+        // The session's secret, of its offer: the server takes its answer and candidates of it alone.
+        let token = null;
 
         rtcConnection.ontrack = ({ track, streams: [stream] }) => {
             track.onunmute = () => {
@@ -24,7 +26,7 @@ function CameraViewer({ name }) {
                 await fetch(`api/webrtc/addicecandidate?id=${id}`, {
                     method: 'POST',
                     body: JSON.stringify(event.candidate),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': token }
                 });
             } catch (err) {
                 console.error(`Camera ${name}: failed to send an ICE candidate`, err);
@@ -40,8 +42,9 @@ function CameraViewer({ name }) {
 
                 const offer = await offerResult.json();
                 if (closed) return;
+                token = offer.token;
 
-                await rtcConnection.setRemoteDescription(offer);
+                await rtcConnection.setRemoteDescription({ type: offer.type, sdp: offer.sdp });
                 const answer = await rtcConnection.createAnswer();
                 await rtcConnection.setLocalDescription(answer);
                 if (closed) return;
@@ -49,7 +52,7 @@ function CameraViewer({ name }) {
                 const answerResult = await fetch(`api/webrtc/setanswer?id=${id}`, {
                     method: 'POST',
                     body: JSON.stringify(rtcConnection.localDescription),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': token }
                 });
                 if (!answerResult.ok) {
                     throw new Error(`setanswer returned ${answerResult.status} ${answerResult.statusText}`);

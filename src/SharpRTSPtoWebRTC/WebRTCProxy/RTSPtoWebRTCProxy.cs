@@ -69,6 +69,15 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         public MediaTrack Video { get; }
         public MediaTrack Audio { get; }
 
+        /// <summary>The session's secret, of its offer: its answer and candidates are taken of it alone.</summary>
+        public string Token { get; } = SessionToken.Create();
+
+        /// <summary>The user who asked for the offer, of a server of authentication; its answer and candidates are of that user alone.</summary>
+        public string User { get; internal set; }
+
+        /// <summary>Whether a request of the token and the user given is the session's own.</summary>
+        public bool IsOwnedBy(string token, string user) => SessionToken.Matches(Token, token) && string.Equals(User, user, StringComparison.Ordinal);
+
         /// <summary>Whether its DTLS-SRTP keys are there: what it is sent once it is.</summary>
         public bool IsConnected => Connection.State == PeerConnectionState.Connected;
 
@@ -317,11 +326,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// Drops a peer and returns how many are left, so the caller can tear the RTSP client down
         /// once the last one has gone.
         /// </summary>
-        public int RemovePeerConnection(string id)
+        public int RemovePeerConnection(string id, WebRtcViewer viewer)
         {
             lock (_peersLock)
             {
-                if (_peerConnections.TryRemove(id, out _))
+                // that viewer alone: a later one of the same id - of a page that asked again - is not the one leaving
+                if (((ICollection<KeyValuePair<string, WebRtcViewer>>)_peerConnections).Remove(new KeyValuePair<string, WebRtcViewer>(id, viewer)))
                 {
                     RebuildPeers();
                 }
