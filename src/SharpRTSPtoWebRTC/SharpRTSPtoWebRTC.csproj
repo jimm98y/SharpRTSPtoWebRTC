@@ -16,4 +16,18 @@
 		<ProjectReference Include="..\..\..\SharpWebRTC\src\SharpWebRTC\SharpWebRTC.csproj" />
 	</ItemGroup>
 
+	<!-- the public API: listed in PublicAPI.*.txt, and checked against the last release (doc/public-api.md) -->
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<!-- a symbol gone from the API fails the build; one added warns, until listed: an addition breaks no one -->
+		<WarningsAsErrors>$(WarningsAsErrors);RS0017</WarningsAsErrors>
+		<!-- overloads with optional parameters are a style choice here, not a break -->
+		<NoWarn>$(NoWarn);RS0026;RS0027</NoWarn>
+		<EnablePackageValidation>true</EnablePackageValidation>
+		<PackageValidationBaselineVersion>0.1.6</PackageValidationBaselineVersion>
+	</PropertyGroup>
+
 </Project>

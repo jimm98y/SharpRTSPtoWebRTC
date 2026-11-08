@@ -1,0 +1,69 @@
+SharpRTSPtoWebRTC.WebRTCProxy.DuplicateSessionException
+SharpRTSPtoWebRTC.WebRTCProxy.DuplicateSessionException.DuplicateSessionException(string id) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.DuplicateSessionException.SessionId.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.Candidate.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.Candidate.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.IceCandidateInit() -> void
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.SdpMLineIndex.get -> int?
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.SdpMLineIndex.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.SdpMid.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.SdpMid.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.UsernameFragment.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit.UsernameFragment.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs.AAC = 3 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs.OPUS = 4 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs.PCMA = 2 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs.PCMU = 1 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs.Unknown = 0 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.AV1 = 4 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.H264 = 1 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.H265 = 2 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.H266 = 3 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.Unknown = 0 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs.VP9 = 5 -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.AddPeerConnection(string id, SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer peerConnection) -> bool
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.AudioCodec.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.AudioCodecEnum.get -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyAudioCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.AudioFormat.get -> SharpWebRTC.SDP.RtpFormat
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.AudioType.get -> int
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.RTSPtoWebRTCProxy(Microsoft.Extensions.Logging.ILogger<SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService> logger, SharpRTSPClient.RTSPClient client, int videoPayloadType, string videoPayloadName, SharpRTSPClient.IStreamConfigurationData videoStream, int audioPayloadType, string audioPayloadName, SharpRTSPClient.IStreamConfigurationData audioStream) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.RemovePeerConnection(string id, SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer viewer) -> int
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.Stop() -> void
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.VideoCodec.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.VideoCodecEnum.get -> SharpRTSPtoWebRTC.WebRTCProxy.ProxyVideoCodecs
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.VideoFormat.get -> SharpWebRTC.SDP.RtpFormat
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxy.VideoType.get -> int
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService.AddIceCandidate(string id, string token, string user, SharpRTSPtoWebRTC.WebRTCProxy.IceCandidateInit iceCandidate) -> bool
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService.GetOfferAsync(string id, string url, string userName = null, string password = null, int startPort = 0, int endPort = 0, SharpRTSPClient.RTPTransport transport = SharpRTSPClient.RTPTransport.TCP, int rtspStartPort = 0, int rtspEndPort = 0, string user = null) -> System.Threading.Tasks.Task<SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit>
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService.RTSPtoWebRTCProxyService(Microsoft.Extensions.Logging.ILoggerFactory loggerFactory, Microsoft.Extensions.Configuration.IConfiguration config) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService.SetAnswer(string id, string token, string user, SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit description) -> bool
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Sdp.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Sdp.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.SessionDescriptionInit() -> void
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Token.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Token.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Type.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit.Type.set -> void
+SharpRTSPtoWebRTC.WebRTCProxy.SessionToken
+SharpRTSPtoWebRTC.WebRTCProxy.TooManySessionsException
+SharpRTSPtoWebRTC.WebRTCProxy.TooManySessionsException.TooManySessionsException(int max) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.Audio.get -> SharpWebRTC.MediaTrack
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.Connection.get -> SharpWebRTC.PeerConnection
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.IsConnected.get -> bool
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.IsOwnedBy(string token, string user) -> bool
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendAudio(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendVideo(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.Token.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.User.get -> string
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.Video.get -> SharpWebRTC.MediaTrack
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.WebRtcViewer(SharpWebRTC.PeerConnection connection, SharpWebRTC.MediaTrack video, SharpWebRTC.MediaTrack audio) -> void
+const SharpRTSPtoWebRTC.WebRTCProxy.SessionToken.Header = "X-Session-Token" -> string
+static SharpRTSPtoWebRTC.WebRTCProxy.SessionToken.Create() -> string
+static SharpRTSPtoWebRTC.WebRTCProxy.SessionToken.Matches(string expected, string given) -> bool
