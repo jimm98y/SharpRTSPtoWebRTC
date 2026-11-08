@@ -26,6 +26,7 @@ using SharpWebRTC.SDP;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -123,6 +124,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private IStreamConfigurationData _audioStream = null;
 
         private int _lastVideoMarkerBit = 1; // initial value 1 to make sure the first connection will send sps/pps
+
+        // A new RTSP session - the client reconnected - starts the camera's timestamps at a new random value
+        //  (RFC 3550). Passed on as they came, on the same SSRC, the browser took its frames for old ones and
+        //  dropped them, the last picture staying. So after one, a track goes on from the last timestamp sent.
+        private int _videoRestarted, _audioRestarted;
+        private uint _videoOffset, _audioOffset, _lastVideoTimestamp, _lastAudioTimestamp;
+        private long _lastVideoAt, _lastAudioAt;
         private byte[] _dci = null;
         private byte[] _sps = null;
         private byte[] _pps = null;
@@ -304,6 +312,34 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             client.ReceivedRawRTP += Client_ReceivedRawRTP;
             client.ReceivedData += Client_ReceivedData;
+            // raised by every completed SETUP; this proxy is made after the first, so it sees only the reconnects
+            client.SetupMessageCompleted += Client_SetupMessageCompleted;
+        }
+
+        private void Client_SetupMessageCompleted(object sender, EventArgs e)
+        {
+            _logger.LogInformation("The RTSP session was set up again, the stream to the viewers goes on from where it was.");
+            Interlocked.Exchange(ref _videoRestarted, 1);
+            Interlocked.Exchange(ref _audioRestarted, 1);
+        }
+
+        /// <summary>
+        /// The timestamp to send a packet of the camera's with: of its own, of an offset made after a new session, so that
+        /// the track goes on from the last timestamp sent by the time that passed - at least 20 ms, so that the next frame
+        /// is a new one, and at most 30 s, so that a machine that slept for hours does not move the stream on by hours.
+        /// </summary>
+        private static uint Continue(uint source, int clockRate, ref int restarted, ref uint offset, ref uint last, ref long lastAt)
+        {
+            long now = Stopwatch.GetTimestamp();
+            if (Interlocked.Exchange(ref restarted, 0) == 1 && lastAt != 0)
+            {
+                double elapsed = Math.Max(0.02, Math.Min(30, (double)(now - lastAt) / Stopwatch.Frequency));
+                offset = unchecked(last + (uint)Math.Round(elapsed * clockRate) - source);
+            }
+
+            last = unchecked(source + offset);
+            lastAt = now;
+            return last;
         }
 
         #region WebRTC
@@ -462,6 +498,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 if (msg.Length == 0)
                     return;
 
+                uint timestamp = Continue(e.Timestamp, VideoClockRate, ref _videoRestarted, ref _videoOffset, ref _lastVideoTimestamp, ref _lastVideoAt);
+
                 if (VideoCodecEnum == ProxyVideoCodecs.H264) // H264 only
                 {
                     int naluType = msg[0] & 0x1F;
@@ -484,12 +522,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                             {
                                 if (_sps != null && _pps != null)
                                 {
-                                    viewer.SendVideo(_sps, e.Timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, e.Timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
                                 }
                             }
 
-                            viewer.SendVideo(msg, e.Timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
                         }
                     }
 
@@ -529,14 +567,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                                 {
                                     if (_vps != null)
                                     {
-                                        viewer.SendVideo(_vps, e.Timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_vps, timestamp, false, e.PayloadType);
                                     }
-                                    viewer.SendVideo(_sps, e.Timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, e.Timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
                                 }
                             }
 
-                            viewer.SendVideo(msg, e.Timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
                         }
                     }
 
@@ -580,18 +618,18 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                                 {
                                     if (_dci != null)
                                     {
-                                        viewer.SendVideo(_dci, e.Timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_dci, timestamp, false, e.PayloadType);
                                     }
                                     if (_vps != null)
                                     {
-                                        viewer.SendVideo(_vps, e.Timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_vps, timestamp, false, e.PayloadType);
                                     }
-                                    viewer.SendVideo(_sps, e.Timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, e.Timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
                                 }
                             }
 
-                            viewer.SendVideo(msg, e.Timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
                         }
                     }
 
@@ -604,7 +642,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     {
                         if (viewer.IsConnected)
                         {
-                            viewer.SendVideo(msg, e.Timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
                         }
                     }
 
@@ -633,13 +671,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     // forward RTP to WebRTC "as is", just without the RTP header
                     byte[] msg = e.Data.Slice(e.PayloadStart).ToArray();
+                    uint timestamp = Continue(e.Timestamp, AudioFormat?.ClockRate > 0 ? AudioFormat.ClockRate : 8000, ref _audioRestarted, ref _audioOffset, ref _lastAudioTimestamp, ref _lastAudioAt);
 
                     // forward RTP "as is", the browser should be able to decode it because PCMA, PCMU adn Opus are defined as mandatory in the WebRTC specification
                     foreach (WebRtcViewer viewer in _peers)
                     {
                         if (viewer.IsConnected)
                         {
-                            viewer.SendAudio(msg, e.Timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendAudio(msg, timestamp, e.IsMarker, e.PayloadType);
                         }
                     }
                 }
