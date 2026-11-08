@@ -42,7 +42,7 @@ namespace SharpRTSPtoWebRTC.Tests
             int videoType = 96, int audioType = 97)
         {
             var proxy = new RTSPtoWebRTCProxy(
-                NullLogger<RTSPtoWebRTCProxyService>.Instance, new RtspClient(),
+                NullLogger<RTSPtoWebRTCProxyService>.Instance, new RTSPClient(),
                 videoType, videoCodec, videoStream,
                 audioCodec == "" ? -1 : audioType, audioCodec, audioStream);
 

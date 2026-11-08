@@ -36,21 +36,23 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
     public enum ProxyVideoCodecs
     {
-        H264,
-        H265,
-        H266,
-        AV1,
-        VP9,
-        Unknown
+        // Unknown of 0, the default of a codec not yet told; a codec added goes last
+        Unknown = 0,
+        H264 = 1,
+        H265 = 2,
+        H266 = 3,
+        AV1 = 4,
+        VP9 = 5
     }
 
     public enum ProxyAudioCodecs
     {
-        PCMU,
-        PCMA,
-        AAC,
-        OPUS,
-        Unknown
+        // Unknown of 0, the default of a codec not yet told; a codec added goes last
+        Unknown = 0,
+        PCMU = 1,
+        PCMA = 2,
+        AAC = 3,
+        OPUS = 4
     }
 
     /// <summary>
@@ -116,7 +118,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         //  dictionary and the one that wrote second could publish the older of the two reads,
         //  leaving a peer that receives nothing for as long as it is connected.
         private readonly object _peersLock = new object();
-        private RtspClient _client = null;
+        private RTSPClient _client = null;
         private IStreamConfigurationData _videoStream = null;
         private IStreamConfigurationData _audioStream = null;
 
@@ -244,7 +246,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         public RTSPtoWebRTCProxy(
                 ILogger<RTSPtoWebRTCProxyService> logger,
-                RtspClient client,
+                RTSPClient client,
                 int videoPayloadType,
                 string videoPayloadName,
                 IStreamConfigurationData videoStream,
@@ -300,7 +302,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 AudioCodecEnum = GetAudioCodec(AudioCodec);
             }
 
-            client.ReceivedRawRtp += Client_ReceivedRawRTP;
+            client.ReceivedRawRTP += Client_ReceivedRawRTP;
             client.ReceivedData += Client_ReceivedData;
         }
 

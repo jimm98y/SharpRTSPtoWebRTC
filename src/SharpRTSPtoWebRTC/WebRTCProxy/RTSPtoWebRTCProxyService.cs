@@ -111,7 +111,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             string password = null,
             int startPort = 0,
             int endPort = 0,
-            RtpTransport transport = RtpTransport.TCP,
+            RTPTransport transport = RTPTransport.TCP,
             int rtspStartPort = 0,
             int rtspEndPort = 0,
             string user = null)
@@ -171,7 +171,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 foreach (var (reporter, block) in e.ReportBlocks)
                 {
-                    _logger.LogDebug($"RTCP receiver report of {reporter:X8} for {block.Ssrc:X8}: {block.FractionLost / 2.56:F1}% lost, {block.CumulativeLost} in all, jitter {block.Jitter}.");
+                    _logger.LogDebug($"RTCP receiver report of {reporter:X8} for {block.SSRC:X8}: {block.FractionLost / 2.56:F1}% lost, {block.CumulativeLost} in all, jitter {block.Jitter}.");
                 }
             };
 
@@ -260,7 +260,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 session.Reconnects.Cancel();
                 session.Proxy.Result.Stop();
-                _logger.LogDebug($"RtspClient for {Redact(url)} stopped.");
+                _logger.LogDebug($"RTSPClient for {Redact(url)} stopped.");
             }
         }
 
@@ -326,7 +326,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             return new WebRtcViewer(peerConnection, video, audio);
         }
 
-        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RtpTransport transport, int rtspStartPort, int rtspEndPort)
+        private Task<RTSPtoWebRTCProxy> GetOrCreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, RTPTransport transport, int rtspStartPort, int rtspEndPort)
         {
             // Lazy, because ConcurrentDictionary.GetOrAdd may run its factory on several threads at
             //  once and keep only one result. Every other run had already called Connect, so two
@@ -369,10 +369,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 .Remove(new KeyValuePair<string, Lazy<ProxySession>>(url, lazy));
         }
 
-        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session, RtpTransport transport, int rtspStartPort, int rtspEndPort)
+        private async Task<RTSPtoWebRTCProxy> CreateClientAsync(ILoggerFactory loggerFactory, string url, string userName, string password, ProxySession session, RTPTransport transport, int rtspStartPort, int rtspEndPort)
         {
             TaskCompletionSource<bool> result = new TaskCompletionSource<bool>();
-            var client = new RtspClient(loggerFactory);
+            var client = new RTSPClient(loggerFactory);
 
             IStreamConfigurationData videoStream = null;
             int videoType = -1;
@@ -452,9 +452,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // The proxy carries a single video track and a single audio track, so take the first of
             //  each kind and nothing else. Without this the client would also set up the first
             //  metadata track, which this proxy has nothing to do with.
-            client.AcceptTrack = t => RtspClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
+            client.AcceptTrack = t => RTSPClient.FirstOfEachKind(t) && t.Kind != TrackKind.Application;
 
-            if (transport != RtpTransport.TCP && rtspStartPort > 0 && rtspEndPort > 0)
+            if (transport != RTPTransport.TCP && rtspStartPort > 0 && rtspEndPort > 0)
             {
                 // Only meaningful for the UDP transports; TCP interleaves the RTP in the RTSP
                 //  connection and binds nothing.
