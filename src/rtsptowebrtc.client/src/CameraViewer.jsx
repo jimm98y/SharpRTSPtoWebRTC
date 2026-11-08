@@ -17,13 +17,19 @@ function CameraViewer({ name }) {
         let token = null;
         let retryTimer = null;
         const retry = (delay) => {
+            console.warn(`Camera ${name}: starting the stream again in ${delay / 1000}s`);
             clearTimeout(retryTimer);
             retryTimer = setTimeout(() => setAttempt(a => a + 1), delay);
         };
 
-        rtcConnection.ontrack = ({ track, streams: [stream] }) => {
+        rtcConnection.ontrack = ({ track, receiver, streams: [stream] }) => {
             track.onunmute = () => {
                 if (videoElement.current) videoElement.current.srcObject = stream;
+            };
+            // The server closing its end sends a close_notify, of which the connection stays 'connected'.
+            const transport = receiver.transport;
+            if (transport) transport.onstatechange = () => {
+                if (!closed && (transport.state === 'closed' || transport.state === 'failed')) retry(1000);
             };
         };
 
