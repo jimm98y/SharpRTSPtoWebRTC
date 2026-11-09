@@ -6,8 +6,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Concentus" Version="2.2.2" />
-	    <PackageReference Include="SharpJaad.AAC" Version="0.1.1" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+	    <PackageReference Include="SharpJaad.AAC" Version="0.2.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
 	</ItemGroup>
 
 	<ItemGroup>
