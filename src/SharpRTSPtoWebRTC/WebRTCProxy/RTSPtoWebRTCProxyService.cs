@@ -159,7 +159,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             var peerConnection = new PeerConnection(new PeerConnectionOptions
             {
                 Ice = ice,
-                Trace = message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}"),
+                // of trace logging alone: the connection and its ICE agent make no message of none
+                Trace = _logger.IsEnabled(LogLevel.Trace) ? (Action<string>)(message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}")) : null,
             });
             WebRtcViewer viewer = AddTracks(peerConnection, proxy);
             viewer.User = user;
@@ -169,6 +170,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 _logger.LogDebug($"Peer connection {SanitizeForLog(id)} asks for a key frame of its {track.Kind}: the camera's next one is what it gets.");
             peerConnection.RtcpPacketReceived += (s, e) =>
             {
+                // the message is made only when it is logged: this runs for every RTCP packet
+                if (!_logger.IsEnabled(LogLevel.Debug))
+                    return;
                 foreach (var (reporter, block) in e.ReportBlocks)
                 {
                     _logger.LogDebug($"RTCP receiver report of {reporter:X8} for {block.SSRC:X8}: {block.FractionLost / 2.56:F1}% lost, {block.CumulativeLost} in all, jitter {block.Jitter}.");
