@@ -494,7 +494,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (VideoCodecEnum != ProxyVideoCodecs.Unknown)
             {
                 // forward RTP to WebRTC "as is", just without the RTP header 
-                byte[] msg = e.Data.Slice(e.PayloadStart).ToArray();
+                ReadOnlySpan<byte> msg = e.Data.Span.Slice(e.PayloadStart); // forwarded as it is: only the parameter sets kept are copied
                 if (msg.Length == 0)
                     return;
 
@@ -505,11 +505,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     int naluType = msg[0] & 0x1F;
                     if (naluType == 7) // SPS
                     {
-                        _sps = msg;
+                        _sps = msg.ToArray();
                     }
                     else if (naluType == 8) // PPS
                     {
-                        _pps = msg;
+                        _pps = msg.ToArray();
                     }
 
                     foreach (WebRtcViewer viewer in _peers)
@@ -537,23 +537,24 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     if (_stripDonl)
                     {
-                        msg = DonlRemover.StripH265(msg);
-                        if (msg == null)
+                        byte[] stripped = DonlRemover.StripH265(msg.ToArray());
+                        if (stripped == null)
                             return;
+                        msg = stripped;
                     }
 
                     int naluType = (msg[0] >> 1) & 0x3F;
                     if (naluType == 32) // VPS
                     {
-                        _vps = msg;
+                        _vps = msg.ToArray();
                     }
                     else if (naluType == 33) // SPS
                     {
-                        _sps = msg;
+                        _sps = msg.ToArray();
                     }
                     else if (naluType == 34) // PPS
                     {
-                        _pps = msg;
+                        _pps = msg.ToArray();
                     }
 
                     // after this change: https://github.com/WebKit/WebKit/pull/15494/commits/93eb48d39b70248c062e90fceb4630a312e46b0d H265 uses now standard packetization
@@ -585,27 +586,28 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 {
                     if (_stripDonl)
                     {
-                        msg = DonlRemover.StripH266(msg);
-                        if (msg == null)
+                        byte[] stripped = DonlRemover.StripH266(msg.ToArray());
+                        if (stripped == null)
                             return;
+                        msg = stripped;
                     }
 
                     int naluType = (msg[1] & 0xF8) >> 3;
                     if (naluType == 13) // DCI
                     {
-                        _dci = msg;
+                        _dci = msg.ToArray();
                     }
                     else if (naluType == 14) // VPS
                     {
-                        _vps = msg;
+                        _vps = msg.ToArray();
                     }
                     else if (naluType == 15) // SPS
                     {
-                        _sps = msg;
+                        _sps = msg.ToArray();
                     }
                     else if (naluType == 16) // PPS
                     {
-                        _pps = msg;
+                        _pps = msg.ToArray();
                     }
 
                     foreach (WebRtcViewer viewer in _peers)
@@ -670,7 +672,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 else
                 {
                     // forward RTP to WebRTC "as is", just without the RTP header
-                    byte[] msg = e.Data.Slice(e.PayloadStart).ToArray();
+                    ReadOnlySpan<byte> msg = e.Data.Span.Slice(e.PayloadStart); // forwarded as it is: only the parameter sets kept are copied
                     uint timestamp = Continue(e.Timestamp, AudioFormat?.ClockRate > 0 ? AudioFormat.ClockRate : 8000, ref _audioRestarted, ref _audioOffset, ref _lastAudioTimestamp, ref _lastAudioAt);
 
                     // forward RTP "as is", the browser should be able to decode it because PCMA, PCMU adn Opus are defined as mandatory in the WebRTC specification
