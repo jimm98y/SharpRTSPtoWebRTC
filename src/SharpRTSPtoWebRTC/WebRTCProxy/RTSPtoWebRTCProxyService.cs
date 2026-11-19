@@ -184,7 +184,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 _logger.LogDebug($"Peer connection {SanitizeForLog(id)} state changed to {state}.");
 
-                if (state == PeerConnectionState.Closed || state == PeerConnectionState.Disconnected || state == PeerConnectionState.Failed)
+                // not of Disconnected, which ICE comes back from - of 10 s of no consent; of 30 s, Failed: closed of a blip, a
+                //  viewer was lost for good, and of a stall of the host's, every viewer at once
+                if (state == PeerConnectionState.Closed || state == PeerConnectionState.Failed)
                 {
                     ClosePeerConnection(id, url, viewer);
                 }
@@ -292,7 +294,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             Task.Delay(HandshakeTimeout).ContinueWith(_ =>
             {
-                if (viewer.Connection.State == PeerConnectionState.Connected)
+                if (viewer.Connection.State == PeerConnectionState.Connected || viewer.Connection.State == PeerConnectionState.Disconnected)
                 {
                     return;
                 }
