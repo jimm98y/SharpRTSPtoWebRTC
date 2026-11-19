@@ -2,3 +2,8 @@
 SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendVideo(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker) -> void
 *REMOVED*SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendAudio(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType) -> void
 SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendAudio(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.RTSPtoWebRTCProxyService.GetOfferAsync(string id, string url, string userName, string password, int startPort, int endPort, SharpRTSPClient.RTPTransport transport, int rtspStartPort, int rtspEndPort, string user, System.Net.IPAddress client) -> System.Threading.Tasks.Task<SharpRTSPtoWebRTC.WebRTCProxy.SessionDescriptionInit>
+SharpRTSPtoWebRTC.WebRTCProxy.ServerBusyException
+SharpRTSPtoWebRTC.WebRTCProxy.ServerBusyException.ServerBusyException() -> void
+SharpRTSPtoWebRTC.WebRTCProxy.TooManyPendingException
+SharpRTSPtoWebRTC.WebRTCProxy.TooManyPendingException.TooManyPendingException(int max) -> void

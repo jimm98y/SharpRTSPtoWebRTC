@@ -25,6 +25,7 @@ using SharpWebRTC.SDP;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SharpRTSPClient;
@@ -43,6 +44,29 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private const string CONFIG_KEY_MAX_VIEWERS = "MaxViewers";
         private const int DEFAULT_MAX_VIEWERS = 100;
         private readonly int _maxViewers;
+
+        // Admission: at most so many viewers being set up at once - of an offer until connected, failed or timed out - and so
+        //  many of one address. A burst of offers is set up a few at a time rather than all at once, which took the CPU the
+        //  handshakes needed and none connected; and of one client, or of many, the setups cannot all be taken.
+        private const string CONFIG_KEY_MAX_PENDING_VIEWERS = "MaxPendingViewers";
+        private const int DEFAULT_MAX_PENDING_VIEWERS = 32;
+        private const string CONFIG_KEY_MAX_PENDING_PER_ADDRESS = "MaxPendingViewersPerAddress";
+        private const int DEFAULT_MAX_PENDING_PER_ADDRESS = 8;
+        private const string CONFIG_KEY_PENDING_WAIT = "PendingWaitSeconds";
+        private const double DEFAULT_PENDING_WAIT_SECONDS = 10;
+        private readonly SemaphoreSlim _pending;
+        private readonly int _maxPendingPerAddress;
+        private readonly TimeSpan _pendingWait;
+        private readonly Dictionary<IPAddress, int> _pendingOf = new Dictionary<IPAddress, int>();
+
+        /// <summary>
+        /// Of the viewers being set up, the one place of each, given back once - of connected, closed, or an offer that failed.
+        /// </summary>
+        internal sealed class PendingSlot
+        {
+            internal IPAddress Client;
+            internal int Released;
+        }
 
         private const string CONFIG_KEY_PUBLIC_IPV4 = "PublicIPv4";
         private const string CONFIG_KEY_PUBLIC_IPV6 = "PublicIPv6";
@@ -71,6 +95,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// How long a peer connection may stay unanswered before it is closed.
         /// </summary>
         private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(30);
+        // of no answer to its offer in this long, a viewer is closed - "AnswerTimeoutSeconds" - rather than of HandshakeTimeout
+        private const string CONFIG_KEY_ANSWER_TIMEOUT = "AnswerTimeoutSeconds";
+        private const double DEFAULT_ANSWER_TIMEOUT_SECONDS = 10;
+        private readonly TimeSpan _answerTimeout;
 
         /// <summary>
         /// How long a camera may take to set up its first session: of a camera that refuses, its reconnects of up to 30 s each
@@ -114,6 +142,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             // each viewer holds ports, a DTLS key and the camera's bitrate of upload: of anyone's asking, a number of them alone
             _maxViewers = int.TryParse(config[CONFIG_KEY_MAX_VIEWERS], out int maxViewers) && maxViewers > 0 ? maxViewers : DEFAULT_MAX_VIEWERS;
+            int maxPending = int.TryParse(config[CONFIG_KEY_MAX_PENDING_VIEWERS], out int mp) && mp > 0 ? mp : DEFAULT_MAX_PENDING_VIEWERS;
+            _pending = new SemaphoreSlim(maxPending, maxPending);
+            _maxPendingPerAddress = int.TryParse(config[CONFIG_KEY_MAX_PENDING_PER_ADDRESS], out int mpa) && mpa > 0 ? mpa : DEFAULT_MAX_PENDING_PER_ADDRESS;
+            _pendingWait = TimeSpan.FromSeconds(double.TryParse(config[CONFIG_KEY_PENDING_WAIT], NumberStyles.Float, CultureInfo.InvariantCulture, out double pw) && pw >= 0 ? pw : DEFAULT_PENDING_WAIT_SECONDS);
+            _answerTimeout = TimeSpan.FromSeconds(double.TryParse(config[CONFIG_KEY_ANSWER_TIMEOUT], NumberStyles.Float, CultureInfo.InvariantCulture, out double at) && at > 0 ? at : DEFAULT_ANSWER_TIMEOUT_SECONDS);
 
             if (IPAddress.TryParse(config[CONFIG_KEY_PUBLIC_IPV4], out _publicIPv4))
             {
@@ -126,7 +159,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             }
         }
 
-        public async Task<SessionDescriptionInit> GetOfferAsync(
+        public Task<SessionDescriptionInit> GetOfferAsync(
             string id,
             string url,
             string userName = null,
@@ -137,6 +170,27 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             int rtspStartPort = 0,
             int rtspEndPort = 0,
             string user = null)
+        {
+            return GetOfferAsync(id, url, userName, password, startPort, endPort, transport, rtspStartPort, rtspEndPort, user, null);
+        }
+
+        /// <summary>
+        /// As the other, of the address of the client asking: of each, at most "MaxPendingViewersPerAddress" viewers set up
+        /// at once (<see cref="TooManyPendingException"/>); of null, of no limit of its own. Of all, at most "MaxPendingViewers":
+        /// one more waits "PendingWaitSeconds" for a place, else <see cref="ServerBusyException"/>.
+        /// </summary>
+        public async Task<SessionDescriptionInit> GetOfferAsync(
+            string id,
+            string url,
+            string userName,
+            string password,
+            int startPort,
+            int endPort,
+            RTPTransport transport,
+            int rtspStartPort,
+            int rtspEndPort,
+            string user,
+            IPAddress client)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -155,6 +209,61 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 throw new ArgumentException(nameof(url), "Invalid camera URL.");
             }
 
+            if (client != null)
+            {
+                lock (_pendingOf)
+                {
+                    _pendingOf.TryGetValue(client, out int ofClient);
+                    if (ofClient >= _maxPendingPerAddress)
+                        throw new TooManyPendingException(_maxPendingPerAddress);
+                    _pendingOf[client] = ofClient + 1;
+                }
+            }
+
+            if (!await _pending.WaitAsync(_pendingWait))
+            {
+                ReleaseAddress(client);
+                throw new ServerBusyException();
+            }
+
+            var slot = new PendingSlot { Client = client };
+            try
+            {
+                return await GetAdmittedOfferAsync(id, url, userName, password, startPort, endPort, transport, rtspStartPort, rtspEndPort, user, slot);
+            }
+            catch
+            {
+                Release(slot);
+                throw;
+            }
+        }
+
+        private void ReleaseAddress(IPAddress client)
+        {
+            if (client == null)
+                return;
+            lock (_pendingOf)
+            {
+                if (_pendingOf.TryGetValue(client, out int ofClient) && ofClient > 1)
+                    _pendingOf[client] = ofClient - 1;
+                else
+                    _pendingOf.Remove(client);
+            }
+        }
+
+        // the place of a viewer set up - connected - or given up: once, whichever comes first
+        private void Release(PendingSlot slot)
+        {
+            if (slot == null || Interlocked.Exchange(ref slot.Released, 1) != 0)
+                return;
+            _pending.Release();
+            ReleaseAddress(slot.Client);
+        }
+
+        private async Task<SessionDescriptionInit> GetAdmittedOfferAsync(
+            string id, string url, string userName, string password, int startPort, int endPort, RTPTransport transport,
+            int rtspStartPort, int rtspEndPort, string user, PendingSlot slot)
+        {
             // session must be created in advance in order to know which codec to use
             RTSPtoWebRTCProxy proxy = await GetOrCreateClientAsync(_loggerFactory, url, userName, password, transport, rtspStartPort, rtspEndPort);
 
@@ -187,6 +296,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             });
             WebRtcViewer viewer = AddTracks(peerConnection, proxy);
             viewer.User = user;
+            viewer.Slot = slot;
 
             peerConnection.LocalCandidate += (s, candidate) => _logger.LogDebug($"Local ICE candidate {candidate}.");
             peerConnection.KeyFrameRequested += (s, track) =>
@@ -215,6 +325,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 else if (state == PeerConnectionState.Connected)
                 {
                     _logger.LogDebug("Peer connection connected.");
+                    Release(viewer.Slot);
                 }
             };
 
@@ -261,6 +372,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// </remarks>
         private void ClosePeerConnection(string id, string url, WebRtcViewer viewer)
         {
+            Release(viewer.Slot);
+
             // that viewer alone, of its id: one that left and a later one of the same id are two, and the leaving one's timer or
             // state is not to close - or leak - the other
             if (!((ICollection<KeyValuePair<string, WebRtcViewer>>)_peerConnections).Remove(new KeyValuePair<string, WebRtcViewer>(id, viewer)))
@@ -314,6 +427,17 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private void ScheduleHandshakeTimeout(string id, string url, WebRtcViewer viewer)
         {
+            // of no answer in "AnswerTimeoutSeconds", closed then: of a client that takes offers and answers none, its places
+            //  were held the whole HandshakeTimeout
+            Task.Delay(_answerTimeout).ContinueWith(_ =>
+            {
+                if (viewer.Connection.RemoteDescription == null && _peerConnections.TryGetValue(id, out var current) && current == viewer)
+                {
+                    _logger.LogWarning($"Peer connection {SanitizeForLog(id)} was not answered within {_answerTimeout.TotalSeconds}s, closing it.");
+                    ClosePeerConnection(id, url, viewer);
+                }
+            }, TaskScheduler.Default);
+
             Task.Delay(HandshakeTimeout).ContinueWith(_ =>
             {
                 if (viewer.Connection.State == PeerConnectionState.Connected || viewer.Connection.State == PeerConnectionState.Disconnected)
@@ -643,6 +767,28 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
     {
         public TooManySessionsException(int max)
             : base($"There are {max} viewers already.")
+        {
+        }
+    }
+
+    /// <summary>
+    /// A viewer refused, of as many of its client's address being set up already ("MaxPendingViewersPerAddress").
+    /// </summary>
+    public class TooManyPendingException : Exception
+    {
+        public TooManyPendingException(int max)
+            : base($"There are {max} viewers of this address being set up already.")
+        {
+        }
+    }
+
+    /// <summary>
+    /// A viewer refused, of as many being set up already ("MaxPendingViewers") for as long as it waits ("PendingWaitSeconds").
+    /// </summary>
+    public class ServerBusyException : Exception
+    {
+        public ServerBusyException()
+            : base("Too many viewers are being set up, try again shortly.")
         {
         }
     }

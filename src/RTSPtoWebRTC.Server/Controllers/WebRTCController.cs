@@ -80,7 +80,8 @@ namespace RTSPtoWebRTC.Server.Controllers
                     camera.Transport,
                     camera.RtspStartPort,
                     camera.RtspEndPort,
-                    User?.Identity?.Name));
+                    User?.Identity?.Name,
+                    HttpContext.Connection.RemoteIpAddress));
             }
             catch (DuplicateSessionException ex)
             {
@@ -90,6 +91,20 @@ namespace RTSPtoWebRTC.Server.Controllers
             catch (TooManySessionsException ex)
             {
                 _logger.LogWarning(ex.Message);
+                return StatusCode(503, ex.Message);
+            }
+            catch (TooManyPendingException ex)
+            {
+                // of this client: it has as many viewers being set up as it may have
+                _logger.LogWarning(ex.Message);
+                Response.Headers.RetryAfter = "1";
+                return StatusCode(429, ex.Message);
+            }
+            catch (ServerBusyException ex)
+            {
+                // of all: as many being set up as may be, for as long as the request waited
+                _logger.LogWarning(ex.Message);
+                Response.Headers.RetryAfter = "1";
                 return StatusCode(503, ex.Message);
             }
             catch (System.TimeoutException ex)

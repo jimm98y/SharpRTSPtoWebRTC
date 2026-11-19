@@ -21,6 +21,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -81,6 +82,11 @@ else
 {
     app.Logger.LogWarning("No users in \"BasicAuthentication\": the API is open to anyone who can reach it.");
 }
+
+// The client's address of X-Forwarded-For, of a reverse proxy on the loopback alone (ASP.NET's default of known proxies;
+//  others are added to ForwardedHeadersOptions.KnownProxies): the viewers being set up are limited of each address, and
+//  behind a reverse proxy every client would otherwise be of its address, and share one limit.
+app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor });
 
 app.UseHttpsRedirection();
 

@@ -72,6 +72,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         public MediaTrack Video { get; }
         public MediaTrack Audio { get; }
 
+        // its place of the viewers being set up, given back once it is connected, or gone
+        internal RTSPtoWebRTCProxyService.PendingSlot Slot;
+
         /// <summary>The session's secret, of its offer: its answer and candidates are taken of it alone.</summary>
         public string Token { get; } = SessionToken.Create();
 
