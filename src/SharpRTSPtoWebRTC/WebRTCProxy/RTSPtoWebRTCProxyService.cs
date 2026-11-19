@@ -58,6 +58,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// How long a camera may take to set up its first session: of a camera that refuses, its reconnects of up to 30 s each
+        /// held the viewer's request for the best part of an hour.
+        /// </summary>
+        internal static TimeSpan ConnectTimeout = TimeSpan.FromSeconds(15);
+
+        /// <summary>
         /// One RTSP client and the things the service has to be able to call off when the last
         /// viewer of that camera goes away.
         /// </summary>
@@ -483,6 +489,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             _logger.LogDebug($"Connecting to {Redact(url)} over {transport}.");
             client.Connect(url, transport, userName, password, false, null, true);
 
+            if (await Task.WhenAny(result.Task, Task.Delay(ConnectTimeout)) != result.Task)
+            {
+                session.Reconnects.Cancel();
+                client.Stop();
+                throw new TimeoutException($"The RTSP server {Redact(url)} did not set up a session in {ConnectTimeout.TotalSeconds} s.");
+            }
             bool isConnected = await result.Task;
             if(!isConnected)
             {

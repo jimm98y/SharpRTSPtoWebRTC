@@ -92,6 +92,12 @@ namespace RTSPtoWebRTC.Server.Controllers
                 _logger.LogWarning(ex.Message);
                 return StatusCode(503, ex.Message);
             }
+            catch (System.TimeoutException ex)
+            {
+                // the camera did not set up a session in time
+                _logger.LogWarning(ex.Message);
+                return StatusCode(504, ex.Message);
+            }
         }
 
         [HttpPost]
