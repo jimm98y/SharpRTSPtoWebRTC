@@ -52,6 +52,9 @@ export default defineConfig({
                 secure: false
             }
         },
+        // IPv4: Firefox finds its ICE candidates of the address family the page came over, and a machine with no IPv6
+        //  default route has none of IPv6 - of localhost, Node takes ::1 alone
+        host: '127.0.0.1',
         port: parseInt(env.DEV_SERVER_PORT || '57741'),
         https: {
             key: fs.readFileSync(keyFilePath),
