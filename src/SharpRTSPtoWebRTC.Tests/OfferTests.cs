@@ -68,6 +68,16 @@ namespace SharpRTSPtoWebRTC.Tests
         }
 
         [TestMethod]
+        public void H264OfAnotherProfileIsOfferedAsConstrainedBaselineToo()
+        {
+            // Firefox takes Constrained Baseline alone
+            string offer = Offer("H264", new H264StreamConfigurationData(MainProfileSps, new byte[] { 0x68, 0xCE }));
+
+            StringAssert.Contains(offer, "m=video 9 UDP/TLS/RTP/SAVPF 96 127 ");
+            StringAssert.Contains(offer, "a=fmtp:127 profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1");
+        }
+
+        [TestMethod]
         public void H264WithoutAnSpsIsOfferedWithTheProfileOfItsSdp()
         {
             var configuration = new H264StreamConfigurationData() { ProfileLevelId = "64001E", PacketizationMode = 1 };

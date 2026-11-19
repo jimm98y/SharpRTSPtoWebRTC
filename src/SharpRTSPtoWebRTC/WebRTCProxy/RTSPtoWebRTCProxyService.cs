@@ -21,6 +21,7 @@
 
 using SharpICE;
 using SharpWebRTC;
+using SharpWebRTC.SDP;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -318,7 +319,15 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             var videoFormat = proxy.VideoCodecEnum != ProxyVideoCodecs.Unknown ? proxy.VideoFormat : null;
             if (videoFormat != null)
             {
-                video = peerConnection.AddTrack("video", videoFormat);
+                // Firefox takes Constrained Baseline alone, and its OpenH264 decodes the other profiles too: the stream is
+                //  offered of it as well, on a payload type of the top of the range, out of the way of RTX's from 96 up
+                const string baseline = "profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1";
+                int baselineType = 127;
+                while (baselineType == proxy.VideoType || baselineType == proxy.AudioType || baselineType == 110 || baselineType == 111)
+                    baselineType--;
+                video = videoFormat.Name == "H264" && videoFormat.Parameters != baseline
+                    ? peerConnection.AddTrack("video", videoFormat, new RtpFormat { PayloadType = baselineType, Name = "H264", ClockRate = videoFormat.ClockRate, Parameters = baseline })
+                    : peerConnection.AddTrack("video", videoFormat);
             }
 
             var audioFormat = proxy.AudioCodecEnum != ProxyAudioCodecs.Unknown ? proxy.AudioFormat : null;

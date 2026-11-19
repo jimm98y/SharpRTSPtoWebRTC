@@ -87,8 +87,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// <summary>A payload of the video, of an RTP header of the viewer's own source.</summary>
         public void SendVideo(ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType)
         {
+            // of the payload types offered, one the answer took: of H264, the camera's or the one labelled Constrained Baseline
             if (Video != null)
-                Connection.SendRtp(Video, payload, timestamp, marker, payloadType);
+                Connection.SendRtp(Video, payload, timestamp, marker, Video.Formats[0].PayloadType);
         }
 
         /// <summary>A payload of the sound, of an RTP header of the viewer's own source.</summary>
