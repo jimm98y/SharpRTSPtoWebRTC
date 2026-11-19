@@ -97,7 +97,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(30);
         // of no answer to its offer in this long, a viewer is closed - "AnswerTimeoutSeconds" - rather than of HandshakeTimeout
         private const string CONFIG_KEY_ANSWER_TIMEOUT = "AnswerTimeoutSeconds";
-        private const double DEFAULT_ANSWER_TIMEOUT_SECONDS = 10;
+        // of the offer made, not received: of a host this busy that the offer reaches its client seconds later, the client
+        //  still has time to answer - of 10 s, of 200 viewers at once, 23 were closed before they had their offers
+        private const double DEFAULT_ANSWER_TIMEOUT_SECONDS = 20;
         private readonly TimeSpan _answerTimeout;
 
         /// <summary>
