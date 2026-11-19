@@ -34,7 +34,8 @@ function CameraViewer({ name }) {
         };
 
         rtcConnection.onicecandidate = async (event) => {
-            if (!event.candidate || closed) return;
+            // Firefox ends with a candidate of an empty string (end-of-candidates), which the server has no use for.
+            if (!event.candidate?.candidate || closed) return;
             try {
                 await fetch(`api/webrtc/addicecandidate?id=${id}`, {
                     method: 'POST',
