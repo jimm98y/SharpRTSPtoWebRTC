@@ -716,6 +716,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private int _audioQueued = 0;      // the queue's count
         private int _audioDraining = 0;    // 1 while a work item drains the queue
         private volatile bool _audioStopped = false;
+        // the frames dropped since the last warning, and when it was: of a stall each frame is dropped, and a warning of
+        //  each would flood the log - whose console logger then blocks the threads that log, the RTSP read loops among them
+        private int _audioDropped = 0;
+        private long _audioDroppedWarnedAt = 0;
         private static readonly WaitCallback DrainAudio = state => ((RTSPtoWebRTCProxy)state).DrainAudioQueue();
 
         private void Client_ReceivedAudioData(SimpleDataEventArgs e)
@@ -735,7 +739,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (Interlocked.Increment(ref _audioQueued) > MAX_QUEUED_AUDIO_FRAMES)
             {
                 Interlocked.Decrement(ref _audioQueued);
-                _logger.LogWarning("AAC to Opus transcoding is behind, dropping an audio frame.");
+                int dropped = Interlocked.Increment(ref _audioDropped);
+                long now = Stopwatch.GetTimestamp(), warnedAt = Interlocked.Read(ref _audioDroppedWarnedAt);
+                if (now - warnedAt >= 5 * Stopwatch.Frequency && Interlocked.CompareExchange(ref _audioDroppedWarnedAt, now, warnedAt) == warnedAt)
+                {
+                    Interlocked.Add(ref _audioDropped, -dropped);
+                    _logger.LogWarning("AAC to Opus transcoding is behind, dropped {Dropped} audio frames.", dropped);
+                }
                 return;
             }
 
