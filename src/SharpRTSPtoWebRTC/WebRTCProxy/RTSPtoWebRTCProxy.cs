@@ -703,7 +703,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private short[] _resampledBuffer = null;
         private short[] _pcmBuffer = null;   // the decoded frame as 16-bit PCM, kept: a frame allocates nothing
         private readonly SampleBuffer _sampleBuffer = new SampleBuffer();
-        private int _decodedChannels = 0;   // actual channel count produced by the AAC decoder (see note in TranscodeAndSend)
+        private int _decodedChannels = 0;   // the channels resampled and encoded: the AAC decoder's, or 1 of a mono source (see TranscodeAndSend)
+        private bool _monoSource = false;   // of a mono source, the decoder's two channels the same: one of them encoded
+        private bool _stereoSeen = false;   // of a frame of two channels that differ: stereo from then on
         private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
 
         // Bounded: this is live audio, so if the transcoder cannot keep up the right answer is to drop
@@ -846,10 +848,24 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 //  here (which reports mono for this stream) would make us treat interleaved stereo as mono:
                 //  the resampler would consume only half of every frame and the rest would be dropped, badly
                 //  distorting the audio.
+                // Of a mono source the decoder still emits two channels, the same: one is resampled and encoded, of half the
+                //  work. Parametric stereo can make a stream of a mono configuration stereo, so each frame is checked, and
+                //  of one whose channels differ the stereo is encoded from then on.
+                if (_monoSource && !SameChannels(buffer.Data))
+                {
+                    _logger.LogInformation("The audio of a mono configuration is stereo, encoding both channels from now on.");
+                    _monoSource = false;
+                    _stereoSeen = true;
+                    _opusEncoder = null;
+                    _samples.Advance(BufferedSamples);
+                }
+
                 if (_opusEncoder == null)
                 {
-                    _decodedChannels = buffer.Channels;
+                    _monoSource = !_stereoSeen && (buffer.Channels == 2 && aacConfiguration.ChannelConfiguration == 1 && SameChannels(buffer.Data));
+                    _decodedChannels = _monoSource ? 1 : buffer.Channels;
                     _decodedFrequency = buffer.SampleRate;
+                    _pcmResampler = null;
 
                     if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
                     {
@@ -860,12 +876,21 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     _opusEncoder = new OpusAudioEncoder(_decodedChannels, _logger);
                 }
 
-                // convert to signed short PCM
-                int pcmLength = buffer.Data.Length / sizeof(short);
+                // convert to signed short PCM: of a mono source the left channel alone
+                int pcmLength = buffer.Data.Length / sizeof(short) / (_monoSource ? 2 : 1);
                 if (_pcmBuffer == null || _pcmBuffer.Length < pcmLength)
                     _pcmBuffer = new short[pcmLength];
                 short[] sdata = _pcmBuffer;
-                Buffer.BlockCopy(buffer.Data, 0, sdata, 0, pcmLength * sizeof(short));
+                if (_monoSource)
+                {
+                    byte[] d = buffer.Data;
+                    for (int j = 0; j < pcmLength; j++)
+                        sdata[j] = (short)(d[4 * j] | (d[4 * j + 1] << 8));
+                }
+                else
+                {
+                    Buffer.BlockCopy(buffer.Data, 0, sdata, 0, pcmLength * sizeof(short));
+                }
 
                 // if the decoded sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
                 if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
@@ -907,6 +932,17 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     }
                 }
             }
+        }
+
+        // of little endian 16-bit stereo, whether the two channels are the same
+        private static bool SameChannels(byte[] data)
+        {
+            for (int i = 0; i + 3 < data.Length; i += 4)
+            {
+                if (data[i] != data[i + 2] || data[i + 1] != data[i + 3])
+                    return false;
+            }
+            return true;
         }
 
         #endregion //  AAC to Opus transcoding
