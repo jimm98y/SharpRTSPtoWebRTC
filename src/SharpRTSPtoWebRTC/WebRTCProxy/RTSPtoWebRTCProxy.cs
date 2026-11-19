@@ -92,11 +92,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 Connection.SendRtp(Video, payload, timestamp, marker, Video.Formats[0].PayloadType);
         }
 
-        /// <summary>A payload of the sound, of an RTP header of the viewer's own source.</summary>
-        public void SendAudio(ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType)
+        /// <summary>A payload of the sound, of an RTP header of the viewer's own source and of a payload type its answer took.</summary>
+        public void SendAudio(ReadOnlySpan<byte> payload, uint timestamp, bool marker)
         {
             if (Audio != null)
-                Connection.SendRtp(Audio, payload, timestamp, marker, payloadType);
+                Connection.SendRtp(Audio, payload, timestamp, marker, Audio.Formats[0].PayloadType);
         }
     }
 
@@ -681,7 +681,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     {
                         if (viewer.IsConnected)
                         {
-                            viewer.SendAudio(msg, timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendAudio(msg, timestamp, e.IsMarker);
                         }
                     }
                 }
@@ -857,7 +857,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     {
                         if (viewer.IsConnected)
                         {
-                            viewer.SendAudio(encoded, rtpTimestamp, false, TranscodedAudioType);
+                            viewer.SendAudio(encoded, rtpTimestamp, false);
                         }
                     }
                 }

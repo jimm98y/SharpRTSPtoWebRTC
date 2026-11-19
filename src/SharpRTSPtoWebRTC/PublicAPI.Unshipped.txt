@@ -1,2 +1,4 @@
 *REMOVED*SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendVideo(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType) -> void
 SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendVideo(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker) -> void
+*REMOVED*SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendAudio(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType) -> void
+SharpRTSPtoWebRTC.WebRTCProxy.WebRtcViewer.SendAudio(System.ReadOnlySpan<byte> payload, uint timestamp, bool marker) -> void
