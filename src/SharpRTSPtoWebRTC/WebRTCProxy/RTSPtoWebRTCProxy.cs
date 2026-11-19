@@ -701,6 +701,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private int BufferedSamples => _samples.Count;
         private short[] _resampledBuffer = null;
+        private short[] _pcmBuffer = null;   // the decoded frame as 16-bit PCM, kept: a frame allocates nothing
+        private readonly SampleBuffer _sampleBuffer = new SampleBuffer();
         private int _decodedChannels = 0;   // actual channel count produced by the AAC decoder (see note in TranscodeAndSend)
         private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
 
@@ -790,7 +792,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             // single RTP can contain multiple AAC frames
             foreach (var aacFrame in aacFrames)
             {
-                SampleBuffer buffer = new SampleBuffer();
+                SampleBuffer buffer = _sampleBuffer;
 
                 // make sure the result is encoded as Little Endian
                 buffer.SetBigEndian(false);
@@ -819,19 +821,22 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 }
 
                 // convert to signed short PCM
-                short[] sdata = new short[buffer.Data.Length / sizeof(short)];
-                Buffer.BlockCopy(buffer.Data, 0, sdata, 0, buffer.Data.Length);
+                int pcmLength = buffer.Data.Length / sizeof(short);
+                if (_pcmBuffer == null || _pcmBuffer.Length < pcmLength)
+                    _pcmBuffer = new short[pcmLength];
+                short[] sdata = _pcmBuffer;
+                Buffer.BlockCopy(buffer.Data, 0, sdata, 0, pcmLength * sizeof(short));
 
                 // if the decoded sample rate is not 48k, resample the PCM to 48k which is required by the OPUS codec
                 if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
                 {
-                    int inLen = sdata.Length / _decodedChannels;
+                    int inLen = pcmLength / _decodedChannels;
                     int neededPerChannel = (inLen * SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency() / _decodedFrequency) + 1;
                     if (_resampledBuffer == null || _resampledBuffer.Length < neededPerChannel * _decodedChannels)
                         _resampledBuffer = new short[neededPerChannel * _decodedChannels];
 
                     int outLen = _resampledBuffer.Length / _decodedChannels;
-                    _pcmResampler.ProcessInterleaved(sdata, ref inLen, _resampledBuffer, ref outLen);
+                    _pcmResampler.ProcessInterleaved(sdata.AsSpan(0, pcmLength), ref inLen, _resampledBuffer, ref outLen);
 
                     // append straight out of the resampler's buffer; copying it to a right sized array
                     //  first only to append it was an allocation per frame
@@ -839,7 +844,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 }
                 else
                 {
-                    _samples.Append(sdata, sdata.Length);
+                    _samples.Append(sdata, pcmLength);
                 }
 
                 int opusFrameSize = _opusEncoder.GetFrameSize() * _decodedChannels;
@@ -847,7 +852,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 while (BufferedSamples >= opusFrameSize)
                 {
                     // encode one frame straight out of the buffer, then step the read cursor past it
-                    byte[] encoded = _opusEncoder.EncodeOpus(_samples.Peek(opusFrameSize));
+                    ReadOnlySpan<byte> encoded = _opusEncoder.EncodeOpus(_samples.Peek(opusFrameSize));
                     _samples.Advance(opusFrameSize);
 
                     uint rtpTimestamp = _opusTimeline.Take(_opusEncoder.GetFrameSize());

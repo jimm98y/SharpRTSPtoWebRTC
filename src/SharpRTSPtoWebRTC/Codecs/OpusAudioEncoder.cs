@@ -78,7 +78,8 @@ namespace SharpRTSPtoWebRTC.Codecs
         /// Takes a span so a caller holding a longer buffer can encode a frame out of the middle of it
         ///  without copying the frame out first.
         /// </remarks>
-        public byte[] EncodeOpus(ReadOnlySpan<short> pcm)
+        /// <returns>The packet, in the encoder's buffer: valid until the next call, so sent or copied before it.</returns>
+        public ReadOnlySpan<byte> EncodeOpus(ReadOnlySpan<short> pcm)
         {
             if (_opusEncoder == null)
             {
@@ -94,9 +95,7 @@ namespace SharpRTSPtoWebRTC.Codecs
 
                 if (size > 1)
                 {
-                    byte[] result = new byte[size];
-                    Buffer.BlockCopy(_byteBuffer, 0, result, 0, size);
-                    return result;
+                    return _byteBuffer.AsSpan(0, size);
                 }
             }
             catch (Exception ex)
@@ -104,7 +103,7 @@ namespace SharpRTSPtoWebRTC.Codecs
                 _log.LogError(ex.Message);
             }
 
-            return new byte[0];
+            return ReadOnlySpan<byte>.Empty;
         }
 
         public int GetFrameSize()
