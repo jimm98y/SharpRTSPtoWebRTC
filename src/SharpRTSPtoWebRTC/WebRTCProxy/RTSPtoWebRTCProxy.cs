@@ -392,7 +392,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         public void Stop()
         {
-            _audioQueue.CompleteAdding();
+            _audioStopped = true; // what is still queued is of viewers going away: dropped, not transcoded
             _client.Stop();
         }
 
@@ -710,9 +710,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         //  frames rather than to queue them for ever. 100 AAC frames is roughly two seconds.
         private const int MAX_QUEUED_AUDIO_FRAMES = 100;
 
-        private readonly BlockingCollection<(byte[][] Frames, uint RtpTimestamp)> _audioQueue =
-            new BlockingCollection<(byte[][], uint)>(MAX_QUEUED_AUDIO_FRAMES);
-        private Thread _audioWorker = null;
+        // The frames waiting for transcoding, drained in order by one thread pool work item at a time:
+        //  a stream has no thread of its own, so 200 streams are not 200 threads.
+        private readonly ConcurrentQueue<(byte[][] Frames, uint RtpTimestamp)> _audioQueue = new ConcurrentQueue<(byte[][], uint)>();
+        private int _audioQueued = 0;      // the queue's count
+        private int _audioDraining = 0;    // 1 while a work item drains the queue
+        private volatile bool _audioStopped = false;
+        private static readonly WaitCallback DrainAudio = state => ((RTSPtoWebRTCProxy)state).DrainAudioQueue();
 
         private void Client_ReceivedAudioData(SimpleDataEventArgs e)
         {
@@ -725,38 +729,45 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (frames.Length == 0)
                 return;
 
-            if (_audioWorker == null)
+            if (_audioStopped)
+                return;
+
+            if (Interlocked.Increment(ref _audioQueued) > MAX_QUEUED_AUDIO_FRAMES)
             {
-                // the receive callback is always raised from the same read-loop thread, so this is safe
-                _audioWorker = new Thread(ProcessAudioQueue) { IsBackground = true, Name = "AAC-to-Opus transcoder" };
-                _audioWorker.Start();
+                Interlocked.Decrement(ref _audioQueued);
+                _logger.LogWarning("AAC to Opus transcoding is behind, dropping an audio frame.");
+                return;
             }
 
-            try
-            {
-                if (!_audioQueue.IsAddingCompleted && !_audioQueue.TryAdd((frames, e.RtpTimestamp)))
-                {
-                    _logger.LogWarning("AAC to Opus transcoding is behind, dropping an audio frame.");
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // Stop() completed the queue between the check and the add; nothing left to do.
-            }
+            _audioQueue.Enqueue((frames, e.RtpTimestamp));
+            if (Interlocked.CompareExchange(ref _audioDraining, 1, 0) == 0)
+                ThreadPool.UnsafeQueueUserWorkItem(DrainAudio, this);
         }
 
-        private void ProcessAudioQueue()
+        private void DrainAudioQueue()
         {
-            try
+            while (true)
             {
-                foreach (var item in _audioQueue.GetConsumingEnumerable())
+                while (!_audioStopped && _audioQueue.TryDequeue(out var item))
                 {
-                    TranscodeAndSend(item.Frames, item.RtpTimestamp);
+                    Interlocked.Decrement(ref _audioQueued);
+                    try
+                    {
+                        TranscodeAndSend(item.Frames, item.RtpTimestamp);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "AAC to Opus transcoding stopped unexpectedly.");
+                        _audioStopped = true;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "AAC to Opus transcoding worker stopped unexpectedly.");
+
+                Volatile.Write(ref _audioDraining, 0);
+
+                // a frame queued after the last dequeue but before the flag was cleared found the flag set,
+                //  so nothing was scheduled for it: drain it here, unless a new work item already has it
+                if (_audioStopped || _audioQueue.IsEmpty || Interlocked.CompareExchange(ref _audioDraining, 1, 0) != 0)
+                    return;
             }
         }
 
