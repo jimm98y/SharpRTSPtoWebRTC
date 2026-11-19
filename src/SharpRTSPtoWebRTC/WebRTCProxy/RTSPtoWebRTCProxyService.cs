@@ -408,8 +408,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     audioStream = e.StreamConfigurationData;
                     audioType = e.PayloadType;
                     audioName = e.Codec;
+                    // the frames of the payloads are of AAC alone, which is transcoded; the rest goes on as RTP
+                    client.ProcessRTP = audioName == "AAC" || audioName == "MPEG4-GENERIC";
                 }
             };
+            client.ProcessRTP = false;
 
             int reconnectAttempts = 0;
             client.SetupMessageCompleted += (o, e) =>
