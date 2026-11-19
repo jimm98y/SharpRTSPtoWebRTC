@@ -49,6 +49,21 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private readonly IPAddress _publicIPv4;
         private readonly IPAddress _publicIPv6;
 
+        // the certificate of DTLS of every viewer's connection, a new one a day before it expires: of one each, every viewer
+        //  paid the generation of a key
+        private PeerConnectionCertificate _certificate;
+        private readonly object _certificateLock = new object();
+
+        private PeerConnectionCertificate Certificate()
+        {
+            lock (_certificateLock)
+            {
+                if (_certificate == null || _certificate.Expires - DateTime.UtcNow < TimeSpan.FromDays(1))
+                    _certificate = PeerConnectionCertificate.Generate();
+                return _certificate;
+            }
+        }
+
         private readonly ConcurrentDictionary<string, WebRtcViewer> _peerConnections = new ConcurrentDictionary<string, WebRtcViewer>();
         private readonly ConcurrentDictionary<string, Lazy<ProxySession>> _rtspClients = new ConcurrentDictionary<string, Lazy<ProxySession>>();
 
@@ -165,6 +180,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
             var peerConnection = new PeerConnection(new PeerConnectionOptions
             {
+                Certificate = Certificate(),
                 Ice = ice,
                 // of trace logging alone: the connection and its ICE agent make no message of none
                 Trace = _logger.IsEnabled(LogLevel.Trace) ? (Action<string>)(message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}")) : null,
