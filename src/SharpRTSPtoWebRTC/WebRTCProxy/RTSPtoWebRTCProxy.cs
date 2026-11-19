@@ -869,7 +869,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
                     {
-                        const int RESAMPLER_QUALITY = 5; // 0-10; 5 is transparent for 44.1k->48k and far cheaper than 10, which keeps the real-time worker comfortably ahead
+                        const int RESAMPLER_QUALITY = 4; // 0-10; 4 is still transparent for 44.1k->48k, of a filter of 64 taps rather than the 80 of 5
                         _pcmResampler = ResamplerFactory.CreateResampler(_decodedChannels, _decodedFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), RESAMPLER_QUALITY);
                     }
 
