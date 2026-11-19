@@ -808,6 +808,25 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             //  still buffered from the last. Only followed when it is out by more than a frame - see
             //  OpusTimeline for why counting on is what keeps the audio smooth.
             uint scaledTimestamp = _opusClock.Next(sourceRtpTimestamp);
+
+            // Of no viewer connected - all of them still being set up, or gone - nothing is sent, so nothing is decoded
+            //  nor encoded: of 200 streams set up at once, transcoding each for no one took the CPU their handshakes
+            //  needed. What is buffered is dropped; the timeline follows the source again when a viewer connects.
+            bool watched = false;
+            foreach (WebRtcViewer viewer in _peers)
+            {
+                if (viewer.IsConnected)
+                {
+                    watched = true;
+                    break;
+                }
+            }
+            if (!watched)
+            {
+                _samples.Advance(BufferedSamples);
+                return;
+            }
+
             _opusTimeline.Align(scaledTimestamp - (uint)(BufferedSamples / Math.Max(1, _decodedChannels)));
 
             // single RTP can contain multiple AAC frames
