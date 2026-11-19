@@ -5,7 +5,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Concentus" Version="2.2.2" />
 	    <PackageReference Include="SharpJaad.AAC" Version="0.2.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
 	</ItemGroup>
@@ -14,6 +13,8 @@
 		<!-- Built from the SharpRealTimeStreaming checkout next to this one until a SharpRTSPClient with the codec configurations is published. -->
 		<ProjectReference Include="..\..\..\SharpRealTimeStreaming\src\SharpRTSPClient\SharpRTSPClient.csproj" />
 		<ProjectReference Include="..\..\..\SharpWebRTC\src\SharpWebRTC\SharpWebRTC.csproj" />
+		<!-- Built from the concentus checkout next to this one (features/zero-allocations) until a Concentus that allocates nothing per frame is published. -->
+		<ProjectReference Include="..\..\..\concentus\CSharp\Concentus\Concentus.csproj" />
 	</ItemGroup>
 
 	<!-- the public API: listed in PublicAPI.*.txt, and checked against the last release (doc/public-api.md) -->
