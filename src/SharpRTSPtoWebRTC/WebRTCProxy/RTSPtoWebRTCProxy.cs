@@ -84,8 +84,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         /// <summary>Whether its DTLS-SRTP keys are there: what it is sent once it is.</summary>
         public bool IsConnected => Connection.State == PeerConnectionState.Connected;
 
-        /// <summary>A payload of the video, of an RTP header of the viewer's own source.</summary>
-        public void SendVideo(ReadOnlySpan<byte> payload, uint timestamp, bool marker, int payloadType)
+        /// <summary>A payload of the video, of an RTP header of the viewer's own source and of a payload type its answer took.</summary>
+        public void SendVideo(ReadOnlySpan<byte> payload, uint timestamp, bool marker)
         {
             // of the payload types offered, one the answer took: of H264, the camera's or the one labelled Constrained Baseline
             if (Video != null)
@@ -523,12 +523,12 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                             {
                                 if (_sps != null && _pps != null)
                                 {
-                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false);
+                                    viewer.SendVideo(_pps, timestamp, false);
                                 }
                             }
 
-                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker);
                         }
                     }
 
@@ -569,14 +569,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                                 {
                                     if (_vps != null)
                                     {
-                                        viewer.SendVideo(_vps, timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_vps, timestamp, false);
                                     }
-                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false);
+                                    viewer.SendVideo(_pps, timestamp, false);
                                 }
                             }
 
-                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker);
                         }
                     }
 
@@ -621,18 +621,18 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                                 {
                                     if (_dci != null)
                                     {
-                                        viewer.SendVideo(_dci, timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_dci, timestamp, false);
                                     }
                                     if (_vps != null)
                                     {
-                                        viewer.SendVideo(_vps, timestamp, false, e.PayloadType);
+                                        viewer.SendVideo(_vps, timestamp, false);
                                     }
-                                    viewer.SendVideo(_sps, timestamp, false, e.PayloadType);
-                                    viewer.SendVideo(_pps, timestamp, false, e.PayloadType);
+                                    viewer.SendVideo(_sps, timestamp, false);
+                                    viewer.SendVideo(_pps, timestamp, false);
                                 }
                             }
 
-                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker);
                         }
                     }
 
@@ -645,7 +645,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     {
                         if (viewer.IsConnected)
                         {
-                            viewer.SendVideo(msg, timestamp, e.IsMarker, e.PayloadType);
+                            viewer.SendVideo(msg, timestamp, e.IsMarker);
                         }
                     }
 
