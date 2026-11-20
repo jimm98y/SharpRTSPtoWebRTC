@@ -294,6 +294,8 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             {
                 Certificate = Certificate(),
                 Ice = ice,
+                // the camera's bitrate is its own: an estimate below it would only hold the video back, not make it less
+                PaceAtSourceRate = true,
                 // of trace logging alone: the connection and its ICE agent make no message of none
                 Trace = _logger.IsEnabled(LogLevel.Trace) ? (Action<string>)(message => _logger.LogTrace($"WebRTC {SanitizeForLog(id)}: {message}")) : null,
             });
