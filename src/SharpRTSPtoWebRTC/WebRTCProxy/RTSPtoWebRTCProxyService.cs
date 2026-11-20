@@ -141,6 +141,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             _logger = loggerFactory.CreateLogger<RTSPtoWebRTCProxyService>();
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            ProxyMetrics.Observe(() => _peerConnections.Values);
 
             // each viewer holds ports, a DTLS key and the camera's bitrate of upload: of anyone's asking, a number of them alone
             _maxViewers = int.TryParse(config[CONFIG_KEY_MAX_VIEWERS], out int maxViewers) && maxViewers > 0 ? maxViewers : DEFAULT_MAX_VIEWERS;

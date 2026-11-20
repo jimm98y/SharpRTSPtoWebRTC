@@ -92,14 +92,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             // of the payload types offered, one the answer took: of H264, the camera's or the one labelled Constrained Baseline
             if (Video != null)
-                Connection.SendRtp(Video, payload, timestamp, marker, Video.Formats[0].PayloadType);
+                ProxyMetrics.Sent(true, Connection.SendRtp(Video, payload, timestamp, marker, Video.Formats[0].PayloadType));
         }
 
         /// <summary>A payload of the sound, of an RTP header of the viewer's own source and of a payload type its answer took.</summary>
         public void SendAudio(ReadOnlySpan<byte> payload, uint timestamp, bool marker)
         {
             if (Audio != null)
-                Connection.SendRtp(Audio, payload, timestamp, marker, Audio.Formats[0].PayloadType);
+                ProxyMetrics.Sent(false, Connection.SendRtp(Audio, payload, timestamp, marker, Audio.Formats[0].PayloadType));
         }
     }
 
@@ -501,6 +501,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 ReadOnlySpan<byte> msg = e.Data.Span.Slice(e.PayloadStart); // forwarded as it is: only the parameter sets kept are copied
                 if (msg.Length == 0)
                     return;
+                ProxyMetrics.Received(true);
 
                 uint timestamp = Continue(e.Timestamp, VideoClockRate, ref _videoRestarted, ref _videoOffset, ref _lastVideoTimestamp, ref _lastVideoAt);
 
@@ -665,6 +666,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
             if (e.PayloadType == AudioType && AudioCodecEnum != ProxyAudioCodecs.Unknown)
             {
+                ProxyMetrics.Received(false);
                 if(AudioCodecEnum == ProxyAudioCodecs.AAC)
                 { 
                     // transcoding AAC to Opus will happen in the Audio callback
@@ -746,6 +748,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (Interlocked.Increment(ref _audioQueued) > MAX_QUEUED_AUDIO_FRAMES)
             {
                 Interlocked.Decrement(ref _audioQueued);
+                ProxyMetrics.Dropped();
                 int dropped = Interlocked.Increment(ref _audioDropped);
                 long now = Stopwatch.GetTimestamp(), warnedAt = Interlocked.Read(ref _audioDroppedWarnedAt);
                 if (now - warnedAt >= 5 * Stopwatch.Frequency && Interlocked.CompareExchange(ref _audioDroppedWarnedAt, now, warnedAt) == warnedAt)
