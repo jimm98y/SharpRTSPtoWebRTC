@@ -780,7 +780,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         {
         }
 
-        public TooManySessionsException(string message)
+        internal TooManySessionsException(string message)
             : base(message)
         {
         }
