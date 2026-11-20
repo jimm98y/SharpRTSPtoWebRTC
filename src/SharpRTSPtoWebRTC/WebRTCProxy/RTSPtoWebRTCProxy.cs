@@ -29,6 +29,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SharpRTSPClient;
 using Concentus;
@@ -517,24 +518,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         _pps = msg.ToArray();
                     }
 
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {                            
-                            // WebRTC does not support sprop-parameter-sets in the SDP, so if SPS/PPS was delivered this way, 
-                            //  we have to keep sending it in between the AUs
-                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
-                            {
-                                if (_sps != null && _pps != null)
-                                {
-                                    viewer.SendVideo(_sps, timestamp, false);
-                                    viewer.SendVideo(_pps, timestamp, false);
-                                }
-                            }
-
-                            viewer.SendVideo(msg, timestamp, e.IsMarker);
-                        }
-                    }
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -563,26 +547,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     }
 
                     // after this change: https://github.com/WebKit/WebKit/pull/15494/commits/93eb48d39b70248c062e90fceb4630a312e46b0d H265 uses now standard packetization
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {
-                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
-                            {
-                                if (_sps != null && _pps != null)
-                                {
-                                    if (_vps != null)
-                                    {
-                                        viewer.SendVideo(_vps, timestamp, false);
-                                    }
-                                    viewer.SendVideo(_sps, timestamp, false);
-                                    viewer.SendVideo(_pps, timestamp, false);
-                                }
-                            }
-
-                            viewer.SendVideo(msg, timestamp, e.IsMarker);
-                        }
-                    }
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -615,43 +580,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         _pps = msg.ToArray();
                     }
 
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {
-                            if (_lastVideoMarkerBit == 1 && !e.IsMarker)
-                            {
-                                if (_sps != null && _pps != null)
-                                {
-                                    if (_dci != null)
-                                    {
-                                        viewer.SendVideo(_dci, timestamp, false);
-                                    }
-                                    if (_vps != null)
-                                    {
-                                        viewer.SendVideo(_vps, timestamp, false);
-                                    }
-                                    viewer.SendVideo(_sps, timestamp, false);
-                                    viewer.SendVideo(_pps, timestamp, false);
-                                }
-                            }
-
-                            viewer.SendVideo(msg, timestamp, e.IsMarker);
-                        }
-                    }
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
                 // what a decoder needs is in the key frames themselves, so the packets go through as they came
                 else if (VideoCodecEnum == ProxyVideoCodecs.AV1 || VideoCodecEnum == ProxyVideoCodecs.VP9)
                 {
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {
-                            viewer.SendVideo(msg, timestamp, e.IsMarker);
-                        }
-                    }
+                    SendToViewers(msg, timestamp, e.IsMarker, true, false);
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -682,15 +618,57 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     uint timestamp = Continue(e.Timestamp, AudioFormat?.ClockRate > 0 ? AudioFormat.ClockRate : 8000, ref _audioRestarted, ref _audioOffset, ref _lastAudioTimestamp, ref _lastAudioAt);
 
                     // forward RTP "as is", the browser should be able to decode it because PCMA, PCMU adn Opus are defined as mandatory in the WebRTC specification
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {
-                            viewer.SendAudio(msg, timestamp, e.IsMarker);
-                        }
-                    }
+                    SendToViewers(msg, timestamp, e.IsMarker, false, false);
                 }
             }
+        }
+
+        // of a stream of this many viewers or more, its packets sent of several threads at once, each of a part of the viewers;
+        //  the thread of the packet waits for all, so that each viewer has them in their order. Of one thread, of 1000 viewers a
+        //  key frame's sends - 30 packets, 30,000 sends - held it so long that the camera's connection backed up and dropped
+        //  frames, and the viewers' NACKs and key frame requests of the loss made it fall further behind
+        private const int ParallelViewers = 64;
+
+        private void SendToViewers(ReadOnlySpan<byte> payload, uint timestamp, bool marker, bool video, bool withParameterSets)
+        {
+            WebRtcViewer[] peers = _peers;
+            if (peers.Length < ParallelViewers)
+            {
+                foreach (WebRtcViewer viewer in peers)
+                    SendTo(viewer, payload, timestamp, marker, video, withParameterSets);
+                return;
+            }
+            // of its own: the payload is of the receiver's buffer, of the receiving thread alone
+            byte[] copy = payload.ToArray();
+            int parts = Math.Min(Environment.ProcessorCount, (peers.Length + ParallelViewers - 1) / ParallelViewers);
+            Parallel.For(0, parts, part =>
+            {
+                for (int i = part; i < peers.Length; i += parts)
+                    SendTo(peers[i], copy, timestamp, marker, video, withParameterSets);
+            });
+        }
+
+        private void SendTo(WebRtcViewer viewer, ReadOnlySpan<byte> payload, uint timestamp, bool marker, bool video, bool withParameterSets)
+        {
+            if (!viewer.IsConnected)
+                return;
+            if (!video)
+            {
+                viewer.SendAudio(payload, timestamp, marker);
+                return;
+            }
+            // WebRTC does not support sprop-parameter-sets in the SDP, so if they were delivered this way, they are sent in between
+            //  the AUs (VPS of H265 and H266, DCI of H266)
+            if (withParameterSets && _sps != null && _pps != null)
+            {
+                if (_dci != null)
+                    viewer.SendVideo(_dci, timestamp, false);
+                if (_vps != null)
+                    viewer.SendVideo(_vps, timestamp, false);
+                viewer.SendVideo(_sps, timestamp, false);
+                viewer.SendVideo(_pps, timestamp, false);
+            }
+            viewer.SendVideo(payload, timestamp, marker);
         }
 
         #region AAC to Opus transcoding
@@ -931,13 +909,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     uint rtpTimestamp = _opusTimeline.Take(_opusEncoder.GetFrameSize());
 
                     // send it to all peers
-                    foreach (WebRtcViewer viewer in _peers)
-                    {
-                        if (viewer.IsConnected)
-                        {
-                            viewer.SendAudio(encoded, rtpTimestamp, false);
-                        }
-                    }
+                    SendToViewers(encoded, rtpTimestamp, false, false, false);
                 }
             }
         }
