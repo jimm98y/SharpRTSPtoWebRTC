@@ -352,6 +352,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 throw;
             }
 
+            // of a range of ports all taken - the camera's StartPort to EndPort - no candidate: an offer of none never connects
+            if (!offer.Contains("a=candidate:"))
+            {
+                proxy.RemovePeerConnection(id, viewer);
+                peerConnection.Close();
+                throw new TooManySessionsException($"No port from {startPort} to {endPort} is free for another viewer of {Redact(url)}.");
+            }
+
             if (!_peerConnections.TryAdd(id, viewer))
             {
                 proxy.RemovePeerConnection(id, viewer);
@@ -769,6 +777,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
     {
         public TooManySessionsException(int max)
             : base($"There are {max} viewers already.")
+        {
+        }
+
+        public TooManySessionsException(string message)
+            : base(message)
         {
         }
     }
