@@ -722,9 +722,11 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private int _audioDraining = 0;    // 1 while a work item drains the queue
         private volatile bool _audioStopped = false;
         // the frames dropped since the last warning, and when it was: of a stall each frame is dropped, and a warning of
-        //  each would flood the log - whose console logger then blocks the threads that log, the RTSP read loops among them
-        private int _audioDropped = 0;
-        private long _audioDroppedWarnedAt = 0;
+        //  each would flood the log - whose console logger then blocks the threads that log, the RTSP read loops among them.
+        //  Of all the streams, not of each: of 1000 streams behind, a warning of each of every 5 s was 200 a second, each
+        //  written to the Windows event log of the thread that warned
+        private static int _audioDropped = 0;
+        private static long _audioDroppedWarnedAt = 0;
         private static readonly WaitCallback DrainAudio = state => ((RTSPtoWebRTCProxy)state).DrainAudioQueue();
 
         private void Client_ReceivedAudioData(SimpleDataEventArgs e)
