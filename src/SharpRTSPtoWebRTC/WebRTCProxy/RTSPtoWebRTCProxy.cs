@@ -691,23 +691,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private bool _stereoSeen = false;   // of a frame of two channels that differ: stereo from then on
         private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
 
-        // Bounded: this is live audio, so if the transcoder cannot keep up the right answer is to drop
-        //  frames rather than to queue them for ever. 100 AAC frames is roughly two seconds.
-        private const int MAX_QUEUED_AUDIO_FRAMES = 100;
-
-        // The frames waiting for transcoding, drained in order by one thread pool work item at a time:
-        //  a stream has no thread of its own, so 200 streams are not 200 threads.
-        private readonly ConcurrentQueue<(byte[][] Frames, uint RtpTimestamp)> _audioQueue = new ConcurrentQueue<(byte[][], uint)>();
-        private int _audioQueued = 0;      // the queue's count
-        private int _audioDraining = 0;    // 1 while a work item drains the queue
         private volatile bool _audioStopped = false;
-        // the frames dropped since the last warning, and when it was: of a stall each frame is dropped, and a warning of
-        //  each would flood the log - whose console logger then blocks the threads that log, the RTSP read loops among them.
-        //  Of all the streams, not of each: of 1000 streams behind, a warning of each of every 5 s was 200 a second, each
-        //  written to the Windows event log of the thread that warned
-        private static int _audioDropped = 0;
-        private static long _audioDroppedWarnedAt = 0;
-        private static readonly WaitCallback DrainAudio = state => ((RTSPtoWebRTCProxy)state).DrainAudioQueue();
 
         private void Client_ReceivedAudioData(SimpleDataEventArgs e)
         {
@@ -715,7 +699,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 return;
 
             // Copy the AAC frames out of the payload processor's pooled buffers (they are returned to the
-            //  pool as soon as this handler returns) and hand them to the worker thread for transcoding.
+            //  pool as soon as this handler returns).
             byte[][] frames = e.Data.Select(f => f.ToArray()).ToArray();
             if (frames.Length == 0)
                 return;
@@ -723,49 +707,17 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (_audioStopped)
                 return;
 
-            if (Interlocked.Increment(ref _audioQueued) > MAX_QUEUED_AUDIO_FRAMES)
+            // Transcoded here, on the stream's receive loop, its frames in their order: of a work item of the thread pool of
+            //  each frame, of a server of 500 streams the frames waited behind the pool's queue for seconds and most were
+            //  dropped. Of a transcoding behind, the stream is read the slower and the camera's server says so.
+            try
             {
-                Interlocked.Decrement(ref _audioQueued);
-                ProxyMetrics.Dropped();
-                int dropped = Interlocked.Increment(ref _audioDropped);
-                long now = Stopwatch.GetTimestamp(), warnedAt = Interlocked.Read(ref _audioDroppedWarnedAt);
-                if (now - warnedAt >= 5 * Stopwatch.Frequency && Interlocked.CompareExchange(ref _audioDroppedWarnedAt, now, warnedAt) == warnedAt)
-                {
-                    Interlocked.Add(ref _audioDropped, -dropped);
-                    _logger.LogWarning("AAC to Opus transcoding is behind, dropped {Dropped} audio frames.", dropped);
-                }
-                return;
+                TranscodeAndSend(frames, e.RtpTimestamp);
             }
-
-            _audioQueue.Enqueue((frames, e.RtpTimestamp));
-            if (Interlocked.CompareExchange(ref _audioDraining, 1, 0) == 0)
-                ThreadPool.UnsafeQueueUserWorkItem(DrainAudio, this);
-        }
-
-        private void DrainAudioQueue()
-        {
-            while (true)
+            catch (Exception ex)
             {
-                while (!_audioStopped && _audioQueue.TryDequeue(out var item))
-                {
-                    Interlocked.Decrement(ref _audioQueued);
-                    try
-                    {
-                        TranscodeAndSend(item.Frames, item.RtpTimestamp);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "AAC to Opus transcoding stopped unexpectedly.");
-                        _audioStopped = true;
-                    }
-                }
-
-                Volatile.Write(ref _audioDraining, 0);
-
-                // a frame queued after the last dequeue but before the flag was cleared found the flag set,
-                //  so nothing was scheduled for it: drain it here, unless a new work item already has it
-                if (_audioStopped || _audioQueue.IsEmpty || Interlocked.CompareExchange(ref _audioDraining, 1, 0) != 0)
-                    return;
+                _logger.LogError(ex, "AAC to Opus transcoding stopped unexpectedly.");
+                _audioStopped = true;
             }
         }
 
