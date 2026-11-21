@@ -44,6 +44,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private static readonly Counter<long> VideoRefused = Meter.CreateCounter<long>("webrtc.video.refused", "{packet}", "Packets of video a viewer's connection did not send");
         private static readonly Counter<long> AudioSent = Meter.CreateCounter<long>("webrtc.audio.packets", "{packet}", "Packets of audio sent to the viewers");
         private static readonly Counter<long> AudioRefused = Meter.CreateCounter<long>("webrtc.audio.refused", "{packet}", "Packets of audio a viewer's connection did not send");
+        private static readonly Counter<long> AudioDropped = Meter.CreateCounter<long>("audio.frames.dropped", "{frame}", "AAC frames dropped, of the transcoding behind");
 
         // the viewers of the service last made; of a snapshot of their stats of each collection, not of each gauge
         private static Func<IEnumerable<WebRtcViewer>> _viewers;
@@ -107,12 +108,16 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         public static void Received(bool video) => (video ? VideoReceived : AudioReceived).Add(1);
 
         public static void Sent(bool video, bool sent) => (video ? (sent ? VideoSent : VideoRefused) : (sent ? AudioSent : AudioRefused)).Add(1);
+
+        public static void Dropped() => AudioDropped.Add(1);
 #else
         public static void Observe(Func<IEnumerable<WebRtcViewer>> viewers) { }
 
         public static void Received(bool video) { }
 
         public static void Sent(bool video, bool sent) { }
+
+        public static void Dropped() { }
 #endif
     }
 }

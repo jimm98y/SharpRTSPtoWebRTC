@@ -46,12 +46,13 @@ namespace SharpRTSPtoWebRTC.Tests
             ProxyMetrics.Received(true);
             ProxyMetrics.Sent(true, true);
             ProxyMetrics.Sent(false, false);
+            ProxyMetrics.Dropped();
             ProxyMetrics.Observe(() => Enumerable.Empty<WebRtcViewer>());
             listener.RecordObservableInstruments();
 
             lock (measured)
             {
-                CollectionAssert.IsSubsetOf(new[] { ("rtsp.video.packets", 1L), ("webrtc.video.packets", 1L), ("webrtc.audio.refused", 1L), ("webrtc.viewers", 0L) }, measured);
+                CollectionAssert.IsSubsetOf(new[] { ("rtsp.video.packets", 1L), ("webrtc.video.packets", 1L), ("webrtc.audio.refused", 1L), ("audio.frames.dropped", 1L), ("webrtc.viewers", 0L) }, measured);
             }
         }
     }

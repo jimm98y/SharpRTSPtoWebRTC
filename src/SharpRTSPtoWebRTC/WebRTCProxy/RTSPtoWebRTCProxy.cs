@@ -692,7 +692,56 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private bool _stereoSeen = false;   // of a frame of two channels that differ: stereo from then on
         private int _decodedFrequency = 0;   // actual sample rate produced by the AAC decoder
 
+        // Bounded: this is live audio, so if the transcoder cannot keep up the right answer is to drop
+        //  frames rather than to queue them for ever. 100 AAC frames is roughly two seconds.
+        private const int MAX_QUEUED_AUDIO_FRAMES = 100;
+
+        // The frames waiting for transcoding, drained in order by one of the transcoders' threads at a time:
+        //  a stream has no thread of its own, so 200 streams are not 200 threads.
+        private readonly ConcurrentQueue<(byte[][] Frames, uint RtpTimestamp)> _audioQueue = new ConcurrentQueue<(byte[][], uint)>();
+        private int _audioQueued = 0;      // the queue's count
+        private int _audioDraining = 0;    // 1 while a thread drains the queue
+        private readonly Transcoders _transcoder = Transcoders.Next();
         private volatile bool _audioStopped = false;
+        // the frames dropped since the last warning, and when it was: of a stall each frame is dropped, and a warning of
+        //  each would flood the log - whose console logger then blocks the threads that log, the RTSP read loops among them.
+        //  Of all the streams, not of each: of 1000 streams behind, a warning of each of every 5 s was 200 a second, each
+        //  written to the Windows event log of the thread that warned
+        private static int _audioDropped = 0;
+        private static long _audioDroppedWarnedAt = 0;
+
+        // Threads of their own, one of each processor, rather than the pool's: of a server of 300 streams behind, of the
+        //  frames of each a work item of the pool, the pool's queue held the ICE consent of every viewer behind them for
+        //  30 s and every viewer was closed. Of a server behind, the frames wait here, then drop; of normal priority, as
+        //  below it, of a machine busy, they were dropped of 4 of each 5.
+        private sealed class Transcoders
+        {
+            private static readonly Transcoders[] Threads = Create();
+            private static int _next;
+            private readonly BlockingCollection<RTSPtoWebRTCProxy> _streams = new BlockingCollection<RTSPtoWebRTCProxy>();
+
+            private Transcoders()
+            {
+                new Thread(() =>
+                {
+                    foreach (RTSPtoWebRTCProxy stream in _streams.GetConsumingEnumerable())
+                        stream.DrainAudioQueue();
+                })
+                { IsBackground = true, Name = "AAC to Opus" }.Start();
+            }
+
+            private static Transcoders[] Create()
+            {
+                var threads = new Transcoders[Math.Max(1, Environment.ProcessorCount)];
+                for (int i = 0; i < threads.Length; i++)
+                    threads[i] = new Transcoders();
+                return threads;
+            }
+
+            public static Transcoders Next() => Threads[(Interlocked.Increment(ref _next) & int.MaxValue) % Threads.Length];
+
+            public void Add(RTSPtoWebRTCProxy stream) => _streams.Add(stream);
+        }
 
         private void Client_ReceivedAudioData(SimpleDataEventArgs e)
         {
@@ -700,7 +749,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 return;
 
             // Copy the AAC frames out of the payload processor's pooled buffers (they are returned to the
-            //  pool as soon as this handler returns).
+            //  pool as soon as this handler returns) and hand them to the worker thread for transcoding.
             byte[][] frames = e.Data.Select(f => f.ToArray()).ToArray();
             if (frames.Length == 0)
                 return;
@@ -708,17 +757,49 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             if (_audioStopped)
                 return;
 
-            // Transcoded here, on the stream's receive loop, its frames in their order: of a work item of the thread pool of
-            //  each frame, of a server of 500 streams the frames waited behind the pool's queue for seconds and most were
-            //  dropped. Of a transcoding behind, the stream is read the slower and the camera's server says so.
-            try
+            if (Interlocked.Increment(ref _audioQueued) > MAX_QUEUED_AUDIO_FRAMES)
             {
-                TranscodeAndSend(frames, e.RtpTimestamp);
+                Interlocked.Decrement(ref _audioQueued);
+                ProxyMetrics.Dropped();
+                int dropped = Interlocked.Increment(ref _audioDropped);
+                long now = Stopwatch.GetTimestamp(), warnedAt = Interlocked.Read(ref _audioDroppedWarnedAt);
+                if (now - warnedAt >= 5 * Stopwatch.Frequency && Interlocked.CompareExchange(ref _audioDroppedWarnedAt, now, warnedAt) == warnedAt)
+                {
+                    Interlocked.Add(ref _audioDropped, -dropped);
+                    _logger.LogWarning("AAC to Opus transcoding is behind, dropped {Dropped} audio frames.", dropped);
+                }
+                return;
             }
-            catch (Exception ex)
+
+            _audioQueue.Enqueue((frames, e.RtpTimestamp));
+            if (Interlocked.CompareExchange(ref _audioDraining, 1, 0) == 0)
+                _transcoder.Add(this);
+        }
+
+        private void DrainAudioQueue()
+        {
+            while (true)
             {
-                _logger.LogError(ex, "AAC to Opus transcoding stopped unexpectedly.");
-                _audioStopped = true;
+                while (!_audioStopped && _audioQueue.TryDequeue(out var item))
+                {
+                    Interlocked.Decrement(ref _audioQueued);
+                    try
+                    {
+                        TranscodeAndSend(item.Frames, item.RtpTimestamp);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "AAC to Opus transcoding stopped unexpectedly.");
+                        _audioStopped = true;
+                    }
+                }
+
+                Volatile.Write(ref _audioDraining, 0);
+
+                // a frame queued after the last dequeue but before the flag was cleared found the flag set,
+                //  so nothing was scheduled for it: drain it here, unless it was handed on again already
+                if (_audioStopped || _audioQueue.IsEmpty || Interlocked.CompareExchange(ref _audioDraining, 1, 0) != 0)
+                    return;
             }
         }
 
