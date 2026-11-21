@@ -626,8 +626,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         // of a stream of this many viewers or more, its packets sent of several threads at once, each of a part of the viewers;
         //  the thread of the packet waits for all, so that each viewer has them in their order. Of one thread, of 1000 viewers a
         //  key frame's sends - 30 packets, 30,000 sends - held it so long that the camera's connection backed up and dropped
-        //  frames, and the viewers' NACKs and key frame requests of the loss made it fall further behind
-        private const int ParallelViewers = 64;
+        //  frames, and the viewers' NACKs and key frame requests of the loss made it fall further behind; of 4K, 1,560 packets
+        //  a second, one thread of 64 sends no more than 50 viewers' - a part of each 8 of them, 96 viewers had all of it
+        private const int ParallelViewers = 8;
 
         private void SendToViewers(ReadOnlySpan<byte> payload, uint timestamp, bool marker, bool video, bool withParameterSets)
         {
