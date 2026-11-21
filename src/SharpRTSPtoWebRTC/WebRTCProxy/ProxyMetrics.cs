@@ -30,7 +30,7 @@ using System.Linq;
 namespace SharpRTSPtoWebRTC.WebRTCProxy
 {
     /// <summary>
-    /// The proxy's metrics, of the meter "SharpRTSPtoWebRTC" (of .NET 8 and later; of the others, none): what came of the
+    /// The proxy's metrics, of the meter "SharpRTSPtoWebRTC" (of .NET 10 and later; of the others, none): what came of the
     /// cameras, what went to the viewers and what was refused, and of the viewers connected, their estimates, round trips and
     /// pacers - of where a stream's packets were lost, of a server of many viewers (dotnet-counters, or OpenTelemetry).
     /// </summary>

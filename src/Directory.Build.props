@@ -12,7 +12,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/jimm98y/SharpRTSPtoWebRTC</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<PackageTags>rtsp;webrtc;streaming;netcore;h264;h265;av1;vp9;aac;opus;netstandard2.0;net8;net10</PackageTags>
+		<PackageTags>rtsp;webrtc;streaming;netcore;h264;h265;av1;vp9;aac;opus;netstandard2.0;net10;net11</PackageTags>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<AssemblyVersion>1.0.0</AssemblyVersion>
 		<FileVersion>$(Version)</FileVersion>

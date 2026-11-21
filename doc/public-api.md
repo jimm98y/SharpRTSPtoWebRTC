@@ -13,7 +13,7 @@ the library:
   (`PackageValidationBaselineVersion` in the project, 0.1.6 now), and every binary or source breaking
   change fails the build with a CP error: a member added to an interface or an abstract class among
   them, which breaks whoever implements it, and a value of an enum changed. It also checks that the
-  target frameworks agree: what netstandard2.0 offers, net481, net8.0 and net10.0 have to offer too.
+  target frameworks agree: what netstandard2.0 offers, net481, net10.0 and net11.0 have to offer too.
 
 ## Adding to the API
 
