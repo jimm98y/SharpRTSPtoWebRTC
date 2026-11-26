@@ -522,7 +522,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         _pps = msg.ToArray();
                     }
 
-                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
+                    // the parameter sets of a key frame - of a single NAL unit or of its first fragment - or of a second without them:
+                    //  of every frame, they were two packets more of each to each viewer, 4 of each 10 sent
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker
+                        && (naluType == 5 || (naluType == 28 && msg.Length > 1 && (msg[1] & 0x1F) == 5) || Stopwatch.GetTimestamp() - _parameterSetsAt > Stopwatch.Frequency));
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -551,7 +554,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     }
 
                     // after this change: https://github.com/WebKit/WebKit/pull/15494/commits/93eb48d39b70248c062e90fceb4630a312e46b0d H265 uses now standard packetization
-                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
+                    // the parameter sets of a key frame - of a single NAL unit or of its first fragment - or of a second without them:
+                    //  of every frame, they were two packets more of each to each viewer, 4 of each 10 sent
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker
+                        && ((naluType >= 16 && naluType <= 21) || (naluType == 49 && msg.Length > 2 && (msg[2] & 0x3F) >= 16 && (msg[2] & 0x3F) <= 21) || Stopwatch.GetTimestamp() - _parameterSetsAt > Stopwatch.Frequency));
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -584,7 +590,10 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         _pps = msg.ToArray();
                     }
 
-                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker);
+                    // the parameter sets of a key frame - of a single NAL unit or of its first fragment - or of a second without them:
+                    //  of every frame, they were two packets more of each to each viewer, 4 of each 10 sent
+                    SendToViewers(msg, timestamp, e.IsMarker, true, _lastVideoMarkerBit == 1 && !e.IsMarker
+                        && ((naluType >= 7 && naluType <= 10) || (naluType == 29 && msg.Length > 2 && (msg[2] & 0x1F) >= 7 && (msg[2] & 0x1F) <= 10) || Stopwatch.GetTimestamp() - _parameterSetsAt > Stopwatch.Frequency));
 
                     _lastVideoMarkerBit = e.IsMarker ? 1 : 0;
                 }
@@ -634,8 +643,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         //  a second, one thread of 64 sends no more than 50 viewers' - a part of each 8 of them, 96 viewers had all of it
         private const int ParallelViewers = 8;
 
+        // when the parameter sets were last sent with a frame
+        private long _parameterSetsAt;
+
         private void SendToViewers(ReadOnlySpan<byte> payload, uint timestamp, bool marker, bool video, bool withParameterSets)
         {
+            if (withParameterSets)
+                _parameterSetsAt = Stopwatch.GetTimestamp();
             WebRtcViewer[] peers = _peers;
             if (peers.Length < ParallelViewers)
             {
