@@ -28,6 +28,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+#if NET
+using System.Numerics;
+using System.Runtime.InteropServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -904,7 +908,18 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 if (_monoSource)
                 {
                     byte[] d = buffer.Data;
-                    for (int j = 0; j < pcmLength; j++)
+                    int j = 0;
+#if NET
+                    // of whole vectors: of each sample of two channels as an int, its low half the left
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        ReadOnlySpan<uint> pairs = MemoryMarshal.Cast<byte, uint>(d.AsSpan());
+                        Span<ushort> left = MemoryMarshal.Cast<short, ushort>(sdata.AsSpan(0, pcmLength));
+                        for (; j + 2 * Vector<uint>.Count <= pcmLength; j += 2 * Vector<uint>.Count)
+                            Vector.Narrow(new Vector<uint>(pairs.Slice(j)), new Vector<uint>(pairs.Slice(j + Vector<uint>.Count))).CopyTo(left.Slice(j));
+                    }
+#endif
+                    for (; j < pcmLength; j++)
                         sdata[j] = (short)(d[4 * j] | (d[4 * j + 1] << 8));
                 }
                 else
@@ -951,7 +966,18 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         // of little endian 16-bit stereo, whether the two channels are the same
         private static bool SameChannels(byte[] data)
         {
-            for (int i = 0; i + 3 < data.Length; i += 4)
+            int i = 0;
+#if NET
+            // of whole vectors: of each sample of two channels as an int, its halves the same
+            ReadOnlySpan<uint> pairs = MemoryMarshal.Cast<byte, uint>(data.AsSpan());
+            for (; i / 4 + Vector<uint>.Count <= pairs.Length; i += 4 * Vector<uint>.Count)
+            {
+                Vector<uint> v = new Vector<uint>(pairs.Slice(i / 4));
+                if (!Vector.EqualsAll(Vector.ShiftRightLogical(v, 16), v & new Vector<uint>(0xFFFF)))
+                    return false;
+            }
+#endif
+            for (; i + 3 < data.Length; i += 4)
             {
                 if (data[i] != data[i + 2] || data[i + 1] != data[i + 3])
                     return false;
