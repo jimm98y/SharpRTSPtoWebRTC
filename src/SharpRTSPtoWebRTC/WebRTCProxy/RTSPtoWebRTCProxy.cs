@@ -694,6 +694,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         private Decoder _aacDecoder = null;
         private OpusAudioEncoder _opusEncoder = null;
+        internal int OpusComplexity = OpusAudioEncoder.DEFAULT_COMPLEXITY;
         private IResampler _pcmResampler = null;
         private readonly PcmSampleBuffer _samples = new PcmSampleBuffer();
         private OpusClockScaler _opusClock = null;
@@ -911,7 +912,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                         _pcmResampler = ResamplerFactory.CreateResampler(_decodedChannels, _decodedFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), RESAMPLER_QUALITY);
                     }
 
-                    _opusEncoder = new OpusAudioEncoder(_decodedChannels, _logger);
+                    _opusEncoder = new OpusAudioEncoder(_decodedChannels, _logger, OpusComplexity);
                 }
 
                 // convert to signed short PCM: of a mono source the left channel alone

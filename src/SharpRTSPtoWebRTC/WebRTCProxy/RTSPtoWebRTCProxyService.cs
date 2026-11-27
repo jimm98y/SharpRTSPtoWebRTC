@@ -101,6 +101,9 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         //  still has time to answer - of 10 s, of 200 viewers at once, 23 were closed before they had their offers
         private const double DEFAULT_ANSWER_TIMEOUT_SECONDS = 20;
         private readonly TimeSpan _answerTimeout;
+        // of the Opus the AAC is transcoded to, 0 to 10 - "OpusComplexity": of less, less of a processor and of its sound
+        private const string CONFIG_KEY_OPUS_COMPLEXITY = "OpusComplexity";
+        private readonly int _opusComplexity;
 
         /// <summary>
         /// How long a camera may take to set up its first session: of a camera that refuses, its reconnects of up to 30 s each
@@ -150,6 +153,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             _maxPendingPerAddress = int.TryParse(config[CONFIG_KEY_MAX_PENDING_PER_ADDRESS], out int mpa) && mpa > 0 ? mpa : DEFAULT_MAX_PENDING_PER_ADDRESS;
             _pendingWait = TimeSpan.FromSeconds(double.TryParse(config[CONFIG_KEY_PENDING_WAIT], NumberStyles.Float, CultureInfo.InvariantCulture, out double pw) && pw >= 0 ? pw : DEFAULT_PENDING_WAIT_SECONDS);
             _answerTimeout = TimeSpan.FromSeconds(double.TryParse(config[CONFIG_KEY_ANSWER_TIMEOUT], NumberStyles.Float, CultureInfo.InvariantCulture, out double at) && at > 0 ? at : DEFAULT_ANSWER_TIMEOUT_SECONDS);
+            _opusComplexity = int.TryParse(config[CONFIG_KEY_OPUS_COMPLEXITY], out int oc) && oc >= 0 && oc <= 10 ? oc : Codecs.OpusAudioEncoder.DEFAULT_COMPLEXITY;
 
             if (IPAddress.TryParse(config[CONFIG_KEY_PUBLIC_IPV4], out _publicIPv4))
             {
@@ -655,7 +659,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 // of the URL its credentials taken out: the message is logged, and of a server of developer pages, shown
                 throw new Exception($"Failed to connect to RTSP server {Redact(url)}.");
             }
-            return new RTSPtoWebRTCProxy(_logger, client, videoType, videoName, videoStream, audioType, audioName, audioStream);
+            return new RTSPtoWebRTCProxy(_logger, client, videoType, videoName, videoStream, audioType, audioName, audioStream) { OpusComplexity = _opusComplexity };
         }
 
         /// <summary>

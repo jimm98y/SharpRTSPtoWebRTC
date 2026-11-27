@@ -60,14 +60,17 @@ namespace SharpRTSPtoWebRTC.Codecs
         }
 
         private readonly ILogger _log;
+        public const int DEFAULT_COMPLEXITY = 9; // the encoder's own
         private int _channels = 1;
+        private readonly int _complexity;
         private byte[] _byteBuffer;
 
         private IOpusEncoder _opusEncoder;
 
-        public OpusAudioEncoder(int channels, ILogger log = null)
+        public OpusAudioEncoder(int channels, ILogger log = null, int complexity = DEFAULT_COMPLEXITY)
         {
             _channels = channels;
+            _complexity = complexity;
             _log = log ?? NullLogger.Instance;
         }
 
@@ -85,6 +88,7 @@ namespace SharpRTSPtoWebRTC.Codecs
             {
                 _opusEncoder = OpusCodecFactory.CreateEncoder(SAMPLE_RATE, _channels, OpusApplication.OPUS_APPLICATION_AUDIO);
                 _opusEncoder.ForceMode = OpusMode.MODE_CELT_ONLY;
+                _opusEncoder.Complexity = _complexity;
                 _byteBuffer = new byte[MAX_PACKET_SIZE];
             }
 
