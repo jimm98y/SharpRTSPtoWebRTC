@@ -20,11 +20,11 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 #if NET
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Linq;
 #endif
 
 namespace SharpRTSPtoWebRTC.WebRTCProxy
@@ -47,10 +47,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
         private static readonly Counter<long> AudioDropped = Meter.CreateCounter<long>("audio.frames.dropped", "{frame}", "AAC frames dropped, of the transcoding behind");
 
         // the viewers of the service last made; of a snapshot of their stats of each collection, not of each gauge
-        private static Func<IEnumerable<WebRtcViewer>> _viewers;
+        private static ConcurrentDictionary<string, WebRtcViewer> _viewers;
+        // of each second's snapshot, reused: of the stats of each viewer made, of 1000 viewers 100 KB a second
+        private static readonly List<long> _estimates = new List<long>();
+        private static readonly List<double> _rtts = new List<double>();
         private static readonly object _sync = new object();
         private static long _snapshotAt;
-        private static Snapshot _snapshot = new Snapshot();
+        private static readonly Snapshot _snapshot = new Snapshot();
 
         private sealed class Snapshot
         {
@@ -70,7 +73,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
             Meter.CreateObservableGauge("webrtc.paced.max", () => Take().PacedMax, "{packet}", "Packets of video the pacer of the most holds");
         }
 
-        public static void Observe(Func<IEnumerable<WebRtcViewer>> viewers) => _viewers = viewers;
+        public static void Observe(ConcurrentDictionary<string, WebRtcViewer> viewers) => _viewers = viewers;
 
         private static Snapshot Take()
         {
@@ -80,20 +83,28 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 if (now - _snapshotAt < Stopwatch.Frequency)
                     return _snapshot;
                 _snapshotAt = now;
-                var estimates = new List<long>();
-                var rtts = new List<double>();
-                var snapshot = new Snapshot();
-                foreach (var viewer in _viewers?.Invoke() ?? Enumerable.Empty<WebRtcViewer>())
+                var estimates = _estimates;
+                var rtts = _rtts;
+                var snapshot = _snapshot;
+                estimates.Clear();
+                rtts.Clear();
+                (snapshot.Viewers, snapshot.PacedTotal, snapshot.PacedMax) = (0, 0, 0);
+                if (_viewers != null)
                 {
-                    if (!viewer.IsConnected)
-                        continue;
-                    var stats = viewer.Connection.GetStats();
-                    snapshot.Viewers++;
-                    snapshot.PacedTotal += stats.PacedPackets;
-                    snapshot.PacedMax = Math.Max(snapshot.PacedMax, stats.PacedPackets);
-                    estimates.Add(stats.EstimatedBitrate);
-                    if (stats.RoundTripTime.HasValue)
-                        rtts.Add(stats.RoundTripTime.Value.TotalMilliseconds);
+                    foreach (var pair in _viewers)
+                    {
+                        var viewer = pair.Value;
+                        if (!viewer.IsConnected)
+                            continue;
+                        var connection = viewer.Connection;
+                        int paced = connection.PacedPackets;
+                        snapshot.Viewers++;
+                        snapshot.PacedTotal += paced;
+                        snapshot.PacedMax = Math.Max(snapshot.PacedMax, paced);
+                        estimates.Add(connection.EstimatedBitrate);
+                        if (connection.RoundTripTime is TimeSpan rtt)
+                            rtts.Add(rtt.TotalMilliseconds);
+                    }
                 }
                 estimates.Sort();
                 rtts.Sort();
@@ -101,7 +112,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                 snapshot.EstimateP50 = estimates.Count > 0 ? estimates[estimates.Count / 2] : 0;
                 snapshot.RttP50 = rtts.Count > 0 ? rtts[rtts.Count / 2] : 0;
                 snapshot.RttP90 = rtts.Count > 0 ? rtts[rtts.Count * 9 / 10] : 0;
-                return _snapshot = snapshot;
+                return snapshot;
             }
         }
 
@@ -111,7 +122,7 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
         public static void Dropped() => AudioDropped.Add(1);
 #else
-        public static void Observe(Func<IEnumerable<WebRtcViewer>> viewers) { }
+        public static void Observe(ConcurrentDictionary<string, WebRtcViewer> viewers) { }
 
         public static void Received(bool video) { }
 

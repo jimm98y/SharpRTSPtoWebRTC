@@ -47,7 +47,7 @@ namespace SharpRTSPtoWebRTC.Tests
             ProxyMetrics.Sent(true, true);
             ProxyMetrics.Sent(false, false);
             ProxyMetrics.Dropped();
-            ProxyMetrics.Observe(() => Enumerable.Empty<WebRtcViewer>());
+            ProxyMetrics.Observe(new System.Collections.Concurrent.ConcurrentDictionary<string, WebRtcViewer>());
             listener.RecordObservableInstruments();
 
             lock (measured)
