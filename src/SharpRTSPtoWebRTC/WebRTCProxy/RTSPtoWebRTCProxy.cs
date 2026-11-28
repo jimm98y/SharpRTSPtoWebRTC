@@ -657,8 +657,13 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
                     SendTo(viewer, payload, timestamp, marker, video, withParameterSets);
                 return;
             }
-            // of its own: the payload is of the receiver's buffer, of the receiving thread alone
-            byte[] copy = payload.ToArray();
+            SendToMany(peers, payload.ToArray(), timestamp, marker, video, withParameterSets);
+        }
+
+        // of its own method: the closure of Parallel.For made of a packet of many viewers alone, not of each packet
+        // (the copy of its own: the payload is of the receiver's buffer, of the receiving thread alone)
+        private void SendToMany(WebRtcViewer[] peers, byte[] copy, uint timestamp, bool marker, bool video, bool withParameterSets)
+        {
             int parts = Math.Min(Environment.ProcessorCount, (peers.Length + ParallelViewers - 1) / ParallelViewers);
             Parallel.For(0, parts, part =>
             {
