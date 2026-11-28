@@ -913,8 +913,14 @@ namespace SharpRTSPtoWebRTC.WebRTCProxy
 
                     if (_decodedFrequency != SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency())
                     {
-                        const int RESAMPLER_QUALITY = 4; // 0-10; 4 is still transparent for 44.1k->48k, of a filter of 64 taps rather than the 80 of 5
-                        _pcmResampler = ResamplerFactory.CreateResampler(_decodedChannels, _decodedFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), RESAMPLER_QUALITY);
+                        // 0-10; 4 is still transparent for 44.1k->48k, of a filter of 64 taps rather than the 80 of 5. Of a ratio of a
+                        //  denominator over 256 - 22.05k->48k, 147/320 - 4 interpolates its table, 4 sums of 64 taps of each sample, 13
+                        //  times slower than the table of 5 of one sum of 80 (of a table of up to 384): of 96 streams of 4K, 42% of the
+                        //  proxy's CPU
+                        int a = _decodedFrequency, b = 48000;
+                        while (b != 0) (a, b) = (b, a % b);
+                        int quality = 48000 / a > 256 && 48000 / a <= 384 ? 5 : 4;
+                        _pcmResampler = ResamplerFactory.CreateResampler(_decodedChannels, _decodedFrequency, SampleFrequency.SAMPLE_FREQUENCY_48000.GetFrequency(), quality);
                     }
 
                     _opusEncoder = new OpusAudioEncoder(_decodedChannels, _logger, OpusComplexity);
